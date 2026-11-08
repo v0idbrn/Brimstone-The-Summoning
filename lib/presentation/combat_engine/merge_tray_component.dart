@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart' hide Element;
 
+import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../domain/combat/combat_engine.dart';
 import '../../domain/combat/combat_math.dart';
 import '../../domain/combat/combat_models.dart';
@@ -10,7 +11,8 @@ import '../../domain/value_objects/element.dart';
 import 'brimstone_combat_game.dart';
 
 /// Bottom merge tray at y = size.y * 0.84 with 5 slots; orbs spawn here,
-/// merge/swap by drag, and are flick-launched with a predictive dotted arc.
+/// merge/swap by drag, and are flick-launched with a predictive dotted arc
+/// plus a luminous parabola showing the z = 1.0 impact point.
 class MergeTrayComponent extends PositionComponent {
   final BrimstoneCombatGame combatGame;
 
@@ -69,10 +71,21 @@ class MergeTrayComponent extends PositionComponent {
       final orb = e.tray[i];
       if (orb != null && e.dragSlot != i) {
         _drawOrb(canvas, orb, cx, cy, slotW * 0.34);
+        // Pyroth enrage burn marker.
+        if (e.isSlotBurned(i)) {
+          canvas.drawCircle(
+            Offset(cx, cy),
+            slotW * 0.46,
+            Paint()
+              ..color = Colors.orangeAccent.withValues(alpha: 0.55)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.5,
+          );
+        }
       }
     }
 
-    // Dragged orb + predictive dotted trajectory toward the boss plane.
+    // Dragged orb + luminous parabola + predictive reticle toward the boss plane.
     final slot = e.dragSlot;
     if (slot != null) {
       final orb = e.tray[slot];
@@ -82,6 +95,16 @@ class MergeTrayComponent extends PositionComponent {
           final dash = Paint()
             ..color = orbColor(orb.element).withValues(alpha: 0.8)
             ..strokeWidth = 2.5;
+          final arcPaint = Paint()
+            ..color = orbColor(orb.element).withValues(alpha: 0.35)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.6;
+          // Predictive reticle at z = 1.0 (boss plane impact point).
+          final reticlePaint = Paint()
+            ..color = orbColor(orb.element).withValues(alpha: 0.9)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.2;
+
           for (var i = 1; i <= 14; i++) {
             final z = i / 14;
             final px = CombatMath.lerp(e.dragX, e.dragX, z);
@@ -91,12 +114,68 @@ class MergeTrayComponent extends PositionComponent {
             if (i % 2 == 0) {
               canvas.drawCircle(Offset(px, py), 2.6, dash);
             }
+            // Luminous parabola (continuous arc).
+            final pxPrev = CombatMath.lerp(e.dragX, e.dragX, (i - 1) / 14);
+            final pyPrev =
+                CombatMath.lerp(
+                  e.dragY,
+                  CombatEngine.bossScreenY,
+                  (i - 1) / 14,
+                ) -
+                math.sin(((i - 1) / 14) * math.pi) * 90;
+            canvas.drawLine(Offset(pxPrev, pyPrev), Offset(px, py), arcPaint);
           }
+
+          // Predictive reticle at the impact point (z = 1.0).
+          final impactX = e.dragX;
+          final impactY = CombatEngine.bossScreenY - 90;
+          canvas.drawCircle(
+            Offset(impactX, impactY),
+            7,
+            reticlePaint..style = PaintingStyle.stroke,
+          );
+          canvas.drawLine(
+            Offset(impactX - 9, impactY),
+            Offset(impactX + 9, impactY),
+            reticlePaint,
+          );
+          canvas.drawLine(
+            Offset(impactX, impactY - 9),
+            Offset(impactX, impactY + 9),
+            reticlePaint,
+          );
+          // Inner dot.
+          canvas.drawCircle(
+            Offset(impactX, impactY),
+            2.5,
+            reticlePaint..style = PaintingStyle.fill,
+          );
         }
       }
     }
 
     canvas.restore();
+  }
+
+  /// Plays the merge sound for the given resulting level (called by the game
+  /// layer when a merge resolves).
+  void playMergeSound(int newLevel) {
+    ProceduralSfxEngine.playOrbMerge(newLevel);
+  }
+
+  /// Plays the flick whoosh (called by the game layer on upward release).
+  void playFlickSound() {
+    ProceduralSfxEngine.playOrbFlick();
+  }
+
+  /// Plays the counter-flick destroy clang (called by the game layer).
+  void playCounterFlickSound() {
+    ProceduralSfxEngine.playCounterFlickDestroy();
+  }
+
+  /// Plays the orb spawn chime (called by the game layer on spawn).
+  void playSpawnSound() {
+    ProceduralSfxEngine.playOrbSpawn();
   }
 
   void _drawOrb(Canvas canvas, CombatOrb orb, double cx, double cy, double r) {

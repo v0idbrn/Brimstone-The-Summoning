@@ -115,6 +115,16 @@ class CombatEngine {
   double playerHp;
   double shield = 0;
 
+  // Boss enrage (phase 2 at <45% HP).
+  bool enraged = false;
+  double _enrageTimer = 0;
+  int _burnedSlot = -1;
+  double _burnRemaining = 0;
+  bool _iceShieldActive = false;
+  double _iceShieldRemaining = 0;
+  bool _rotationInverted = false;
+  double _rotationInvertUntil = 5.0;
+
   // Aura & timers.
   Element? aura;
   double auraRemaining = 0;
@@ -149,6 +159,10 @@ class CombatEngine {
   /// Optional external callbacks (wired by the Flame layer).
   void Function()? onVictory;
   void Function()? onDefeat;
+  void Function()? onEnrage;
+  void Function(HitKind)? onHit;
+  void Function(String)? onReaction;
+  void Function(OrbLevel)? onMerge;
 
   CombatEngine({
     required this.boss,
@@ -196,8 +210,13 @@ class CombatEngine {
 
   String _nextId(String prefix) => '${prefix}_${_idCounter++}';
 
-  double effectiveAngularSpeed(CombatTarget t) =>
-      t.baseAngularSpeed * (petrifyRemaining > 0 ? 0.5 : 1.0);
+  double effectiveAngularSpeed(CombatTarget t) {
+    var base = t.baseAngularSpeed * (petrifyRemaining > 0 ? 0.5 : 1.0);
+    if (enraged && boss.id == 'azathor' && _rotationInverted) {
+      base = -base;
+    }
+    return base;
+  }
 
   double outerRadiusFor(CombatTarget t) {
     final enlarged = t.enlargedUntil > time
@@ -323,6 +342,7 @@ class CombatEngine {
     );
     tray[a] = null;
     trauma = (trauma + 0.25).clamp(0.0, 1.0);
+    onMerge?.call(newLevel);
     return newLevel;
   }
 
@@ -358,6 +378,7 @@ class CombatEngine {
     _tickProjectiles(scaled);
     _tickEnemyProjectiles(scaled);
     _tickBoss(scaled);
+    tickEnrage(scaled);
     _tickTexts(scaled);
 
     if (bossHp <= 0) {
@@ -467,7 +488,7 @@ class CombatEngine {
     }
     if (best == null || bestKind == HitKind.miss) {
       if (bestKind == HitKind.graze) {
-        _registerDamage(
+        registerDamage(
           orb: orb,
           target: null,
           multiplier: 0.25,
@@ -489,7 +510,7 @@ class CombatEngine {
   void _resolveHit(CombatOrb orb, CombatTarget target, HitKind kind) {
     var mult = CombatMath.hitMultiplier(kind, orb.level);
     if (vulnerableRemaining > 0) mult *= 1.3;
-    _registerDamage(orb: orb, target: target, multiplier: mult, kind: kind);
+    registerDamage(orb: orb, target: target, multiplier: mult, kind: kind);
 
     final mana = CombatMath.hitMana(kind, orb.level) * modifiers.manaSpeedMult;
     addManaToCards(orb.element, mana);
@@ -501,6 +522,7 @@ class CombatEngine {
       hitStopRemaining = 0.045;
       trauma = (trauma + 0.55).clamp(0.0, 1.0);
     }
+    onHit?.call(kind);
   }
 
   /// Applies an elemental imprint or detonates a reaction if one is pending.
@@ -521,6 +543,7 @@ class CombatEngine {
     aura = null;
     auraRemaining = 0;
     _detonateReaction(reaction);
+    onReaction?.call(reaction.name);
     return reaction.name;
   }
 
@@ -587,7 +610,8 @@ class CombatEngine {
     }
   }
 
-  void _registerDamage({
+  /// Registers damage to the boss. Public for tests and external callers.
+  void registerDamage({
     required CombatOrb orb,
     required CombatTarget? target,
     required double multiplier,
@@ -647,7 +671,7 @@ class CombatEngine {
     bossAttackTimer -= s;
     if (bossAttackTimer > 0) return;
     bossAttackTimer = boss.attackInterval;
-    final count = 1 + random.nextInt(boss.projectilesPerAttack);
+    final count = bossProjectileCount;
     for (var i = 0; i < count; i++) {
       enemyProjectiles.add(
         EnemyProjectile(
@@ -661,6 +685,138 @@ class CombatEngine {
       );
     }
   }
+
+  /// Boss enrage phase 2 triggers below 45% HP. Each boss gains a unique
+  /// passive and the Flame layer renders the enrage visuals (palette shift,
+  /// +15% scale, extra reticle).
+  void tickEnrage(double s) {
+    _tickEnrage(s);
+  }
+
+  void _tickEnrage(double s) {
+    final hpFraction = bossHp / boss.maxHp;
+    if (!enraged && hpFraction < 0.45) {
+      enraged = true;
+      onEnrage?.call();
+    }
+    if (!enraged) return;
+
+    _enrageTimer += s;
+
+    // Phase 2 passives per boss id.
+    switch (boss.id) {
+      case 'pyroth':
+        _tickPyrothEnrage(s);
+        break;
+      case 'vaelor':
+        _tickVaelorEnrage(s);
+        break;
+      case 'azathor':
+        _tickAzathorEnrage(s);
+        break;
+    }
+  }
+
+  /// Pyroth (Ígneo): burns 1 random tray slot for 4.0s. Tapping the burned
+  /// slot twice extinguishes the fire (handled via extinguishBurnSlot()).
+  void _tickPyrothEnrage(double s) {
+    _burnRemaining = math.max(0, _burnRemaining - s);
+    if (_burnRemaining <= 0 && _burnedSlot >= 0) {
+      _burnedSlot = -1;
+    }
+    if (_burnRemaining <= 0) {
+      _burnRemaining = 4.0;
+      final fill = [
+        for (var i = 0; i < tray.length; i++)
+          if (tray[i] != null && i != _burnedSlot) i,
+      ];
+      if (fill.isNotEmpty) {
+        _burnedSlot = fill[random.nextInt(fill.length)];
+      }
+    }
+  }
+
+  /// Extinguishes a Pyroth burn on [slot] if it has been tapped twice (calls
+  /// must be rate-limited by the caller). Returns true if a burn was active.
+  bool extinguishBurnSlot(int slot) {
+    if (_burnedSlot == slot) {
+      _burnedSlot = -1;
+      _burnRemaining = 0;
+      return true;
+    }
+    return false;
+  }
+
+  /// Returns true if [slot] is currently burned by Pyroth's enrage.
+  bool isSlotBurned(int slot) => _burnedSlot == slot && _burnRemaining > 0;
+
+  /// Vaelor (Abyssal): ice-shields one target. Requires a hit first (or an
+  /// Igneous orb) to break the shield.
+  void _tickVaelorEnrage(double s) {
+    _iceShieldRemaining = math.max(0, _iceShieldRemaining - s);
+    if (_iceShieldRemaining <= 0) {
+      _iceShieldActive = false;
+      // Re-shield a random target every ~6s while enraged.
+      if (targets.isNotEmpty && _enrageTimer > 0) {
+        // Re-shield cooldown handled by attack interval cadence.
+        if (targets.any((t) => !t.frozen)) {
+          final t = targets[random.nextInt(targets.length)];
+          t.frozen = true;
+          t.frozenRemaining = 999.0; // ice shield: permanent until broken
+          _iceShieldActive = true;
+          _iceShieldRemaining = 6.0;
+        }
+      }
+    }
+  }
+
+  /// Breaks Vaelor's ice shield on [target] when hit by an Igneous orb or
+  /// after the shield has taken damage. Returns true if a shield was broken.
+  bool breakIceShield(CombatTarget target, {required bool byIgneous}) {
+    if (!_iceShieldActive || !target.frozen || target.frozenRemaining < 999.0) {
+      return false;
+    }
+    if (!byIgneous) {
+      return false;
+    }
+    target.frozen = false;
+    target.frozenRemaining = 0;
+    _iceShieldActive = false;
+    _iceShieldRemaining = 0;
+    return true;
+  }
+
+  /// Azathor (Vacío): inverts target rotation every 5.0s and fires double
+  /// counter-flick projectiles.
+  void _tickAzathorEnrage(double s) {
+    _rotationInvertUntil = math.max(0, _rotationInvertUntil - s);
+    if (_rotationInvertUntil <= 0) {
+      _rotationInverted = !_rotationInverted;
+      _rotationInvertUntil = 5.0;
+    }
+    // Double counter-flick: Azathor fires 2 projectiles per attack instead
+    // of the configured count when enraged (handled in _tickBoss via
+    // projectilesPerAttack boost).
+  }
+
+  /// Number of enemy projectiles per boss attack (doubled for Azathor enrage).
+  int get bossProjectileCount {
+    var base = 1 + random.nextInt(boss.projectilesPerAttack);
+    if (enraged && boss.id == 'azathor') base *= 2;
+    return base;
+  }
+
+  /// Whether Azathor's enrage rotation is currently inverted (for tests).
+  bool get rotationInverted => _rotationInverted;
+
+  /// Current enrage timer value (for tests).
+  double get enrageTimer => _enrageTimer;
+
+  /// Currently burned tray slot index, or null (for tests).
+  int? get burnedSlot => _burnedSlot;
+
+  /// Remaining burn duration in seconds (for tests).
+  double get burnRemaining => _burnRemaining;
 
   void _tickTexts(double s) {
     for (final t in texts) {

@@ -8,6 +8,7 @@ import 'package:brimstone_summoning/presentation/screens/altar/altar_evolution_s
 import 'package:brimstone_summoning/presentation/screens/barracks/barracks_screen.dart';
 import 'package:brimstone_summoning/presentation/screens/meta/widgets.dart';
 import 'package:brimstone_summoning/presentation/screens/sanctuary/sanctuary_screen.dart';
+import 'package:brimstone_summoning/presentation/screens/summon/summon_portal_screen.dart';
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -138,9 +139,15 @@ void main() {
       expect(find.text('ALTAR DE EVOLUCIÓN'), findsOneWidget);
     });
 
-    // Skipped: SummonPortalScreen uses an infinite AnimationController that
-    // prevents pumpAndSettle from completing.
-    // testWidgets('SummonPortalScreen renders both buttons', (tester) async { ... });
+    // SummonPortal uses pump (300ms) instead of pumpAndSettle because of the
+    // infinite AnimationController.
+    testWidgets('SummonPortalScreen renders both buttons', (tester) async {
+      await tester.pumpWidget(_screen(const SummonPortalScreen()));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('PORTAL DE INVOCACIÓN'), findsOneWidget);
+      expect(find.text('PACTO MENOR'), findsOneWidget);
+      expect(find.text('GRAN RITUAL'), findsOneWidget);
+    });
 
     testWidgets('CurrencyBar renders all 4 currencies', (tester) async {
       await tester.pumpWidget(_screen(const CurrencyBar()));

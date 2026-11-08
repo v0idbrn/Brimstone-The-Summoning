@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../controllers/meta_controller.dart';
 import '../meta/widgets.dart';
 import '../rift/rift_map_screen.dart';
 import '../rift/rift_run_notifier.dart';
+import 'bounties_modal.dart';
+import 'codex_modal.dart';
 
 /// Main hub: summoner level, currencies, active squad preview, rift difficulty
 /// selector and the main play CTA.
@@ -24,7 +27,14 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(profileProvider.notifier).load();
       await ref.read(collectionProvider.notifier).load();
+      await ref.read(bountyProvider.notifier).load();
     });
+  }
+
+  void _toggleAudio() {
+    final next = !ProceduralSfxEngine.isMuted;
+    ProceduralSfxEngine.setMuted(next);
+    ProceduralSfxEngine.playOrbSpawn();
   }
 
   @override
@@ -49,7 +59,43 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
             letterSpacing: 1.5,
           ),
         ),
-        actions: [SizedBox(width: 220, child: const CurrencyBar())],
+        actions: [
+          IconButton(
+            icon: Icon(
+              ProceduralSfxEngine.isMuted ? Icons.volume_off : Icons.volume_up,
+              color: ProceduralSfxEngine.isMuted
+                  ? Colors.white38
+                  : const Color(0xFFB16EFF),
+            ),
+            onPressed: _toggleAudio,
+            tooltip: ProceduralSfxEngine.isMuted
+                ? 'Audio activado'
+                : 'Audio desactivado',
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.menu_book, color: Color(0xFFB16EFF)),
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: const Color(0xFF14090D),
+              builder: (_) => const CodexModal(),
+            ),
+            tooltip: 'Códice Abisal',
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.military_tech, color: Color(0xFFFFC93C)),
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: const Color(0xFF14090D),
+              builder: (_) => const BountiesModal(),
+            ),
+            tooltip: 'Juramentos de Azufre',
+          ),
+          SizedBox(width: 220, child: const CurrencyBar()),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(14),

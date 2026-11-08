@@ -14,6 +14,7 @@
 - **State**: Riverpod 3.x (Notifier/AsyncNotifier/StreamNotifier)
 - **Persistence**: SQLite (sqflite + sqflite_common_ffi)
 - **CI/CD**: GitHub Actions (subosito/flutter-action@v2) → release APK artifact
+- **Flutter SDK (this machine)**: `C:\flutter\bin\flutter.bat` (Dart: `C:\flutter\bin\dart.bat`) — add `C:\flutter\bin` to PATH or invoke binaries directly.
 
 ---
 

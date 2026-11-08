@@ -3,7 +3,7 @@ import 'package:path_provider/path_provider.dart';
 
 class DatabaseHelper {
   static Database? _db;
-  static const int version = 2;
+  static const int version = 3;
 
   Future<Database> get db async {
     _db ??= await _initDb();
@@ -23,12 +23,14 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Fresh v2 schema: drop and reseed (pre-release data is disposable).
+    // Fresh v3 schema: drop and reseed (pre-release data is disposable).
     await db.execute('DROP TABLE IF EXISTS cards');
     await db.execute('DROP TABLE IF EXISTS relics');
     await db.execute('DROP TABLE IF EXISTS player_profile');
     await db.execute('DROP TABLE IF EXISTS owned_cards');
     await db.execute('DROP TABLE IF EXISTS player_squad');
+    await db.execute('DROP TABLE IF EXISTS bounties');
+    await db.execute('DROP TABLE IF EXISTS codex_reactions');
     await _onCreate(db, newVersion);
   }
 
@@ -48,7 +50,128 @@ class DatabaseHelper {
     await db.execute(
       'CREATE TABLE player_squad(slot INTEGER PRIMARY KEY, owned_card_id INTEGER)',
     );
+    await db.execute(
+      'CREATE TABLE bounties(id TEXT PRIMARY KEY, title TEXT, description TEXT, kind TEXT, target INTEGER, reward_shards INTEGER, reward_gold INTEGER, progress INTEGER DEFAULT 0, claimed INTEGER DEFAULT 0)',
+    );
+    await db.execute(
+      'CREATE TABLE codex_reactions(id TEXT PRIMARY KEY, name TEXT, description TEXT, trigger TEXT, detonations INTEGER DEFAULT 0)',
+    );
     await _seedCatalog(db);
+    await _seedBounties(db);
+    await _seedCodexReactions(db);
+  }
+
+  Future<void> _seedBounties(Database db) async {
+    final bounties = <Map<String, dynamic>>[
+      {
+        'id': 'forge_master',
+        'title': 'Maestro de la Forja',
+        'description': 'Fusiona 25 esferas a Nivel 3.',
+        'kind': 'merge_to_three',
+        'target': 25,
+        'reward_shards': 150,
+        'reward_gold': 0,
+        'progress': 0,
+        'claimed': 0,
+      },
+      {
+        'id': 'hawk_eye',
+        'title': 'Ojo de Halcón',
+        'description': 'Conecta 15 impactos críticos Bullseye.',
+        'kind': 'bullseye_hits',
+        'target': 15,
+        'reward_shards': 150,
+        'reward_gold': 0,
+        'progress': 0,
+        'claimed': 0,
+      },
+      {
+        'id': 'elemental_alchemist',
+        'title': 'Alquimista Elemental',
+        'description': 'Detona 10 Reacciones Elementales.',
+        'kind': 'reactions',
+        'target': 10,
+        'reward_shards': 200,
+        'reward_gold': 0,
+        'progress': 0,
+        'claimed': 0,
+      },
+      {
+        'id': 'spell_breaker',
+        'title': 'Rompe-Hechizos',
+        'description': 'Destruye 10 orbes enemigos con Counter-Flick.',
+        'kind': 'counterflicks',
+        'target': 10,
+        'reward_shards': 0,
+        'reward_gold': 300,
+        'progress': 0,
+        'claimed': 0,
+      },
+      {
+        'id': 'dark_ascension',
+        'title': 'Ascensión Oscura',
+        'description': 'Evoluciona cualquier carta en el Altar.',
+        'kind': 'evolution',
+        'target': 1,
+        'reward_shards': 250,
+        'reward_gold': 0,
+        'progress': 0,
+        'claimed': 0,
+      },
+      {
+        'id': 'rift_conqueror',
+        'title': 'Conquistador de la Grieta',
+        'description':
+            'Completa una Incursión de Grieta venciendo al Jefe del Piso 7.',
+        'kind': 'rift_clear',
+        'target': 1,
+        'reward_shards': 500,
+        'reward_gold': 1000,
+        'progress': 0,
+        'claimed': 0,
+      },
+    ];
+    for (final b in bounties) {
+      await db.insert('bounties', b);
+    }
+  }
+
+  Future<void> _seedCodexReactions(Database db) async {
+    final reactions = <Map<String, dynamic>>[
+      {
+        'id': 'erupcion_magmatica',
+        'name': 'Erupción Magmática',
+        'description': 'Ígnea + Abyssal: daño en área a todas las dianas y explosión de fuego.',
+        'trigger': 'Igneous aura + Abyssal hit',
+        'detonations': 0,
+      },
+      {
+        'id': 'choque_termico',
+        'name': 'Choque Térmico',
+        'description': 'Abyssal + Telluric: restaura maná a todas las cartas y sobrecarga.',
+        'trigger': 'Abyssal aura + Telluric hit',
+        'detonations': 0,
+      },
+      {
+        'id': 'petrificacion_abisal',
+        'name': 'Petrificación Abisal',
+        'description':
+            'Telluric + Void: congela las dianas y retrasa el ataque del jefe.',
+        'trigger': 'Telluric aura + Void hit',
+        'detonations': 0,
+      },
+      {
+        'id': 'colapso_del_sello',
+        'name': 'Colapso del Sello',
+        'description':
+            'Void + Igneous: cura al jugador y deja al jefe vulnerable.',
+        'trigger': 'Void aura + Igneous hit',
+        'detonations': 0,
+      },
+    ];
+    for (final r in reactions) {
+      await db.insert('codex_reactions', r);
+    }
   }
 
   Future<void> _seedCatalog(Database db) async {

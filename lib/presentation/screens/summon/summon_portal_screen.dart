@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../domain/entities/owned_card.dart';
 import '../../controllers/meta_controller.dart';
 import '../meta/widgets.dart';
@@ -127,6 +128,7 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
       );
       return;
     }
+    ProceduralSfxEngine.playSummonReveal(cards.length);
     await showDialog<void>(
       context: context,
       builder: (_) => _RevealDialog(cards: cards),

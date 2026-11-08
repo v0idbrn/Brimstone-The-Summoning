@@ -1,9 +1,14 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart' hide Element;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../domain/combat/combat_engine.dart';
+import '../../../domain/combat/combat_math.dart';
 import '../../../domain/combat/combat_models.dart';
 import '../../../domain/value_objects/element.dart';
+import '../../../domain/value_objects/orb_level.dart';
+import '../../controllers/meta_controller.dart';
 import '../../combat_engine/brimstone_combat_game.dart';
 import '../../combat_engine/combat_hud_overlay.dart';
 
@@ -12,7 +17,7 @@ import '../../combat_engine/combat_hud_overlay.dart';
 /// Pan gestures are routed to the pure [CombatEngine]: dragging an orb in the
 /// merge tray, flicking it upward to launch, or tapping a corrupted orb to
 /// counter-flick it.
-class CombatScreen extends StatefulWidget {
+class CombatScreen extends ConsumerStatefulWidget {
   final CombatEngine? engine;
   final void Function(bool victory, double playerHp)? onCombatResolved;
 
@@ -32,10 +37,10 @@ class CombatScreen extends StatefulWidget {
   );
 
   @override
-  State<CombatScreen> createState() => _CombatScreenState();
+  ConsumerState<CombatScreen> createState() => _CombatScreenState();
 }
 
-class _CombatScreenState extends State<CombatScreen> {
+class _CombatScreenState extends ConsumerState<CombatScreen> {
   late final CombatEngine engine;
   late final BrimstoneCombatGame game;
   int _lastPanMs = 0;
@@ -45,6 +50,33 @@ class _CombatScreenState extends State<CombatScreen> {
   void initState() {
     super.initState();
     engine = widget.engine ?? defaultEngine();
+    // Wire combat audio events to the procedural SFX engine.
+    engine.onHit = (kind) {
+      switch (kind) {
+        case HitKind.bullseye:
+          ProceduralSfxEngine.playHitBullseye();
+          ref.read(bountyProvider.notifier).increment('bullseye_hits');
+        case HitKind.graze:
+          ProceduralSfxEngine.playHitGraze();
+        case HitKind.normal:
+          ProceduralSfxEngine.playHitNormal();
+        case HitKind.miss:
+          break;
+      }
+    };
+    engine.onReaction = (name) {
+      ProceduralSfxEngine.playElementalReaction();
+      ref.read(bountyProvider.notifier).increment('reactions');
+    };
+    engine.onMerge = (level) {
+      ProceduralSfxEngine.playOrbMerge(level.index);
+      if (level == OrbLevel.three) {
+        ref.read(bountyProvider.notifier).increment('merge_to_three');
+      }
+    };
+    engine.onEnrage = () {
+      ProceduralSfxEngine.playBossEnrage();
+    };
     game = BrimstoneCombatGame(
       engine: engine,
       onVictory: () => _resolve(true),
@@ -68,12 +100,19 @@ class _CombatScreenState extends State<CombatScreen> {
       y,
       DateTime.now().millisecondsSinceEpoch / 1000,
     )) {
+      ProceduralSfxEngine.playCounterFlickDestroy();
+      ref.read(bountyProvider.notifier).increment('counterflicks');
       return;
     }
     if (y >= CombatEngine.trayY - 60) {
       final slot = _slotFromX(x);
       if (slot != null) engine.startDrag(slot, x, y);
     }
+  }
+
+  int? _slotFromX(double x) {
+    final slot = (x / (CombatEngine.layoutWidth / 5)).floor();
+    return slot < 0 || slot > 4 ? null : slot;
   }
 
   void _onPanUpdate(DragUpdateDetails d) {
@@ -84,14 +123,22 @@ class _CombatScreenState extends State<CombatScreen> {
   }
 
   void _onPanEnd(DragEndDetails d) {
-    engine.releaseDrag(d.velocity.pixelsPerSecond.dy / game.viewScale);
+    final vy = d.velocity.pixelsPerSecond.dy / game.viewScale;
+    if (vy < CombatMath.flickSpeedThreshold) {
+      ProceduralSfxEngine.playOrbFlick();
+    }
+    engine.releaseDrag(vy);
   }
 
-  int? _slotFromX(double x) {
-    final slot = (x / (CombatEngine.layoutWidth / 5)).floor();
-    return slot < 0 || slot > 4 ? null : slot;
+  void _onTapUp(TapUpDetails d) {
+    final (x, y) = _toEngine(d.localPosition);
+    if (engine.counterFlickAt(x, y, 0)) {
+      ProceduralSfxEngine.playCounterFlickDestroy();
+      ref.read(bountyProvider.notifier).increment('counterflicks');
+    }
   }
 
+  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,10 +148,7 @@ class _CombatScreenState extends State<CombatScreen> {
         onPanStart: _onPanStart,
         onPanUpdate: _onPanUpdate,
         onPanEnd: _onPanEnd,
-        onTapUp: (d) {
-          final (x, y) = _toEngine(d.localPosition);
-          engine.counterFlickAt(x, y, 0);
-        },
+        onTapUp: _onTapUp,
         child: Stack(
           children: [
             Positioned.fill(child: GameWidget(game: game)),

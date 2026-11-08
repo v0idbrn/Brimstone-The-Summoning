@@ -182,4 +182,42 @@ class PlayerRepository {
       });
     }
   }
+
+  // ----------------------------------------------------------------- bounty
+
+  Future<List<Map<String, Object?>>> loadBounties() async {
+    final db = await _db.db;
+    return await db.query('bounties');
+  }
+
+  Future<void> saveBounties(List<Map<String, Object?>> rows) async {
+    final db = await _db.db;
+    for (final row in rows) {
+      await db.update(
+        'bounties',
+        {'progress': row['progress'], 'claimed': row['claimed']},
+        where: 'id = ?',
+        whereArgs: [row['id']],
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------- codex
+
+  Future<void> incrementCodexReaction(String name) async {
+    final db = await _db.db;
+    final rows = await db.query(
+      'codex_reactions',
+      where: 'id = ?',
+      whereArgs: [name],
+    );
+    if (rows.isEmpty) return;
+    final current = (rows.first['detonations'] as int?) ?? 0;
+    await db.update(
+      'codex_reactions',
+      {'detonations': current + 1},
+      where: 'id = ?',
+      whereArgs: [name],
+    );
+  }
 }

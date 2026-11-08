@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../domain/entities/owned_card.dart';
 import '../../../domain/meta/meta_rules.dart';
 import '../../controllers/meta_controller.dart';
@@ -207,6 +208,12 @@ class _EvolutionDetailState extends ConsumerState<_EvolutionDetail> {
                         .read(collectionProvider.notifier)
                         .evolve(c.instanceId);
                     if (!mounted) return;
+                    if (ok) {
+                      ProceduralSfxEngine.playEvolutionSuccess();
+                      ref.read(bountyProvider.notifier).increment('evolution');
+                    } else {
+                      ProceduralSfxEngine.playEvolutionFail();
+                    }
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text(

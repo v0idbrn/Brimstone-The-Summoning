@@ -241,3 +241,221 @@ String _catalogFor(Rarity r) => switch (r) {
   Rarity.rare => ['void_specter', 'terra_golem'],
   Rarity.common => ['ignis_hound', 'abyss_stalker', 'terra_golem'],
 }.first;
+
+// =========================================================================
+// Bounties (Juramentos de Azufre)
+// =========================================================================
+
+/// A single bounty mission tracked in SQLite.
+class Bounty {
+  final String id;
+  final String title;
+  final String description;
+  final String kind; // merge_to_three | bullseye_hits | reactions | counterflicks | evolution | rift_clear
+  final int target;
+  final int rewardShards;
+  final int rewardGold;
+  int progress;
+  bool claimed;
+
+  Bounty({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.kind,
+    required this.target,
+    required this.rewardShards,
+    required this.rewardGold,
+    this.progress = 0,
+    this.claimed = false,
+  });
+
+  Bounty copyWith({int? progress, bool? claimed}) {
+    return Bounty(
+      id: id,
+      title: title,
+      description: description,
+      kind: kind,
+      target: target,
+      rewardShards: rewardShards,
+      rewardGold: rewardGold,
+      progress: progress ?? this.progress,
+      claimed: claimed ?? this.claimed,
+    );
+  }
+
+  bool get isComplete => progress >= target;
+  bool get isClaimable => isComplete && !claimed;
+}
+
+class BountyState {
+  final List<Bounty> bounties;
+  const BountyState({this.bounties = const []});
+}
+
+class BountyController extends Notifier<BountyState> {
+  @override
+  BountyState build() => const BountyState();
+
+  Future<void> load() async {
+    final repo = ref.read(playerRepositoryProvider);
+    final rows = await repo.loadBounties();
+    final bounties = rows
+        .map(
+          (r) => Bounty(
+            id: r['id'] as String,
+            title: r['title'] as String,
+            description: r['description'] as String,
+            kind: r['kind'] as String,
+            target: r['target'] as int,
+            rewardShards: r['reward_shards'] as int,
+            rewardGold: r['reward_gold'] as int,
+            progress: r['progress'] as int,
+            claimed: (r['claimed'] as int) == 1,
+          ),
+        )
+        .toList();
+    state = BountyState(bounties: bounties);
+  }
+
+  /// Records progress for a bounty of [kind]. Call from combat/meta screens.
+  void increment(String kind, {int amount = 1}) {
+    final next = <Bounty>[];
+    for (final b in state.bounties) {
+      if (b.kind == kind && !b.claimed) {
+        next.add(b.copyWith(progress: b.progress + amount));
+      } else {
+        next.add(b);
+      }
+    }
+    state = BountyState(bounties: next);
+    ref
+        .read(playerRepositoryProvider)
+        .saveBounties(
+          next
+              .map(
+                (b) => <String, Object?>{
+                  'id': b.id,
+                  'progress': b.progress,
+                  'claimed': b.claimed ? 1 : 0,
+                },
+              )
+              .toList(),
+        );
+  }
+
+  /// Claims [id] if complete, granting shards and gold to the profile.
+  Future<bool> claim(String id) async {
+    final b = state.bounties.firstWhere(
+      (x) => x.id == id,
+      orElse: () => throw StateError('bounty $id not found'),
+    );
+    if (!b.isClaimable) return false;
+    final profile = ref.read(profileProvider.notifier);
+    await profile.grant(gold: b.rewardGold, shards: b.rewardShards);
+    final next = <Bounty>[];
+    for (final x in state.bounties) {
+      if (x.id == id) {
+        next.add(x.copyWith(claimed: true));
+      } else {
+        next.add(x);
+      }
+    }
+    state = BountyState(bounties: next);
+    ref
+        .read(playerRepositoryProvider)
+        .saveBounties(
+          next
+              .map(
+                (b) => <String, Object?>{
+                  'id': b.id,
+                  'progress': b.progress,
+                  'claimed': b.claimed ? 1 : 0,
+                },
+              )
+              .toList(),
+        );
+    return true;
+  }
+
+  Bounty? byId(String id) =>
+      state.bounties.where((x) => x.id == id).firstOrNull;
+}
+
+final bountyProvider = NotifierProvider<BountyController, BountyState>(
+  BountyController.new,
+);
+
+/// Convenience: bounties grouped by claimable status.
+List<Bounty> claimableBounties(BountyState s) =>
+    s.bounties.where((b) => b.isClaimable).toList();
+
+List<Bounty> activeBounties(BountyState s) =>
+    s.bounties.where((b) => !b.claimed).toList();
+
+// =========================================================================
+// Codex reactions (detonation history)
+// =========================================================================
+
+class CodexReaction {
+  final String id;
+  final String name;
+  final String description;
+  final String trigger;
+  int detonations;
+
+  CodexReaction({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.trigger,
+    this.detonations = 0,
+  });
+
+  CodexReaction copyWith({int? detonations}) {
+    return CodexReaction(
+      id: id,
+      name: name,
+      description: description,
+      trigger: trigger,
+      detonations: detonations ?? this.detonations,
+    );
+  }
+}
+
+final codexReactionsProvider = Provider<List<CodexReaction>>((ref) {
+  return [
+    CodexReaction(
+      id: 'erupcion_magmatica',
+      name: 'Erupción Magmática',
+      description: 'Ígnea + Abyssal: daño en área a todas las dianas y explosión de fuego.',
+      trigger: 'Aura Ígnea + impacto Abyssal',
+    ),
+    CodexReaction(
+      id: 'choque_termico',
+      name: 'Choque Térmico',
+      description:
+          'Abyssal + Telluric: restaura maná a todas las cartas y sobrecarga.',
+      trigger: 'Aura Abyssal + impacto Telúrico',
+    ),
+    CodexReaction(
+      id: 'petrificacion_abisal',
+      name: 'Petrificación Abisal',
+      description:
+          'Telluric + Void: congela las dianas y retrasa el ataque del jefe.',
+      trigger: 'Aura Telúrica + impacto Vacío',
+    ),
+    CodexReaction(
+      id: 'colapso_del_sello',
+      name: 'Colapso del Sello',
+      description: 'Void + Igneous: cura al jugador y deja al jefe vulnerable.',
+      trigger: 'Aura Vacío + impacto Ígneo',
+    ),
+  ];
+});
+
+/// Records a reaction detonation in the codex (called from CombatScreen).
+void recordCodexReaction(WidgetRef ref, String name) {
+  // The codex list is static; detonation counts live in the DB via the repo.
+  ref.read(playerRepositoryProvider).incrementCodexReaction(name);
+}
