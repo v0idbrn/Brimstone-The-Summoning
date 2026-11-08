@@ -12,6 +12,7 @@ import '../endless/endless_abyss_screen.dart';
 import '../rift/rift_run_notifier.dart';
 import 'bounties_modal.dart';
 import 'codex_modal.dart';
+import 'backup_restore_modal.dart';
 
 /// Main hub: summoner level, currencies, active squad preview, rift difficulty
 /// selector and the main play CTA.
@@ -103,6 +104,15 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
               builder: (_) => const CodexModal(),
             ),
             tooltip: 'Códice Abisal',
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.backup, color: Color(0xFFB16EFF)),
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => const BackupRestoreModal(),
+            ),
+            tooltip: 'Backup / Restaurar',
           ),
           const SizedBox(width: 8),
           IconButton(

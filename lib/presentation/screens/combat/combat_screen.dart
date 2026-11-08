@@ -34,6 +34,9 @@ class CombatScreen extends ConsumerStatefulWidget {
     CombatModifiers modifiers = const CombatModifiers(),
     SquadSynergyBonus? synergy,
     Map<String, RuneInstance> cardRunes = const {},
+    double playerDamageMult = 1.0,
+    double? startHp,
+    bool startManaFull = false,
   }) =>
       CombatEngine(
         boss: boss,
@@ -42,15 +45,20 @@ class CombatScreen extends ConsumerStatefulWidget {
         modifiers: modifiers,
         synergy: synergy,
         cardRunes: cardRunes,
+        playerDamageMult: playerDamageMult,
+        startHp: startHp,
+        startManaFull: startManaFull,
       );
 
   @override
   ConsumerState<CombatScreen> createState() => _CombatScreenState();
 }
 
-class _CombatScreenState extends ConsumerState<CombatScreen> {
+class _CombatScreenState extends ConsumerState<CombatScreen>
+    with SingleTickerProviderStateMixin {
   CombatEngine? _engine;
   late final BrimstoneCombatGame game;
+  late final AnimationController _particleCtrl;
   int _lastPanMs = 0;
   bool _resolved = false;
   String? _reactionBanner;
@@ -60,22 +68,34 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
   @override
   void initState() {
     super.initState();
+    _particleCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
     _initEngine();
+  }
+
+  @override
+  void dispose() {
+    _particleCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _initEngine() async {
     final base = widget.engine ?? defaultEngine();
     final cards = base.cards;
     final synergy = SquadSynergyResolver.resolve(cards);
-    // Cargar runas equipadas por carta (keyed by card id).
+    // Usar las runas pasadas por el constructor (Endless Abyss) o cargarlas desde SQLite.
     final cardRunes = <String, RuneInstance>{};
-    final repo = ref.read(playerRepositoryProvider);
-    for (final c in cards) {
-      try {
-        // Usar el id de la carta como clave de runa.
-        final rune = await repo.loadCardRune(c.hashCode);
-        if (rune != null) cardRunes[c.id] = rune;
-      } catch (_) {}
+    cardRunes.addAll(base.cardRunes);
+    if (cardRunes.isEmpty) {
+      final repo = ref.read(playerRepositoryProvider);
+      for (final c in cards) {
+        try {
+          final rune = await repo.loadCardRune(c.hashCode);
+          if (rune != null) cardRunes[c.id] = rune;
+        } catch (_) {}
+      }
     }
     if (!mounted) return;
     _engine = CombatEngine(
@@ -85,6 +105,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
       modifiers: base.modifiers,
       synergy: synergy.isActive ? synergy : null,
       cardRunes: cardRunes,
+      playerDamageMult: base.playerDamageMult,
     );
     // Wire combat audio + bounty events to the procedural SFX engine.
     _engine!.onHit = (kind) {
@@ -99,6 +120,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
         case HitKind.miss:
           break;
       }
+      // Radial particle burst on impact.
+      _particleCtrl.forward(from: 0);
+      if (mounted) setState(() {});
     };
     _engine!.onReaction = (name) {
       ProceduralSfxEngine.playElementalReaction();
@@ -115,6 +139,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
       if (level == OrbLevel.three) {
         ref.read(bountyProvider.notifier).increment('merge_to_three');
       }
+      // Radial particle burst on orb merge.
+      _particleCtrl.forward(from: 0);
+      if (mounted) setState(() {});
     };
     _engine!.onEnrage = () {
       ProceduralSfxEngine.playBossEnrage();
@@ -130,8 +157,24 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
   void _resolve(bool victory) {
     if (_resolved) return;
     _resolved = true;
-    widget.onCombatResolved?.call(victory, engine.playerHp);
+    _showCombatSummary(victory).then((_) {
+      widget.onCombatResolved?.call(victory, engine.playerHp);
+    });
   }
+
+  Future<void> _showCombatSummary(bool victory) => showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => CombatSummaryDialog(
+          victory: victory,
+          damageTotal: engine.damageTotal,
+          maxHit: engine.maxHit,
+          bullseyes: engine.bullseyes,
+          reactions: engine.reactions,
+          counterflicks: engine.counterflicks,
+          mergesToThree: engine.mergesToThree,
+        ),
+      );
 
   (double, double) _toEngine(Offset p) => game.toEngineCoords(p.dx, p.dy);
 
@@ -202,6 +245,16 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
         child: Stack(
           children: [
             Positioned.fill(child: GameWidget(game: game)),
+            // Radial particle bursts on hits and merges.
+            if (_particleCtrl.value > 0)
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _BurstPainter(
+                    progress: _particleCtrl.value,
+                    size: MediaQuery.sizeOf(context),
+                  ),
+                ),
+              ),
             Positioned.fill(
               child: CombatHudOverlay(
                 engine: engine,
@@ -296,3 +349,139 @@ CombatEngine defaultEngine() => CombatEngine(
       ],
       playerMaxHp: 100,
     );
+
+/// Radial burst painter: expanding concentric circles that fade out.
+class _BurstPainter extends CustomPainter {
+  final double progress; // 0..1
+  final Size size;
+
+  _BurstPainter({required this.progress, required this.size});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height * 0.40);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    const base = Color(0xFFB16EFF);
+    for (var i = 0; i < 4; i++) {
+      final p = (progress - i * 0.18).clamp(0.0, 1.0);
+      if (p <= 0.0) continue;
+      final radius = p * 210.0;
+      final alpha = ((1.0 - p) * 0.9).clamp(0.0, 1.0);
+      paint.color = base.withValues(alpha: alpha);
+      canvas.drawCircle(center, radius, paint);
+    }
+    // Impact core.
+    final core = Paint()
+      ..color =
+          Colors.white.withValues(alpha: (1.0 - progress).clamp(0.0, 1.0));
+    canvas.drawCircle(center, 6.0 + progress * 10.0, core);
+  }
+
+  @override
+  bool shouldRepaint(_BurstPainter old) => old.progress != progress;
+}
+
+/// Post-combat tactical summary dialog.
+class CombatSummaryDialog extends StatelessWidget {
+  final bool victory;
+  final int damageTotal;
+  final double maxHit;
+  final int bullseyes;
+  final int reactions;
+  final int counterflicks;
+  final int mergesToThree;
+
+  const CombatSummaryDialog({
+    super.key,
+    required this.victory,
+    required this.damageTotal,
+    required this.maxHit,
+    required this.bullseyes,
+    required this.reactions,
+    required this.counterflicks,
+    required this.mergesToThree,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final loot = victory ? (damageTotal ~/ 5) : 0;
+    return AlertDialog(
+      backgroundColor: const Color(0xFF14090D),
+      title: Text(
+        victory ? 'VICTORIA' : 'DERROTA',
+        style: TextStyle(
+          color: victory ? const Color(0xFF4FFFA3) : Colors.redAccent,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.2,
+        ),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SummaryRow(label: 'Daño total', value: '$damageTotal'),
+          _SummaryRow(label: 'Golpe máximo', value: '${maxHit.toInt()}'),
+          _SummaryRow(label: 'Bullseyes conectados', value: '$bullseyes'),
+          _SummaryRow(label: 'Reacciones detonadas', value: '$reactions'),
+          _SummaryRow(
+              label: 'Esferas Nv.3 fusionadas', value: '$mergesToThree'),
+          _SummaryRow(label: 'Counter-flicks', value: '$counterflicks'),
+          const SizedBox(height: 10),
+          _SummaryRow(
+            label: 'Botín',
+            value: '$loot oro',
+            valueColor: const Color(0xFFFFC93C),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text(
+            'CONTINUAR',
+            style: TextStyle(
+              color: Color(0xFFB16EFF),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

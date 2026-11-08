@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../domain/combat/combat_models.dart';
+import '../../../domain/meta/rune_system.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
@@ -32,6 +33,12 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
   // Bonos acumulados por bendición "Filo de Azufre" (+20% daño por pick).
   double _damageMult = 1.0;
 
+  // HP actual del jugador, se conserva entre oleadas.
+  double _currentPlayerHp = 100;
+
+  // Sobrecarga Arcana: maná completo para la siguiente oleada.
+  bool _startManaFull = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +58,7 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
     _blessing = null;
     _selectedBlessing = null;
     _runActive = true;
+    _startManaFull = false;
   }
 
   /// Construye un jefe escalado por oleada: HP = baseHp * 1.25^(wave-1),
@@ -104,21 +112,44 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
     return squad;
   }
 
-  void _enterCombat() {
+  Future<void> _enterCombat() async {
     final boss = _bossForWave(_wave);
     final cards = _squadCards();
     final synergy = SquadSynergyResolver.resolve(cards);
+    // Cargar runas equipadas por carta (keyed by catalogId = c.id).
+    final cardRunes = <String, RuneInstance>{};
+    final collection = ref.read(collectionProvider);
+    final repo = ref.read(playerRepositoryProvider);
+    for (final id in collection.squad.take(4)) {
+      try {
+        final c = collection.owned.firstWhere(
+          (card) => card.instanceId == id,
+        );
+        final manaCard = cards.firstWhere((mc) => mc.id == c.catalogId);
+        final rune = await repo.loadCardRune(c.instanceId);
+        if (rune != null) cardRunes[manaCard.id] = rune;
+      } catch (_) {}
+    }
+    // Aplicar bendición Sangre Inmortal: curar 35% HP máximo al empezar oleada.
+    final playerMaxHp = 100 * (synergy.hpMult);
+    final startHp = _currentPlayerHp.clamp(0.0, playerMaxHp);
+    if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CombatScreen(
           engine: CombatScreen.buildEngine(
             boss: boss,
             cards: cards,
-            playerMaxHp: 100 * (synergy.hpMult),
+            playerMaxHp: playerMaxHp,
             synergy: synergy.isActive ? synergy : null,
+            cardRunes: cardRunes,
+            playerDamageMult: _damageMult,
+            startHp: startHp,
+            startManaFull: _startManaFull,
           ),
           onCombatResolved: (victory, playerHp) {
             Navigator.of(context).pop();
+            _currentPlayerHp = playerHp;
             _resolveWave(victory);
           },
         ),
@@ -149,9 +180,11 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
     switch (index) {
       case 0: // Sangre Inmortal: curar 35% HP máximo
         ProceduralSfxEngine.playEvolutionSuccess();
+        _currentPlayerHp = (_currentPlayerHp + 35.0).clamp(0.0, 100.0);
         break;
       case 1: // Sobrecarga Arcana: maná 100% a las 4 cartas
         ProceduralSfxEngine.playOrbMerge(3);
+        _startManaFull = true;
         break;
       case 2: // Filo de Azufre: +20% daño permanente
         _damageMult += 0.20;
@@ -232,7 +265,7 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
                 ),
                 icon: const Icon(Icons.local_fire_department),
                 label: const Text('DESCENDER AL ABISMO'),
-                onPressed: _enterCombat,
+                onPressed: () => _enterCombat(),
               ),
             if (_victory && _blessing == null) ...[
               const SizedBox(height: 10),

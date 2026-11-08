@@ -15,6 +15,179 @@ class PlayerRepository {
 
   // ------------------------------------------------------- player profile
 
+  /// Exporta todo el progreso como un mapa serializable a JSON (backup).
+  Future<Map<String, dynamic>> exportBackup() async {
+    final profile = await loadProfile();
+    final collection = await loadCollection();
+    final squad = await loadSquad();
+    final runes = <String, dynamic>{};
+    for (final c in collection) {
+      final rune = await loadCardRune(c.instanceId);
+      if (rune != null) {
+        runes[c.instanceId.toString()] = {
+          'runeType': rune.type.name,
+          'level': rune.level,
+        };
+      }
+    }
+    final bounties = await loadBounties();
+    final highestWave = await loadHighestEndlessWave();
+
+    return {
+      'formatVersion': 1,
+      'profile': {
+        'gold': profile[0],
+        'shards': profile[1],
+        'energy': profile[2],
+        'summonerLevel': profile[3],
+        'highestEndlessWave': highestWave,
+      },
+      'collection': [
+        for (final c in collection)
+          {
+            'instanceId': c.instanceId,
+            'catalogId': c.catalogId,
+            'name': c.name,
+            'element': c.element.name,
+            'rarity': c.rarity.name,
+            'baseManaCost': c.baseManaCost,
+            'baseAttack': c.baseAttack,
+            'baseHealth': c.baseHealth,
+            'level': c.level,
+            'stars': c.stars,
+          },
+      ],
+      'squad': squad,
+      'runes': runes,
+      'bounties': [
+        for (final b in bounties)
+          {
+            'id': b['id'],
+            'progress': b['progress'],
+            'claimed': b['claimed'],
+          },
+      ],
+    };
+  }
+
+  /// Importa y reemplaza todo el progreso desde un mapa JSON previo.
+  /// Lanza [FormatException] si el payload es inválido; nunca deja la BD a
+  /// medio camino (usa una transacción).
+  Future<void> importBackup(Map<String, dynamic> data) async {
+    if (data['formatVersion'] != 1) {
+      throw FormatException('Formato de backup no reconocido.');
+    }
+
+    final profile = (data['profile'] as Map?) ?? <String, dynamic>{};
+    final collection = (data['collection'] as List?) ?? <dynamic>[];
+    final squad = (data['squad'] as List?) ?? <dynamic>[];
+    final runes = (data['runes'] as Map?) ?? <String, dynamic>{};
+    final bounties = (data['bounties'] as List?) ?? <dynamic>[];
+
+    final db = await _db.db;
+    await db.transaction((txn) async {
+      // Perfil.
+      await txn.update(
+        'player_profile',
+        {
+          'gold': _asInt(profile['gold'], 500),
+          'shards': _asInt(profile['shards'], 100),
+          'energy': _asInt(profile['energy'], 20),
+          'summoner_level': _asInt(profile['summonerLevel'], 1),
+          'highest_endless_wave': _asInt(profile['highestEndlessWave'], 0),
+        },
+        where: "id = 'player_1'",
+      );
+
+      // Limpiar tablas progresivas (bounties se mantienen: están seedadas y
+      // solo actualizamos progreso/claimed).
+      await txn.delete('owned_card_runes');
+      await txn.delete('player_squad');
+      await txn.delete('owned_cards');
+
+      // Colección (re-insertar con los mismos instanceId; saltar inválidos).
+      for (final c in collection) {
+        if (c is! Map) continue;
+        final iid = _asInt(c['instanceId'], 0);
+        if (iid <= 0) continue;
+        await txn.insert(
+          'owned_cards',
+          {
+            'id': iid,
+            'card_id': _asStr(c['catalogId'], 'fighterX'),
+            'level': _asInt(c['level'], 1),
+            'stars': _asInt(c['stars'], 1),
+          },
+        );
+      }
+
+      // Escuadrón (validar que los ids existan antes de insertar).
+      final validIds = <int>{};
+      for (final c in collection) {
+        if (c is Map) {
+          final iid = _asInt(c['instanceId'], 0);
+          if (iid > 0) validIds.add(iid);
+        }
+      }
+      var slot = 0;
+      for (final id in squad) {
+        if (slot >= 4) break;
+        final iid = _asInt(id, 0);
+        if (iid > 0 && validIds.contains(iid)) {
+          await txn
+              .insert('player_squad', {'slot': slot, 'owned_card_id': iid});
+          slot++;
+        }
+      }
+
+      // Runas.
+      runes.forEach((instanceIdStr, rune) {
+        if (rune is! Map) return;
+        final iid = int.tryParse(instanceIdStr);
+        if (iid == null || !validIds.contains(iid)) return;
+        final runeType = _asStr(rune['runeType'], 'crimsonFury');
+        final level = _asInt(rune['level'], 1);
+        txn.insert(
+          'owned_card_runes',
+          {
+            'owned_card_id': iid,
+            'rune_type': runeType,
+            'level': level,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      });
+
+      // Bounties: solo progreso/claimed (las filas ya existen por el seed).
+      for (final b in bounties) {
+        if (b is! Map) continue;
+        final bid = _asStr(b['id'], '');
+        if (bid.isEmpty) continue;
+        await txn.update(
+          'bounties',
+          {
+            'progress': _asInt(b['progress'], 0),
+            'claimed':
+                (_asInt(b['claimed'], 0) == 1 || b['claimed'] == true) ? 1 : 0,
+          },
+          where: 'id = ?',
+          whereArgs: [bid],
+        );
+      }
+    });
+  }
+
+  static int _asInt(dynamic v, int fallback) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return fallback;
+  }
+
+  static String _asStr(dynamic v, String fallback) {
+    if (v is String) return v;
+    return fallback;
+  }
+
   Future<List<int>> loadProfile() async {
     final db = await _db.db;
     final rows = await db.query('player_profile', limit: 1);

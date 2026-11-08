@@ -116,6 +116,15 @@ class CombatEngine {
   /// Runas equipadas por carta, keyed by [ManaCard.id].
   final Map<String, RuneInstance> cardRunes;
 
+  /// Multiplicador de daño del jugador (bono de bendición Filo de Azufre).
+  final double playerDamageMult;
+
+  /// HP inicial del jugador (se conserva entre oleadas del Abismo Sin Fin).
+  final double? startHp;
+
+  /// Si todas las cartas empiezan con maná completo (bendición Sobrecarga Arcana).
+  final bool startManaFull;
+
   final List<CombatTarget> targets = [];
   final math.Random random;
 
@@ -166,6 +175,14 @@ class CombatEngine {
   double spawnTimer = 0;
   int _idCounter = 0;
 
+  // Combat metrics (populated during the fight, read by CombatSummaryDialog).
+  int damageTotal = 0;
+  double maxHit = 0;
+  int bullseyes = 0;
+  int reactions = 0;
+  int counterflicks = 0;
+  int mergesToThree = 0;
+
   /// Optional external callbacks (wired by the Flame layer).
   void Function()? onVictory;
   void Function()? onDefeat;
@@ -182,12 +199,16 @@ class CombatEngine {
     math.Random? random,
     this.synergy,
     this.cardRunes = const {},
+    this.playerDamageMult = 1.0,
+    this.startHp,
+    this.startManaFull = false,
   })  : modifiers = modifiers ?? const CombatModifiers(),
         playerMaxHp = (playerMaxHp ?? 100) * (synergy?.hpMult ?? 1.0),
         random = random ?? math.Random(),
         bossHp = boss.maxHp,
-        playerHp = playerMaxHp ?? 100,
+        playerHp = startHp ?? (playerMaxHp ?? 100) * (synergy?.hpMult ?? 1.0),
         bossAttackTimer = boss.attackInterval {
+    _spawnTargetRing();
     _spawnTargetRing();
     _applyStartModifiers();
     // Aplicar bonos de sinergia y runas al ATK de las cartas (ManaCard.attack es
@@ -213,6 +234,13 @@ class CombatEngine {
   }
 
   void _applyStartModifiers() {
+    // Sinergia Sobrecarga Arcana: todas las cartas empiezan con maná completo.
+    if (startManaFull) {
+      for (final c in cards) {
+        c.mana = c.baseManaCost.toDouble();
+      }
+      return;
+    }
     if (modifiers.startManaFraction > 0) {
       for (final c in cards) {
         c.mana = c.baseManaCost * modifiers.startManaFraction;
@@ -392,6 +420,7 @@ class CombatEngine {
     tray[a] = null;
     trauma = (trauma + 0.25).clamp(0.0, 1.0);
     onMerge?.call(newLevel);
+    if (newLevel == OrbLevel.three) mergesToThree++;
     return newLevel;
   }
 
@@ -597,6 +626,7 @@ class CombatEngine {
     auraRemaining = 0;
     _detonateReaction(reaction);
     onReaction?.call(reaction.name);
+    reactions++;
     return reaction.name;
   }
 
@@ -669,8 +699,11 @@ class CombatEngine {
     required double multiplier,
     required HitKind kind,
   }) {
-    final dmg = baseDamage * multiplier;
+    final dmg = baseDamage * multiplier * playerDamageMult;
     bossHp -= dmg;
+    damageTotal += dmg.toInt();
+    if (dmg > maxHit) maxHit = dmg;
+    if (kind == HitKind.bullseye) bullseyes++;
     final x = target?.xAt(time, effectiveAngularSpeed(target)) ?? bossScreenX;
     final y = target?.yAt(time, effectiveAngularSpeed(target)) ?? bossScreenY;
     texts.add(
@@ -883,6 +916,7 @@ class CombatEngine {
   }) {
     e.alive = false;
     if (!byCounterflick) return;
+    counterflicks++;
     addManaToAllCards(counterflickMana * modifiers.manaSpeedMult);
     if (cards.isEmpty) return;
     texts.add(
@@ -929,7 +963,7 @@ class CombatEngine {
         kind: FloatingTextKind.skill,
       ),
     );
-    final atk = _effectiveAttack(c);
+    final atk = _effectiveAttack(c) * playerDamageMult;
     final vuln = vulnerableRemaining > 0 ? 1.3 : 1.0;
     void aoeSkillDamage(double mult) => _skillDamageAll(atk * mult * vuln);
     void singleSkillDamage(double mult) =>
