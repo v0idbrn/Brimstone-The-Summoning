@@ -1,4 +1,4 @@
-name: Android Release APK
+name: Android APK + Web Portal Release
 
 permissions:
   contents: write
@@ -40,11 +40,22 @@ jobs:
       - name: Run test suite
         run: flutter test --concurrency=1
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build release APK (obfuscated)
+        run: >
+          flutter build apk --release
+          --obfuscate
+          --split-debug-info=build/symbols
+
+      - name: Build web portal (WASM SQLite)
+        run: flutter build web --release
 
       - name: Copy APK to release name
         run: cp build/app/outputs/flutter-apk/app-release.apk Brimstone-The-Summoning.apk
+
+      - name: Package web portal
+        run: |
+          cd build/web
+          zip -r ../../Brimstone-Web-Portal.zip . -x "*.map"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -52,10 +63,24 @@ jobs:
           name: Brimstone-The-Summoning-APK
           path: Brimstone-The-Summoning.apk
 
+      - name: Upload web portal artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Brimstone-Web-Portal
+          path: Brimstone-Web-Portal.zip
+
+      - name: Upload obfuscation symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: Brimstone-Obfuscation-Symbols
+          path: build/symbols
+
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: "Brimstone: The Summoning — Latest Build APK"
-          files: Brimstone-The-Summoning.apk
+          name: "Brimstone: The Summoning — Latest Build (APK + Web Portal)"
+          files: |
+            Brimstone-The-Summoning.apk
+            Brimstone-Web-Portal.zip
           generate_release_notes: false

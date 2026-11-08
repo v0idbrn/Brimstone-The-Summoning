@@ -6,6 +6,9 @@ import '../meta/rune_system.dart';
 import '../meta/leader_skill.dart';
 import '../meta/talent_rules.dart';
 import '../meta/summoner_gear.dart';
+import '../../core/performance/object_pool.dart';
+import '../../core/performance/performance_settings.dart';
+import '../../core/security/combat_sanity_guard.dart';
 import '../meta/seal_challenge_rules.dart';
 import '../value_objects/element.dart';
 import '../value_objects/orb_level.dart';
@@ -201,6 +204,10 @@ class CombatEngine {
   // (reactionManaBonus kept as named constant for HUD reference)
 
   final BossConfig boss;
+
+  // Anti-cheat ceiling: rawDamage may get amplified by relic/talent stacks.
+  // Con 22 * 500 = 11000 como techo legal; los nuevos bosses (380-1650 HP)
+  // nunca superarán esto sin modificadores extremos.
   final CombatModifiers modifiers;
   final List<ManaCard> cards;
 
@@ -258,7 +265,12 @@ class CombatEngine {
   final List<CombatOrb?> tray = List.filled(5, null);
   final List<OrbProjectile> projectiles = [];
   final List<EnemyProjectile> enemyProjectiles = [];
-  final List<FloatingText> texts = [];
+
+  /// Textos flotantes en un búfer circular de capacidad fija: una ráfaga de
+  /// golpes no puede hacer crecer esta lista indefinidamente.
+  final FixedRingBuffer<FloatingText> texts = FixedRingBuffer<FloatingText>(
+    PerformanceSettings.maxFloatingTexts,
+  );
 
   // Juice.
   double time = 0;
@@ -295,6 +307,16 @@ class CombatEngine {
   int bestBullseyeStreak = 0;
 
   bool _phoenixUsed = false;
+
+  /// Anti-cheat: valida cada golpe contra el techo matemático legal.
+  // Con baseDamage = 22 y un techo 22 * 500 = 11000; los nuevos bosses
+  // (380-1650 HP) nunca superarán esto sin modificadores extremos.
+  final CombatSanityGuard sanityGuard = CombatSanityGuard(
+    maxAllowedSingleHit: (baseDamage * 500).round(),
+  );
+
+  /// Techo legal de daño por golpe (lectura usada por el guardián).
+  int get maxAllowedSingleHit => sanityGuard.maxAllowedSingleHit;
 
   // Combat metrics (populated during the fight, read by CombatSummaryDialog).
   int damageTotal = 0;
@@ -1046,7 +1068,7 @@ class CombatEngine {
     if (has(SealMutator.reactionBoost)) mutatorMult *= 0.20;
     if (has(SealMutator.skillDisabledOrbBoost)) mutatorMult *= 2.20;
 
-    final dmg = baseDamage *
+    final rawDamage = baseDamage *
         multiplier *
         playerDamageMult *
         orbDmgMult *
@@ -1054,6 +1076,9 @@ class CombatEngine {
         talentMult *
         streakMult *
         mutatorMult;
+    // Anti-cheat: NaN/infinitos/negativos se descartan; los valores inyectados
+    // por encima del techo legal se recortan y quedan registrados.
+    final dmg = sanityGuard.sanitize(rawDamage);
     bossHp -= dmg;
     damageTotal += dmg.toInt();
     if (dmg > maxHit) maxHit = dmg;

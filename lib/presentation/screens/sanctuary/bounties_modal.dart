@@ -59,16 +59,20 @@ class _BountiesModalState extends ConsumerState<BountiesModal> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  const Text(
-                    'JURAMENTOS DE AZUFRE',
-                    style: TextStyle(
-                      color: Color(0xFFFFC93C),
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                      letterSpacing: 2,
+                  const Expanded(
+                    child: Text(
+                      'JURAMENTOS DE AZUFRE',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFFFFC93C),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        letterSpacing: 2,
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Text(
                     '${claimable.length} para reclamar',
                     style: const TextStyle(

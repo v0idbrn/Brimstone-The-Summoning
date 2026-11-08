@@ -3,10 +3,8 @@ import 'dart:math' as math;
 import '../value_objects/element.dart';
 import '../value_objects/orb_level.dart';
 
-/// Parametric motion kinds for boss target reticles.
 enum TargetTrajectory { orbital, pendular, figure8 }
 
-/// Hit quality classification for a projectile landing on a target.
 enum HitKind { bullseye, normal, graze, miss }
 
 /// A mobile dimensional target hovering over the boss.
@@ -49,9 +47,9 @@ class CombatTarget {
     switch (trajectory) {
       case TargetTrajectory.orbital:
       case TargetTrajectory.pendular:
-        return cx + amplitude * cosApprox(angle);
+        return cx + amplitude * math.cos(angle);
       case TargetTrajectory.figure8:
-        return cx + amplitude * sinApprox(angle);
+        return cx + amplitude * math.sin(angle);
     }
   }
 
@@ -59,11 +57,11 @@ class CombatTarget {
     final angle = w * t + phase;
     switch (trajectory) {
       case TargetTrajectory.orbital:
-        return cy + amplitude * sinApprox(angle);
+        return cy + amplitude * math.sin(angle);
       case TargetTrajectory.pendular:
-        return cy + amplitude * 0.55 * sinApprox(angle * 2);
+        return cy + amplitude * 0.55 * math.sin(angle * 2);
       case TargetTrajectory.figure8:
-        return cy + amplitude * 0.6 * sinApprox(angle * 2);
+        return cy + amplitude * 0.6 * math.sin(angle * 2);
     }
   }
 }
@@ -95,6 +93,7 @@ class ManaCard {
   final double attack;
   final int stars;
   double mana;
+
   ManaCard({
     required this.id,
     required this.name,
@@ -199,6 +198,119 @@ class BossConfig {
   });
 
   /// Diálogo de amenaza mostrado al iniciar la batalla del Piso 7.
+  /// --- NUEVO: Configuraciones rebalanceadas para combates de 30 segundos ---
+
+  /// Igneo - Piso 1-5 (enemigo normal): 380 HP (antes 2400). Golpe Bullseye Nv.1: 75 dañó (antes baseDamage*1.5).
+  static const BossConfig igniteNormal = BossConfig(
+    id: 'ignite_normal',
+    name: 'Ignis, Llama Menor',
+    element: Element.igneous,
+    maxHp: 380, // 65% menos que 2400; rápido de morir en oleadas iniciales
+    attackInterval: 6.0,
+    attackDamage: 8, // Ajustado para la nueva escala de daño
+    projectilesPerAttack: 2,
+    threatDialog: 'El fuego comienza a bailar.',
+    furyDialog: '¡QUÉMENSE! El fuego no perdona.',
+  );
+
+  /// Élite: 600 HP (antes 3200). Bullseye Nv.1: 175 dañó (1/3 vida enemigo normal).
+  static const BossConfig elite = BossConfig(
+    id: 'elite',
+    name: 'Élite Abisal',
+    element: Element.abyssal,
+    maxHp: 600,
+    attackInterval: 5.0,
+    attackDamage: 12,
+    projectilesPerAttack: 3,
+    threatDialog: 'La sombra se alza sobre el campo de batalla.',
+    furyDialog: '¡ESCARCHA ABSOLUTA! El hielo me pertenece.',
+  );
+
+  /// Jefe de Capítulo (Piso 7): Configuraciones por capítulo.
+  /// Cap.I: 650 HP, Cap.II: 850 HP, Cap.III: 1100 HP, Cap.IV: 1350 HP, Cap.V: 1650 HP
+  static const BossConfig chapterI = BossConfig(
+    id: 'chapter_i',
+    name: 'Pyroth, Coloso de Ceniza',
+    element: Element.igneous,
+    maxHp: 650,
+    attackInterval: 6.0,
+    attackDamage: 14,
+    projectilesPerAttack: 2,
+    threatDialog: 'La Forja de Ceniza arde bajo mi mando.',
+    furyDialog: '¡QUÉMENSE HASTA EL HUESO! El fuego no perdona.',
+  );
+  static const BossConfig chapterII = BossConfig(
+    id: 'chapter_ii',
+    name: 'Vaelor, Señor de la Fosa Helada',
+    element: Element.abyssal,
+    maxHp: 850,
+    attackInterval: 5.0,
+    attackDamage: 16,
+    projectilesPerAttack: 3,
+    threatDialog: 'El frío eterno aguarda en la Fosa de Escarcha.',
+    furyDialog: '¡ESCARCHA ABSOLUTA! El hielo me pertenece.',
+  );
+  static const BossConfig chapterIII = BossConfig(
+    id: 'chapter_iii',
+    name: 'Gorgath, Monarca de Basalto',
+    element: Element.telluric,
+    maxHp: 1100,
+    attackInterval: 5.5,
+    attackDamage: 18,
+    projectilesPerAttack: 2,
+    threatDialog: 'El Bastión Tectónico no se rinde ante mortales.',
+    furyDialog: '¡PETRIFICACIÓN TOTAL! Las dianas se encogen.',
+  );
+  static const BossConfig chapterIV = BossConfig(
+    id: 'chapter_iv',
+    name: 'Nyxara, Tejedora del Eclipse',
+    element: Element.empty,
+    maxHp: 1350,
+    attackInterval: 5.0,
+    attackDamage: 20,
+    projectilesPerAttack: 2,
+    threatDialog: 'Sueños rotos bajo el Velo de las Pesadillas.',
+    furyDialog: '¡TELEPORTACIÓN ABISAL! Fallar drena tu maná.',
+  );
+  static const BossConfig chapterV = BossConfig(
+    id: 'chapter_v',
+    name: 'Azathor, Monolito del Vacío',
+    element: Element.empty,
+    maxHp: 1650,
+    attackInterval: 4.5,
+    attackDamage: 22,
+    projectilesPerAttack: 3,
+    threatDialog: 'El Trono del Sello Roto espera a su cadáver, invocador.',
+    furyDialog: '¡EL SELLO ESTÁ ROTO! Cambio de elemento ahora.',
+  );
+
+  /// Gólem de Pruebas Abisal: maniquí de la Arena de Entrenamiento.
+  static const BossConfig trainingGolem = BossConfig(
+    id: 'training_golem',
+    name: 'Gólem de Pruebas Abisal',
+    element: Element.telluric,
+    maxHp: 50000,
+    attackInterval: 12.0,
+    attackDamage: 4,
+    projectilesPerAttack: 1,
+    threatDialog: 'Mide tu poder, invocador. Yo no me cansaré.',
+    furyDialog: 'El Gólem recalibra su coraza. Sigue golpeando.',
+  );
+  static const BossConfig nyxara = BossConfig(
+    id: 'nyxara',
+    name: 'Nyxara, Tejedora del Eclipse',
+    element: Element.empty,
+    maxHp: 3800,
+    attackInterval: 5.0,
+    attackDamage: 15,
+    projectilesPerAttack: 2,
+    threatDialog: 'Sueños rotos bajo el Velo de las Pesadillas.',
+    furyDialog: '¡TELEPORTACIÓN ABISAL! Fallar drena tu maná.',
+  );
+
+  /// --- FIN CONFIGURACIÓN REBALANCEADA ---
+
+  /// Diálogo de amenaza mostrado al iniciar la batalla del Piso 7.
   final String threatDialog;
 
   /// Diálogo de Furia Abisal mostrado al entrar en enrage (<45% HP).
@@ -248,36 +360,4 @@ class BossConfig {
     threatDialog: 'El Bastión Tectónico no se rinde ante mortales.',
     furyDialog: '¡PETRIFICACIÓN TOTAL! Las dianas se encogen.',
   );
-
-  /// Gólem de Pruebas Abisal: maniquí de la Arena de Entrenamiento.
-  static const BossConfig trainingGolem = BossConfig(
-    id: 'training_golem',
-    name: 'Gólem de Pruebas Abisal',
-    element: Element.telluric,
-    maxHp: 50000,
-    attackInterval: 12.0,
-    attackDamage: 4,
-    projectilesPerAttack: 1,
-    threatDialog: 'Mide tu poder, invocador. Yo no me cansaré.',
-    furyDialog: 'El Gólem recalibra su coraza. Sigue golpeando.',
-  );
-  static const BossConfig nyxara = BossConfig(
-    id: 'nyxara',
-    name: 'Nyxara, Tejedora del Eclipse',
-    element: Element.empty,
-    maxHp: 3800,
-    attackInterval: 5.0,
-    attackDamage: 15,
-    projectilesPerAttack: 2,
-    threatDialog: 'Sueños rotos bajo el Velo de las Pesadillas.',
-    furyDialog: '¡TELEPORTACIÓN ABISAL! Fallar drena tu maná.',
-  );
 }
-
-/// Trigonometry helpers so the domain layer needs no Flutter/Flame import.
-double sinApprox(double x) {
-  // Taylor is unnecessary here; use dart:math-equivalent via builtin sin.
-  return math.sin(x);
-}
-
-double cosApprox(double x) => math.cos(x);

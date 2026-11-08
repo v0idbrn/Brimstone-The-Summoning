@@ -1,7 +1,7 @@
 # Brimstone: The Summoning
 
 > **Gothic Roguelite Card Battler** — 2.5D Merge-Orb Combat + TCG Evolution + Roguelite Meta-Progression
-> **Platform:** Android (Portrait) • Desktop/Web (Testing)
+> **Platform:** Android (Portrait) • Web (Portal jugable) • Desktop (Testing)
 > **Engine:** Flutter 3.24+ + Flame 1.18+
 > **Architecture:** Clean Architecture (Domain-Driven, Offline-First)
 > **State:** Riverpod 3.x (Notifier / AsyncNotifier / StreamNotifier)
@@ -12,7 +12,7 @@
 [![Flame](https://img.shields.io/badge/Flame-1.18+-FF6B6B?logo=flame&logoColor=white)]()
 [![Riverpod](https://img.shields.io/badge/Riverpod-3.x-42A5F5?logo=riverpod&logoColor=white)]()
 [![SQLite](https://img.shields.io/badge/SQLite-3.45+-003B57?logo=sqlite&logoColor=white)]()
-[![Tests](https://img.shields.io/badge/tests-387%20passing-4FFFA3)]()
+[![Tests](https://img.shields.io/badge/tests-466%20passing-4FFFA3)]()
 [![License](https://img.shields.io/badge/License-MIT-green)]()
 
 ---
@@ -82,6 +82,16 @@
 - **Racha Crítica** → ≥3 Bullseyes consecutivos → **¡RACHA CRÍTICA!** +10% daño por golpe extra (tope +100%)
 - **Viñeta de Peligro** → HP <25% → borde rojo pulsante
 
+### ⚙️ Rendimiento, Web y Seguridad (Fases 23-26)
+- **RAM acotada** → `FixedRingBuffer<T>` pre-alojado: 24 ráfagas de partículas (10 en gama baja), 12 textos flotantes, reciclaje O(1) sin realloc ni fugas en sesiones largas
+- **Cero allocations por frame** → `Paint` pre-alojados en el fondo 2.5D y los efectos de impacto; caché estático de WAV (`prewarmCache()` / `clearCache()`) que reutiliza el mismo `Uint8List` siempre
+- **Modo Gama Baja** → persistido en `player_stats`: 40% de partículas, sin halos secundarios ni niebla animada; mantiene 60 FPS en hardware modesto
+- **Web jugable** → SQLite vía WebAssembly + IndexedDB (`sqflite_common_ffi_web`) seleccionado con imports condicionales: `flutter build web --release` compila sin `dart:io` ni `dart:ffi`
+- **Marco arcade** → en pantallas >560 px la app se centra en un gabinete 440×920 con título vertical y pistas de ratón; en móvil ocupa el 100%
+- **Anti-tamper de backups** → HMAC-SHA256 en Dart puro (`IntegritySigner`) sobre JSON canónico; editar oro, estrellas o talentos invalida `sealSignature` y lanza `FormatException`
+- **Anti-cheat en combate** → `CombatSanityGuard` descarta NaN/infinitos/negativos y recorta el daño inyectado al techo legal por golpe; `SecureInt` enmascara enteros sensibles con XOR + checksum
+- **CI endurecido** → APK ofuscado (`--obfuscate --split-debug-info`) + `Brimstone-Web-Portal.zip` adjuntos al release y a los artifacts
+
 ---
 
 ## 🏗️ Architecture
@@ -91,13 +101,15 @@ lib/
 ├── core/
 │   ├── constants/          # CombatConstants, ElementalConstants, RiftConstants
 │   ├── theme/              # BrimstoneTheme, BrimstoneColors, GothicTypography
-│   ├── audio/              # ProceduralSfxEngine (WAV generators, volúmenes, hápticas)
+│   ├── audio/              # ProceduralSfxEngine (WAV generators, caché, volúmenes, hápticas)
+│   ├── performance/        # FixedRingBuffer, PerformanceSettings (modo gama baja)
+│   ├── security/           # IntegritySigner, SealSha256, SecureInt, CombatSanityGuard
 │   ├── utils/              # Math helpers, lerp, seeded Random
 │   └── di/                 # ProviderScope overrides, composition root
 ├── data/
 │   ├── datasources/        # LocalDataSource (SQLite)
 │   ├── repositories/       # PlayerRepository, CardRepository, RelicRepository, RiftRepository
-│   ├── database/           # DatabaseHelper (v6, conexión por instancia, seed 20+18)
+│   ├── database/           # DatabaseHelper (v6, backend FFI nativo / WASM web, seed 20+18)
 │   └── migration/          # Schema migrations (v1→v6)
 ├── domain/
 │   ├── entities/           # Card, Relic, PlayerProfile, RiftRun, ElementalAura, Orb, BossTarget
@@ -141,7 +153,7 @@ lib/
 
 ---
 
-## 🧪 Testing Strategy (387 Tests)
+## 🧪 Testing Strategy (466 Tests)
 
 | Type | Scope | Tools |
 |------|-------|-------|
@@ -156,7 +168,7 @@ C:\flutter\bin\flutter.bat pub get
 C:\flutter\bin\dart.bat format --set-exit-if-changed lib test
 C:\flutter\bin\flutter.bat analyze --fatal-infos
 C:\flutter\bin\flutter.bat test --concurrency=1 --test-randomize-ordering-seed random
-# → 387 tests, 0 errores, 0 warnings
+# → 466 tests, 0 errores, 0 warnings
 ```
 
 ---
@@ -196,13 +208,14 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze --fatal-infos
       - run: flutter test --concurrency=1  # ← aislamiento SQLite
-      - run: flutter build apk --release
+      - run: flutter build apk --release --obfuscate --split-debug-info=build/symbols
+      - run: flutter build web --release   # ← portal jugable (SQLite WASM)
       - uses: softprops/action-gh-release@v1
         with:
           files: build/app/outputs/flutter-apk/app-release.apk
 ```
 
-**Artifacts**: APK de release publicado en **GitHub Releases** en cada push a `main`.
+**Artifacts**: APK ofuscado + `Brimstone-Web-Portal.zip` publicados en **GitHub Releases** en cada push a `main`.
 
 ---
 

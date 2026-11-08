@@ -6,6 +6,8 @@ import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
+import '../../../core/performance/object_pool.dart';
+import '../../../core/performance/performance_settings.dart';
 import '../../../domain/combat/combat_engine.dart';
 import '../../../domain/combat/combat_math.dart';
 import '../../../domain/combat/combat_models.dart';
@@ -92,8 +94,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   CombatEngine get engine => _engine!;
 
-  /// Particle bursts born at exact impact/merge (dx, dy) coordinates.
-  final List<_BurstEffect> _bursts = [];
+  /// Ráfagas de partículas en un búfer circular acotado: nunca crece más allá
+  /// del límite del modo activo (24 normal / 10 gama baja).
+  late final FixedRingBuffer<_BurstEffect> _bursts;
 
   void _addBurst(double x, double y, Color color) {
     _bursts.add(_BurstEffect(x: x, y: y, color: color));
@@ -110,6 +113,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   @override
   void initState() {
     super.initState();
+    _bursts = FixedRingBuffer<_BurstEffect>(
+      PerformanceSettings.maxParticleBursts,
+    );
     _particleCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -390,6 +396,8 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                   painter: _BurstsPainter(
                     bursts: _bursts,
                     progress: _particleCtrl.value,
+                    ringsPerBurst: PerformanceSettings.ringsPerBurst,
+                    scale: PerformanceSettings.particleScale,
                   ),
                 ),
               ),
@@ -742,40 +750,52 @@ class _BurstEffect {
 }
 
 /// Bursts painter: expanding concentric rings at each (dx, dy) impact point.
+///
+/// Los objetos [Paint] son estáticos y se reutilizan en cada frame: pintar 24
+/// ráfagas con 4 anillos ya no instancia ~100 Paint por frame.
 class _BurstsPainter extends CustomPainter {
-  final List<_BurstEffect> bursts;
+  final FixedRingBuffer<_BurstEffect> bursts;
   final double progress; // 0..1
+  final int ringsPerBurst;
+  final double scale;
 
-  _BurstsPainter({required this.bursts, required this.progress});
+  static final Paint _ringPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.5;
+  static final Paint _corePaint = Paint();
+
+  _BurstsPainter({
+    required this.bursts,
+    required this.progress,
+    this.ringsPerBurst = 4,
+    this.scale = 1.0,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
+    final ring = _ringPaint;
+    final core = _corePaint;
     for (final b in bursts) {
-      for (var i = 0; i < 4; i++) {
+      for (var i = 0; i < ringsPerBurst; i++) {
         final p = (progress - i * 0.18).clamp(0.0, 1.0);
         if (p <= 0.0) continue;
-        final radius = p * 120.0;
+        final radius = p * 120.0 * scale;
         final alpha = ((1.0 - p) * 0.9).clamp(0.0, 1.0);
-        paint.color = b.color.withValues(alpha: alpha);
-        canvas.drawCircle(Offset(b.x, b.y), radius, paint);
+        ring.color = b.color.withValues(alpha: alpha);
+        canvas.drawCircle(Offset(b.x, b.y), radius, ring);
       }
       // Impact core.
-      canvas.drawCircle(
-        Offset(b.x, b.y),
-        6.0 + progress * 10.0,
-        Paint()
-          ..color =
-              Colors.white.withValues(alpha: (1.0 - progress).clamp(0.0, 1.0)),
-      );
+      core.color =
+          Colors.white.withValues(alpha: (1.0 - progress).clamp(0.0, 1.0));
+      canvas.drawCircle(Offset(b.x, b.y), 6.0 + progress * 10.0, core);
     }
   }
 
   @override
   bool shouldRepaint(_BurstsPainter old) =>
-      old.progress != progress || old.bursts != bursts;
+      old.progress != progress ||
+      old.ringsPerBurst != ringsPerBurst ||
+      old.scale != scale;
 }
 
 /// Post-combat tactical summary dialog.

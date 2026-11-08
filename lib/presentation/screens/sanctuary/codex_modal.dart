@@ -157,13 +157,18 @@ class _ReactionGrimoire extends ConsumerWidget {
                         fontSize: 11,
                       ),
                     ),
-                    const Spacer(),
-                    Text(
-                      r.trigger,
-                      style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 10,
-                        fontStyle: FontStyle.italic,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        r.trigger,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 10,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ),
                   ],

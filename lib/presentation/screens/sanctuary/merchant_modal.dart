@@ -255,53 +255,59 @@ class _MerchantModalState extends ConsumerState<MerchantModal> {
                 itemBuilder: (context, i) {
                   final o = _eliteContractOfferings[i];
                   final selected = _selectedId == o['id'];
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A0E14),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: selected
-                              ? const Color(0xFFB16EFF)
-                              : Colors.white24,
-                          width: selected ? 2 : 1,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          o['name']!.substring(0, 1),
-                          style: TextStyle(
+                  // El sheet pinta sobre un Container con color: el ListTile
+                  // necesita su propio Material para que el ripple sea visible.
+                  return Material(
+                    type: MaterialType.transparency,
+                    child: ListTile(
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16),
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A0E14),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
                             color: selected
                                 ? const Color(0xFFB16EFF)
-                                : Colors.white54,
-                            fontWeight: FontWeight.w800,
+                                : Colors.white24,
+                            width: selected ? 2 : 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            o['name']!.substring(0, 1),
+                            style: TextStyle(
+                              color: selected
+                                  ? const Color(0xFFB16EFF)
+                                  : Colors.white54,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    title: Text(
-                      o['name']!,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight:
-                            selected ? FontWeight.w900 : FontWeight.w600,
+                      title: Text(
+                        o['name']!,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight:
+                              selected ? FontWeight.w900 : FontWeight.w600,
+                        ),
                       ),
+                      subtitle: Text(
+                        '${o['element']} · 1★',
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 10),
+                      ),
+                      trailing: selected
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: Color(0xFFB16EFF),
+                            )
+                          : null,
+                      onTap: () => setState(() => _selectedId = o['id']!),
                     ),
-                    subtitle: Text(
-                      '${o['element']} · 1★',
-                      style:
-                          const TextStyle(color: Colors.white54, fontSize: 10),
-                    ),
-                    trailing: selected
-                        ? const Icon(
-                            Icons.check_circle,
-                            color: Color(0xFFB16EFF),
-                          )
-                        : null,
-                    onTap: () => setState(() => _selectedId = o['id']!),
                   );
                 },
               ),

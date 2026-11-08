@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
+import '../../../core/performance/performance_settings.dart';
 import '../../controllers/meta_controller.dart';
 
 /// Modal de Ajustes: volúmenes de efectos y ambiente, hápticas y silencio.
@@ -17,6 +18,9 @@ class SettingsModal extends ConsumerStatefulWidget {
   static const String hapticsKey = 'hapticsEnabled';
   static const String mutedKey = 'audioMuted';
 
+  /// Clave del Modo Gama Baja (ver [PerformanceSettings.lowSpecKey]).
+  static const String lowSpecKey = PerformanceSettings.lowSpecKey;
+
   @override
   ConsumerState<SettingsModal> createState() => _SettingsModalState();
 }
@@ -26,6 +30,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
   double _ambientVolume = 0.4;
   bool _hapticsEnabled = true;
   bool _muted = false;
+  bool _lowSpec = false;
   bool _loading = true;
 
   @override
@@ -41,14 +46,17 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
     final ambient = raw[SettingsModal.ambientVolumeKey];
     final haptics = raw[SettingsModal.hapticsKey];
     final muted = raw[SettingsModal.mutedKey];
+    final lowSpec = raw[SettingsModal.lowSpecKey];
     if (!mounted) return;
     setState(() {
       _sfxVolume = (sfx ?? 80) / 100.0;
       _ambientVolume = (ambient ?? 40) / 100.0;
       _hapticsEnabled = haptics == null ? true : haptics == 1;
       _muted = muted == 1;
+      _lowSpec = lowSpec == 1;
       _loading = false;
     });
+    PerformanceSettings.restoreFromStorage(flag: lowSpec);
     ProceduralSfxEngine.restoreSettings(
       sfxVolume: sfx ?? 80,
       ambientVolume: ambient ?? 40,
@@ -72,6 +80,7 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
       _hapticsEnabled ? 1 : 0,
     );
     await repo.writeStat(SettingsModal.mutedKey, _muted ? 1 : 0);
+    await repo.writeStat(SettingsModal.lowSpecKey, _lowSpec ? 1 : 0);
   }
 
   @override
@@ -150,6 +159,29 @@ class _SettingsModalState extends ConsumerState<SettingsModal> {
                     },
                     secondary: const Icon(
                       Icons.vibration,
+                      color: Colors.white54,
+                    ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Modo Gama Baja',
+                      style: TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                    subtitle: const Text(
+                      'Ahorro de RAM y GPU: 40% de partículas, sin halos '
+                      'secundarios ni animaciones de fondo.',
+                      style: TextStyle(color: Colors.white38, fontSize: 10),
+                    ),
+                    value: _lowSpec,
+                    activeTrackColor: const Color(0xFF4FFFA3),
+                    onChanged: (value) {
+                      setState(() => _lowSpec = value);
+                      PerformanceSettings.setLowSpecMode(value);
+                      _persist();
+                    },
+                    secondary: const Icon(
+                      Icons.memory,
                       color: Colors.white54,
                     ),
                   ),

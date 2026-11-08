@@ -68,87 +68,87 @@ class ProceduralSfxEngine {
       _muted ? 0.0 : _ambientVolume.clamp(0.0, 1.0);
 
   /// Buffer del drone del Santuario (ambiente oscuro en loop).
-  static Uint8List sanctuaryDroneBuffer() => generateSanctuaryDroneWav();
+  static Uint8List sanctuaryDroneBuffer() => cached('drone');
 
   /// Buffer del pulso del jefe (ambiente de combate).
-  static Uint8List bossPulseBuffer() => generateBossPulseWav();
+  static Uint8List bossPulseBuffer() => cached('boss_pulse');
 
   /// Play orb spawn: short ascending crystalline tone (440Hz -> 660Hz, 60ms).
   static void playOrbSpawn() {
-    _play(_orbSpawn());
+    _play(cached('orb_spawn'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.selectionClick);
   }
 
   /// Play orb merge: resonant harmonic chord, base frequency rises by level (Lv2/Lv3, 140ms) + haptic.
   static void playOrbMerge(int newLevel) {
-    _play(_orbMerge(newLevel));
+    _play(cached('orb_merge_${newLevel <= 2 ? 2 : 3}'));
     if (!_muted && _sfxVolume > 0) SystemSound.play(SystemSoundType.click);
     if (newLevel >= 2 && _hapticsEnabled) HapticFeedback.mediumImpact();
   }
 
   /// Play orb flick: whoosh frequency sweep (220Hz -> 880Hz, 110ms) + haptic selection click.
   static void playOrbFlick() {
-    _play(_orbFlick());
+    _play(cached('orb_flick'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.selectionClick);
   }
 
   /// Play normal hit: percussive impact (90Hz exponential decay).
   static void playHitNormal() {
-    _play(_hitNormal());
+    _play(cached('hit_normal'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.lightImpact);
   }
 
   /// Play bullseye: double metallic bell (880Hz + 1320Hz, 220ms) + heavy haptic.
   static void playHitBullseye() {
-    _play(_hitBullseye());
+    _play(cached('hit_bullseye'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play graze: very short soft click.
   static void playHitGraze() {
-    _play(_hitGraze());
+    _play(cached('hit_graze'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.selectionClick);
   }
 
   /// Play elemental reaction: sub-bass explosion (55Hz) + arcane ring modulation (350ms) + intense vibration.
   static void playElementalReaction() {
-    _play(_elementalReaction());
+    _play(cached('elemental_reaction'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play card skill invoke: gothic 3-note ascending fanfare (300ms).
   static void playCardSkillInvoke() {
-    _play(_cardSkillInvoke());
+    _play(cached('card_skill_invoke'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
   }
 
   /// Play counter-flick destroy: sharp metallic clang (1200Hz, 90ms).
   static void playCounterFlickDestroy() {
-    _play(_counterFlickDestroy());
+    _play(cached('counter_flick_destroy'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play summon reveal: mystical arpeggio sequence, more epic with more stars.
   static void playSummonReveal(int stars) {
-    _play(_summonReveal(stars));
+    _play(cached('summon_reveal_${stars.clamp(1, 5)}'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
   }
 
   /// Play boss enrage: deep ominous rumble + alarm.
   static void playBossEnrage() {
-    _play(_bossEnrage());
+    _play(cached('boss_enrage'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play altar evolution success: ascending celestial choir chord.
   static void playEvolutionSuccess() {
-    _play(_evolutionSuccess());
+    _play(cached('evolution_success'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
   }
 
   /// Play altar evolution fail: dissonant descending tone.
   static void playEvolutionFail() {
-    _play(_evolutionFail());
+    _play(cached('evolution_fail'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.lightImpact);
   }
 
@@ -217,12 +217,61 @@ class ProceduralSfxEngine {
     return buffer.buffer.asUint8List();
   }
 
+  /// Caché estático de WAV: cada sonido se sintetiza una sola vez por proceso
+  /// y a partir de ahí se reutiliza exactamente el mismo [Uint8List], sin
+  /// volver a alojar buffers PCM en RAM.
+  static final Map<String, Uint8List> _wavCache = <String, Uint8List>{};
+
+  /// Sonidos que se pre-sintetizan en el arranque del menú.
+  static const List<String> prewarmNames = <String>[
+    'orb_spawn',
+    'orb_merge_2',
+    'orb_merge_3',
+    'orb_flick',
+    'hit_normal',
+    'hit_bullseye',
+    'hit_graze',
+    'elemental_reaction',
+    'card_skill_invoke',
+    'counter_flick_destroy',
+    'boss_enrage',
+    'evolution_success',
+    'evolution_fail',
+    'drone',
+    'boss_pulse',
+  ];
+
+  /// Cantidad de buffers actualmente residentes en el caché.
+  static int get cachedBufferCount => _wavCache.length;
+
+  /// `true` si [name] ya está sintetizado en memoria.
+  static bool isCached(String name) => _wavCache.containsKey(name);
+
+  /// Sintetiza de golpe los sonidos de uso frecuente (menú / inicio de run).
+  static void prewarmCache() {
+    for (final name in prewarmNames) {
+      cached(name);
+    }
+    for (var stars = 1; stars <= 5; stars++) {
+      cached('summon_reveal_$stars');
+    }
+  }
+
+  /// Libera los buffers retenidos (tests / cambio de escena).
+  static void clearCache() => _wavCache.clear();
+
   /// Get the synthesized WAV buffer for [name] (used by tests and audio
   /// playback backends). Names: orb_spawn, orb_merge_2, orb_merge_3,
   /// orb_flick, hit_normal, hit_bullseye, hit_graze, elemental_reaction,
   /// card_skill_invoke, counter_flick_destroy, summon_reveal_N,
-  /// boss_enrage, evolution_success, evolution_fail.
-  static Uint8List bufferFor(String name) {
+  /// boss_enrage, evolution_success, evolution_fail, drone, boss_pulse.
+  static Uint8List bufferFor(String name) => cached(name);
+
+  /// Igual que [bufferFor] pero memorizando el resultado: la segunda llamada
+  /// devuelve la **misma instancia** (`identical(buf1, buf2)`).
+  static Uint8List cached(String name) => _wavCache[name] ??= _generate(name);
+
+  static Uint8List _generate(String name) {
     return switch (name) {
       'orb_spawn' => _orbSpawn(),
       'orb_merge_2' => _orbMerge(2),

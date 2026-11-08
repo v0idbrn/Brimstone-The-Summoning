@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart' hide Element;
 
+import '../../core/performance/performance_settings.dart';
 import '../../domain/combat/combat_engine.dart';
 import '../../domain/value_objects/element.dart';
 import 'brimstone_combat_game.dart';
@@ -16,6 +17,27 @@ class ArenaBackground25D extends PositionComponent {
     position = Vector2.zero();
     priority = -10;
   }
+
+  // Paint pre-alojados: el fondo se repinta cada frame y no debe instanciar
+  // objetos nuevos (0 allocations por frame en el camino caliente).
+  final Paint _skyPaint = Paint();
+  final Paint _floorBasePaint = Paint()..color = const Color(0xFF14090D);
+  final Paint _vanishPaint = Paint()
+    ..color = const Color(0xFF2A1116).withValues(alpha: 0.65)
+    ..strokeWidth = 2
+    ..style = PaintingStyle.stroke;
+  final Paint _gridPaint = Paint()
+    ..color = const Color(0xFF3A1A1F)
+    ..strokeWidth = 1.2;
+  final Paint _ringPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 5;
+  final Paint _glowPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _orbitPaint = Paint();
+  final Paint _fogPaint = Paint()
+    ..color = const Color(0xFF8B5CF6).withValues(alpha: 0.06);
+  final Paint _pillarBodyPaint = Paint();
+  final Paint _pillarTrimPaint = Paint();
 
   Element get bossElement => combatGame.engine.boss.element;
 
@@ -39,41 +61,31 @@ class ArenaBackground25D extends PositionComponent {
 
     // Sky gradient
     final sky = Rect.fromLTWH(0, 0, w, horizonY);
-    canvas.drawRect(
-      sky,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF1A0E14),
-            portalColor.withValues(alpha: 0.18),
-            const Color(0xFF2B1016),
-          ],
-        ).createShader(sky),
-    );
+    _skyPaint.shader = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        const Color(0xFF1A0E14),
+        portalColor.withValues(alpha: 0.18),
+        const Color(0xFF2B1016),
+      ],
+    ).createShader(sky);
+    canvas.drawRect(sky, _skyPaint);
 
     // Obsidian floor with vanishing lines converging to the horizon center.
     canvas.drawRect(
       Rect.fromLTWH(0, horizonY, w, h - horizonY),
-      Paint()..color = const Color(0xFF14090D),
+      _floorBasePaint,
     );
     final vanish = Offset(w * 0.5, horizonY);
-    final floorPaint = Paint()
-      ..color = const Color(0xFF2A1116).withValues(alpha: 0.65)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
     for (var i = -7; i <= 7; i++) {
       final baseX = w * 0.5 + i * (w / 8);
-      canvas.drawLine(vanish, Offset(baseX, h), floorPaint);
+      canvas.drawLine(vanish, Offset(baseX, h), _vanishPaint);
     }
-    final linePaint = Paint()
-      ..color = const Color(0xFF3A1A1F)
-      ..strokeWidth = 1.2;
     for (var i = 1; i <= 6; i++) {
       final t = i / 6;
       final y = CombatMathLerp.lerp(horizonY, h, t * t);
-      canvas.drawLine(Offset(0, y), Offset(w, y), linePaint);
+      canvas.drawLine(Offset(0, y), Offset(w, y), _gridPaint);
     }
 
     // Depth-scaled gothic side pillars.
@@ -94,26 +106,25 @@ class ArenaBackground25D extends PositionComponent {
     final portalCx = CombatEngine.bossScreenX;
     final portalCy = CombatEngine.bossScreenY - 60;
     final portalR = 110.0;
-    final paintRing = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 5
-      ..color = portalColor.withValues(alpha: 0.75);
-    final paintGlow = Paint()
-      ..color = portalColor.withValues(alpha: 0.14)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(portalCx, portalCy), portalR, paintGlow);
-    canvas.drawCircle(Offset(portalCx, portalCy), portalR, paintRing);
-    for (var i = 0; i < 10; i++) {
-      final a = time * 1.2 + i * math.pi * 2 / 10;
+    _ringPaint.color = portalColor.withValues(alpha: 0.75);
+    _glowPaint.color = portalColor.withValues(alpha: 0.14);
+    // En gama baja se omite el halo (fill costoso) y se reducen los satélites.
+    if (PerformanceSettings.enableSecondaryGlow) {
+      canvas.drawCircle(Offset(portalCx, portalCy), portalR, _glowPaint);
+    }
+    canvas.drawCircle(Offset(portalCx, portalCy), portalR, _ringPaint);
+    _orbitPaint.color = portalColor;
+    final orbitCount = PerformanceSettings.lowSpecMode ? 5 : 10;
+    for (var i = 0; i < orbitCount; i++) {
+      final a = time * 1.2 + i * math.pi * 2 / orbitCount;
       final x = portalCx + math.cos(a) * portalR;
       final y = portalCy + math.sin(a) * portalR;
-      canvas.drawCircle(Offset(x, y), 5, Paint()..color = portalColor);
+      canvas.drawCircle(Offset(x, y), 5, _orbitPaint);
     }
 
-    // Animated abyssal fog drifting by sine waves.
-    final fogPaint = Paint()
-      ..color = const Color(0xFF8B5CF6).withValues(alpha: 0.06);
-    for (var layer = 0; layer < 3; layer++) {
+    // Animated abyssal fog drifting by sine waves (omitida en gama baja).
+    final fogLayers = PerformanceSettings.enableDecorativeBackground ? 3 : 0;
+    for (var layer = 0; layer < fogLayers; layer++) {
       final baseY = horizonY + 40 + layer * 90;
       final path = Path()..moveTo(0, baseY);
       for (var x = 0; x <= w; x += 20) {
@@ -125,7 +136,7 @@ class ArenaBackground25D extends PositionComponent {
       path.lineTo(w, h);
       path.lineTo(0, h);
       path.close();
-      canvas.drawPath(path, fogPaint);
+      canvas.drawPath(path, _fogPaint);
     }
 
     canvas.restore();
@@ -140,17 +151,16 @@ class ArenaBackground25D extends PositionComponent {
     double depth,
   ) {
     final opacity = 0.35 + 0.4 * (1 - depth);
-    c.drawRect(
-      Rect.fromLTWH(x, y, w, h),
-      Paint()..color = Color.fromRGBO(26, 14, 20, opacity),
-    );
+    _pillarBodyPaint.color = Color.fromRGBO(26, 14, 20, opacity);
+    _pillarTrimPaint.color = Color.fromRGBO(58, 26, 31, opacity);
+    c.drawRect(Rect.fromLTWH(x, y, w, h), _pillarBodyPaint);
     c.drawRect(
       Rect.fromLTWH(x - w * 0.15, y, w * 1.3, 18),
-      Paint()..color = Color.fromRGBO(58, 26, 31, opacity),
+      _pillarTrimPaint,
     );
     c.drawRect(
       Rect.fromLTWH(x - w * 0.15, y + h, w * 1.3, 16),
-      Paint()..color = Color.fromRGBO(58, 26, 31, opacity),
+      _pillarTrimPaint,
     );
   }
 

@@ -23,6 +23,7 @@ dependencies:
 
   # Persistence
   sqflite: ^2.3.0
+  sqflite_common: ^2.5.0
   sqflite_common_ffi: ^2.3.0
   path_provider: ^2.1.0
   path: ^1.9.0
@@ -33,6 +34,7 @@ dependencies:
 
   # Cupertino Icons (for completeness)
   cupertino_icons: ^1.0.8
+  sqflite_common_ffi_web: ^1.2.0
 
 dev_dependencies:
   flutter_test:

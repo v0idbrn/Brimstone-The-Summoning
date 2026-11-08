@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
+import '../../../core/performance/performance_settings.dart';
 import '../../../domain/campaign/campaign_chapters.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/combat/combat_models.dart';
@@ -31,6 +32,149 @@ class SanctuaryScreen extends ConsumerStatefulWidget {
   ConsumerState<SanctuaryScreen> createState() => _SanctuaryScreenState();
 }
 
+/// Accesos directos del Santuario en una cuadrícula que nunca desborda.
+///
+/// El AppBar mantiene los iconos compactos; este panel aporta etiquetas
+/// legibles y garantiza que las diez pantallas/modales de las fases 15–22
+/// estén a un toque en cualquier ancho de pantalla.
+class _MetaActionsPanel extends StatelessWidget {
+  const _MetaActionsPanel({
+    required this.onTalentTree,
+    required this.onGear,
+    required this.onChallenges,
+    required this.onTraining,
+    required this.onProfile,
+    required this.onSettings,
+    required this.onMerchant,
+    required this.onCodex,
+    required this.onBounties,
+    required this.onBackup,
+  });
+
+  final VoidCallback onTalentTree;
+  final VoidCallback onGear;
+  final VoidCallback onChallenges;
+  final VoidCallback onTraining;
+  final VoidCallback onProfile;
+  final VoidCallback onSettings;
+  final VoidCallback onMerchant;
+  final VoidCallback onCodex;
+  final VoidCallback onBounties;
+  final VoidCallback onBackup;
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = <_MetaAction>[
+      _MetaAction(
+        'Talentos',
+        Icons.account_tree,
+        const Color(0xFF4FFFA3),
+        onTalentTree,
+      ),
+      _MetaAction(
+        'Armadura',
+        Icons.shield_moon,
+        const Color(0xFF4FFFA3),
+        onGear,
+      ),
+      _MetaAction(
+        'Desafíos',
+        Icons.gavel,
+        const Color(0xFFFF5A26),
+        onChallenges,
+      ),
+      _MetaAction(
+        'Arena',
+        Icons.fitness_center,
+        const Color(0xFF3FD8FF),
+        onTraining,
+      ),
+      _MetaAction('Perfil', Icons.person, const Color(0xFFB16EFF), onProfile),
+      _MetaAction(
+        'Ajustes',
+        Icons.settings,
+        const Color(0xFFB16EFF),
+        onSettings,
+      ),
+      _MetaAction('Mercader', Icons.store, const Color(0xFFB16EFF), onMerchant),
+      _MetaAction('Códice', Icons.menu_book, const Color(0xFFB16EFF), onCodex),
+      _MetaAction(
+        'Juramentos',
+        Icons.military_tech,
+        const Color(0xFFFFC93C),
+        onBounties,
+      ),
+      _MetaAction('Backup', Icons.backup, const Color(0xFFB16EFF), onBackup),
+    ];
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14090D),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'MESA DEL INVOCADOR',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 10,
+              letterSpacing: 1.4,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [for (final action in actions) _MetaActionChip(action)],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaAction {
+  const _MetaAction(this.label, this.icon, this.color, this.onTap);
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+}
+
+class _MetaActionChip extends StatelessWidget {
+  const _MetaActionChip(this.action);
+
+  final _MetaAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: action.onTap,
+      icon: Icon(action.icon, size: 15, color: action.color),
+      label: Text(
+        action.label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        minimumSize: const Size(0, 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        side: BorderSide(color: action.color.withValues(alpha: 0.45)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
 class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
   String _selectedChapterId = 'chapter_ceniza';
   Set<String> _clearedChapters = {};
@@ -53,6 +197,10 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
     final wave = await repo.loadHighestEndlessWave();
     final stats = await repo.loadStats();
     final title = await repo.loadActiveTitle();
+    final rawSettings = await repo.loadRawStats();
+    PerformanceSettings.restoreFromStorage(
+      flag: rawSettings[PerformanceSettings.lowSpecKey],
+    );
     if (!mounted) return;
     setState(() {
       _clearedChapters = cleared.toSet();
@@ -74,6 +222,68 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
       builder: (_) => const TalentTreeModal(),
     );
     if (mounted) await _loadMeta();
+  }
+
+  Future<void> _openCodex() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF14090D),
+      builder: (_) => const CodexModal(),
+    );
+  }
+
+  Future<void> _openBackup() async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => const BackupRestoreModal(),
+    );
+  }
+
+  Future<void> _openBounties() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF14090D),
+      builder: (_) => const BountiesModal(),
+    );
+  }
+
+  Future<void> _openMerchant() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF14090D),
+      builder: (_) => const MerchantModal(),
+    );
+  }
+
+  Future<void> _openSettings() async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => const SettingsModal(),
+    );
+  }
+
+  Future<void> _openChallenges() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SealChallengesScreen()),
+    );
+  }
+
+  Future<void> _openTraining() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const TrainingArenaScreen()),
+    );
+  }
+
+  Future<void> _openHowToPlay() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF14090D),
+      builder: (_) => const HowToPlayModal(),
+    );
   }
 
   Future<void> _openProfile() async {
@@ -120,132 +330,102 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
         backgroundColor: const Color(0xFF14090D),
         title: const Text(
           'SANTUARIO DEL AZUFRE',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: Color(0xFFB16EFF),
             fontWeight: FontWeight.w900,
-            fontSize: 15,
-            letterSpacing: 1.5,
+            fontSize: 13,
+            letterSpacing: 0.6,
           ),
         ),
         actions: [
-          // Barra desplazable: el Santuario tiene 11 accesos y la app es
-          // portrait, así que los iconos nunca deben desbordar el AppBar.
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    ProceduralSfxEngine.isMuted
-                        ? Icons.volume_off
-                        : Icons.volume_up,
-                    color: ProceduralSfxEngine.isMuted
-                        ? Colors.white38
-                        : const Color(0xFFB16EFF),
-                  ),
-                  onPressed: _toggleAudio,
-                  tooltip: ProceduralSfxEngine.isMuted
-                      ? 'Audio activado'
-                      : 'Audio desactivado',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.menu_book, color: Color(0xFFB16EFF)),
-                  onPressed: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: const Color(0xFF14090D),
-                    builder: (_) => const CodexModal(),
-                  ),
-                  tooltip: 'Códice Abisal',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.backup, color: Color(0xFFB16EFF)),
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => const BackupRestoreModal(),
-                  ),
-                  tooltip: 'Backup / Restaurar',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon:
-                      const Icon(Icons.military_tech, color: Color(0xFFFFC93C)),
-                  onPressed: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: const Color(0xFF14090D),
-                    builder: (_) => const BountiesModal(),
-                  ),
-                  tooltip: 'Juramentos de Azufre',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.store, color: Color(0xFFB16EFF)),
-                  onPressed: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: const Color(0xFF14090D),
-                    builder: (_) => const MerchantModal(),
-                  ),
-                  tooltip: 'Mercader del Vacío',
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.settings, color: Color(0xFFB16EFF)),
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => const SettingsModal(),
-                  ),
-                  tooltip: 'Ajustes',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.person, color: Color(0xFFB16EFF)),
-                  onPressed: _openProfile,
-                  tooltip: 'Perfil de Invocador',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon:
-                      const Icon(Icons.account_tree, color: Color(0xFF4FFFA3)),
-                  onPressed: _openTalentTree,
-                  tooltip: 'Árbol de Talentos y Armadura',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.gavel, color: Color(0xFFFF5A26)),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const SealChallengesScreen()),
-                  ),
-                  tooltip: 'Desafíos del Sello',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.fitness_center,
-                      color: Color(0xFF3FD8FF)),
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const TrainingArenaScreen()),
-                  ),
-                  tooltip: 'Arena de Entrenamiento',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon:
-                      const Icon(Icons.help_outline, color: Color(0xFFB16EFF)),
-                  onPressed: () => showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: const Color(0xFF14090D),
-                    builder: (_) => const HowToPlayModal(),
-                  ),
-                  tooltip: 'Cómo jugar',
-                ),
-              ],
+          IconButton(
+            icon: Icon(
+              ProceduralSfxEngine.isMuted ? Icons.volume_off : Icons.volume_up,
+              color: ProceduralSfxEngine.isMuted
+                  ? Colors.white38
+                  : const Color(0xFFB16EFF),
             ),
+            onPressed: _toggleAudio,
+            tooltip: ProceduralSfxEngine.isMuted
+                ? 'Audio activado'
+                : 'Audio desactivado',
+          ),
+          IconButton(
+            icon: const Icon(Icons.person, color: Color(0xFFB16EFF)),
+            onPressed: _openProfile,
+            tooltip: 'Perfil de Invocador',
+          ),
+          IconButton(
+            icon: const Icon(Icons.account_tree, color: Color(0xFF4FFFA3)),
+            onPressed: _openTalentTree,
+            tooltip: 'Árbol de Talentos y Armadura',
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Color(0xFFB16EFF)),
+            onPressed: _openSettings,
+            tooltip: 'Ajustes',
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Color(0xFFB16EFF)),
+            tooltip: 'Más accesos',
+            color: const Color(0xFF14090D),
+            onSelected: (value) {
+              switch (value) {
+                case 'codex':
+                  _openCodex();
+                case 'backup':
+                  _openBackup();
+                case 'bounties':
+                  _openBounties();
+                case 'merchant':
+                  _openMerchant();
+                case 'challenges':
+                  _openChallenges();
+                case 'training':
+                  _openTraining();
+                case 'howto':
+                  _openHowToPlay();
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'codex',
+                child: Text('Códice Abisal',
+                    style: TextStyle(color: Colors.white)),
+              ),
+              PopupMenuItem(
+                value: 'backup',
+                child: Text('Backup / Restaurar',
+                    style: TextStyle(color: Colors.white)),
+              ),
+              PopupMenuItem(
+                value: 'bounties',
+                child: Text('Juramentos de Azufre',
+                    style: TextStyle(color: Colors.white)),
+              ),
+              PopupMenuItem(
+                value: 'merchant',
+                child: Text('Mercader del Vacío',
+                    style: TextStyle(color: Colors.white)),
+              ),
+              PopupMenuItem(
+                value: 'challenges',
+                child: Text('Desafíos del Sello',
+                    style: TextStyle(color: Colors.white)),
+              ),
+              PopupMenuItem(
+                value: 'training',
+                child: Text('Arena de Entrenamiento',
+                    style: TextStyle(color: Colors.white)),
+              ),
+              PopupMenuItem(
+                value: 'howto',
+                child:
+                    Text('Cómo jugar', style: TextStyle(color: Colors.white)),
+              ),
+            ],
           ),
         ],
       ),
@@ -287,6 +467,19 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+          _MetaActionsPanel(
+            onTalentTree: _openTalentTree,
+            onGear: _openTalentTree,
+            onChallenges: _openChallenges,
+            onTraining: _openTraining,
+            onProfile: _openProfile,
+            onSettings: _openSettings,
+            onMerchant: _openMerchant,
+            onCodex: _openCodex,
+            onBounties: _openBounties,
+            onBackup: _openBackup,
           ),
           const SizedBox(height: 12),
           const Text(
@@ -555,16 +748,20 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        chapter.name,
-                        style: TextStyle(
-                          color: cleared
-                              ? const Color(0xFF4FFFA3)
-                              : unlocked
-                                  ? Colors.white
-                                  : Colors.white38,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
+                      Flexible(
+                        child: Text(
+                          chapter.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: cleared
+                                ? const Color(0xFF4FFFA3)
+                                : unlocked
+                                    ? Colors.white
+                                    : Colors.white38,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                       if (cleared)

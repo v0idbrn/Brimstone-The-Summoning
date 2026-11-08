@@ -1,8 +1,7 @@
-import 'dart:io';
-
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common/sqflite.dart';
+
+import 'database_platform.dart';
 
 /// SQLite schema owner for Brimstone: The Summoning.
 ///
@@ -44,10 +43,10 @@ class DatabaseHelper {
   static String uniqueTestPath([String prefix = 'brimstone_test']) {
     _testPathCounter++;
     final stamp = DateTime.now().microsecondsSinceEpoch;
-    return p.join(
-      Directory.systemTemp.path,
-      '${prefix}_${stamp}_$_testPathCounter.db',
-    );
+    final name = '${prefix}_${stamp}_$_testPathCounter.db';
+    final temp = platformTempDirectory();
+    // En web no hay carpeta temporal: el nombre lógico basta (IndexedDB).
+    return temp.isEmpty ? name : p.join(temp, name);
   }
 
   bool get _isMemory => _path == inMemoryDatabasePath;
@@ -55,14 +54,9 @@ class DatabaseHelper {
   Future<Database> get db async => _db ??= await _initDb();
 
   Future<Database> _initDb() async {
-    sqfliteFfiInit();
-    final String path;
-    if (_path != null) {
-      path = _path;
-    } else {
-      final docs = await getApplicationDocumentsDirectory();
-      path = p.join(docs.path, 'brimstone.db');
-    }
+    // Nativo (FFI) en Android/desktop/tests, WebAssembly+IndexedDB en web.
+    configureDatabaseFactory();
+    final path = _path ?? await platformDatabasePath();
     return openDatabase(
       path,
       version: version,
@@ -83,17 +77,16 @@ class DatabaseHelper {
   }
 
   /// Borra el archivo de la base si esta instancia usa uno y no es memoria.
+  ///
+  /// En web no hay archivos: el cierre de conexión ya libera IndexedDB.
   Future<void> deleteDatabaseFile() async {
     await close();
     if (_path == null || _isMemory) return;
-    final file = File(_path);
-    if (await file.exists()) {
-      try {
-        await file.delete();
-      } on FileSystemException {
-        // El archivo puede estar en uso por otra conexión; los tests usan
-        // rutas únicas, así que ignorar es seguro.
-      }
+    try {
+      await databaseFactory.deleteDatabase(_path);
+    } catch (_) {
+      // El archivo puede estar en uso por otra conexión; los tests usan
+      // rutas únicas, así que ignorar es seguro.
     }
   }
 

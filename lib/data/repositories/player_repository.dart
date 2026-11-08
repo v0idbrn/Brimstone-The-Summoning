@@ -1,4 +1,6 @@
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common/sqlite_api.dart';
+
+import 'package:brimstone_summoning/core/security/integrity_signer.dart';
 
 import 'package:brimstone_summoning/domain/entities/owned_card.dart';
 import 'package:brimstone_summoning/domain/meta/rune_system.dart';
@@ -13,7 +15,12 @@ import '../database/database_helper.dart';
 /// the active 4-card squad and every long-term meta progression track.
 class PlayerRepository {
   final DatabaseHelper _db;
-  PlayerRepository(this._db);
+
+  /// Firma HMAC-SHA256 de los respaldos (anti-tamper).
+  final IntegritySigner signer;
+
+  PlayerRepository(this._db, {IntegritySigner? signer})
+      : signer = signer ?? IntegritySigner();
 
   DatabaseHelper get databaseHelper => _db;
 
@@ -44,7 +51,7 @@ class PlayerRepository {
     final activeTitle = await loadActiveTitle();
     final stats = await loadStats();
 
-    return {
+    final payload = <String, dynamic>{
       'formatVersion': 2,
       'profile': {
         'gold': profile[0],
@@ -86,15 +93,32 @@ class PlayerRepository {
       'activeTitle': activeTitle,
       'stats': stats.toMap(),
     };
+    // Sello de integridad: cualquier edición posterior del JSON deja de cuadrar.
+    payload[IntegritySigner.signatureKey] = signer.sign(payload);
+    return payload;
   }
 
   /// Importa y reemplaza todo el progreso desde un mapa JSON previo.
   /// Lanza [FormatException] si el payload es inválido; nunca deja la BD a
   /// medio camino (usa una única transacción).
-  Future<void> importBackup(Map<String, dynamic> data) async {
+  Future<void> importBackup(
+    Map<String, dynamic> data, {
+    bool allowUnsignedLegacy = false,
+  }) async {
     final version = _asInt(data['formatVersion'], 1);
     if (version != 1 && version != 2) {
       throw FormatException('Formato de backup no reconocido.');
+    }
+    // v2 exige sello válido: un JSON editado a mano (oro, estrellas, niveles)
+    // no puede entrar al perfil. v1 (legado) no tiene sello por diseño.
+    if (version >= 2) {
+      final signature = data[IntegritySigner.signatureKey];
+      final hasSignature = signature is String && signature.isNotEmpty;
+      if (!allowUnsignedLegacy || hasSignature) {
+        if (!signer.verify(data)) {
+          throw const FormatException(IntegritySigner.tamperMessage);
+        }
+      }
     }
 
     final profile = _asMap(data['profile']);

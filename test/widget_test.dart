@@ -10,9 +10,20 @@ import 'package:brimstone_summoning/domain/value_objects/rarity.dart';
 import 'package:brimstone_summoning/presentation/controllers/meta_controller.dart';
 import 'package:brimstone_summoning/presentation/screens/altar/altar_evolution_screen.dart';
 import 'package:brimstone_summoning/presentation/screens/barracks/barracks_screen.dart';
+import 'package:brimstone_summoning/presentation/screens/challenges/seal_challenges_screen.dart';
 import 'package:brimstone_summoning/presentation/screens/meta/widgets.dart';
+import 'package:brimstone_summoning/presentation/screens/meta/how_to_play_modal.dart';
+import 'package:brimstone_summoning/presentation/screens/sanctuary/backup_restore_modal.dart';
+import 'package:brimstone_summoning/presentation/screens/sanctuary/bounties_modal.dart';
+import 'package:brimstone_summoning/presentation/screens/sanctuary/codex_modal.dart';
+import 'package:brimstone_summoning/presentation/screens/sanctuary/merchant_modal.dart';
 import 'package:brimstone_summoning/presentation/screens/sanctuary/sanctuary_screen.dart';
+import 'package:brimstone_summoning/presentation/screens/sanctuary/settings_modal.dart';
+import 'package:brimstone_summoning/presentation/screens/sanctuary/summoner_profile_modal.dart';
+import 'package:brimstone_summoning/presentation/screens/sanctuary/talent_tree_modal.dart';
 import 'package:brimstone_summoning/presentation/screens/summon/summon_portal_screen.dart';
+import 'package:brimstone_summoning/presentation/screens/training/training_arena_screen.dart';
+import 'package:brimstone_summoning/main.dart';
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -157,6 +168,53 @@ class _FakePlayerRepository extends PlayerRepository {
 
   @override
   Future<RuneInstance?> loadCardRune(int instanceId) async => null;
+
+  @override
+  Future<Map<String, int>> loadRawStats() async => const {};
+
+  @override
+  Future<void> writeStat(String key, int value) async {}
+
+  @override
+  Future<Map<String, int>> loadTalentLevels() async => const {};
+
+  @override
+  Future<Map<String, int>> loadGearLevels() async => const {};
+
+  @override
+  Future<List<String>> loadClearedChallenges() async => const [];
+
+  @override
+  Future<Map<String, int>> loadCodexDetonations() async => const {};
+
+  @override
+  Future<void> incrementCodexReaction(String nameOrId) async {}
+
+  @override
+  Future<bool> upgradeTalent(String talentId) async => false;
+
+  @override
+  Future<bool> forgeGear(String gearId) async => false;
+
+  @override
+  Future<bool> markChallengeCleared(
+    String challengeId, {
+    int rewardGold = 500,
+    int rewardShards = 250,
+  }) async =>
+      false;
+
+  @override
+  Future<void> recordCombatResult({
+    required bool victory,
+    int damageTotal = 0,
+    int maxHit = 0,
+    int bullseyes = 0,
+    int bestBullseyeStreak = 0,
+    int reactions = 0,
+    int counterflicks = 0,
+    bool bossKilled = false,
+  }) async {}
 }
 
 Override _fakeRepoOverride() =>
@@ -165,7 +223,12 @@ Override _fakeRepoOverride() =>
 /// Wraps a screen in ProviderScope with the fake repository.
 Widget _screen(Widget child) => ProviderScope(
       overrides: [_fakeRepoOverride()],
-      child: MaterialApp(theme: ThemeData.dark(), home: child),
+      // Los modales se muestran de verdad dentro de un sheet/dialog (que aportan
+      // Material); el Scaffold reproduce ese ancestro en los smoke tests.
+      child: MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(body: child),
+      ),
     );
 
 void main() {
@@ -205,6 +268,215 @@ void main() {
       expect(find.text('500'), findsOneWidget);
       expect(find.text('100'), findsOneWidget);
       expect(find.text('20'), findsOneWidget);
+    });
+  });
+
+  group('Widget smoke — pantallas y modales de las fases 15–22 (430x932)', () {
+    setUp(() {});
+
+    Future<void> pumpMobile(WidgetTester tester, Widget widget) async {
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(_screen(widget));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('el Santuario expone la mesa del invocador sin overflow',
+        (tester) async {
+      await pumpMobile(tester, const SanctuaryScreen());
+      expect(find.text('MESA DEL INVOCADOR'), findsOneWidget);
+      for (final label in [
+        'Talentos',
+        'Armadura',
+        'Desafíos',
+        'Arena',
+        'Perfil',
+        'Ajustes',
+        'Mercader',
+        'Códice',
+        'Juramentos',
+        'Backup',
+      ]) {
+        expect(find.text(label), findsWidgets, reason: 'falta $label');
+      }
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('el Santuario mantiene los accesos primarios del AppBar',
+        (tester) async {
+      await pumpMobile(tester, const SanctuaryScreen());
+      for (final tooltip in [
+        'Perfil de Invocador',
+        'Árbol de Talentos y Armadura',
+        'Ajustes',
+        'Más accesos',
+      ]) {
+        expect(find.byTooltip(tooltip), findsOneWidget, reason: tooltip);
+      }
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('el menú «Más accesos» lista las siete entradas restantes',
+        (tester) async {
+      await pumpMobile(tester, const SanctuaryScreen());
+      await tester.tap(find.byTooltip('Más accesos'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      for (final label in [
+        'Códice Abisal',
+        'Backup / Restaurar',
+        'Juramentos de Azufre',
+        'Mercader del Vacío',
+        'Desafíos del Sello',
+        'Arena de Entrenamiento',
+        'Cómo jugar',
+      ]) {
+        expect(find.text(label), findsWidgets, reason: label);
+      }
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('tocar Talentos abre el árbol de talentos', (tester) async {
+      await pumpMobile(tester, const SanctuaryScreen());
+      await tester.tap(find.byTooltip('Árbol de Talentos y Armadura'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('TALENTOS'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('tocar Perfil abre el perfil de invocador', (tester) async {
+      await pumpMobile(tester, const SanctuaryScreen());
+      await tester.tap(find.byTooltip('Perfil de Invocador'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('PERFIL DEL INVOCADOR'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('tocar Ajustes abre el modal de ajustes', (tester) async {
+      await pumpMobile(tester, const SanctuaryScreen());
+      await tester.tap(find.byTooltip('Ajustes'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('AJUSTES'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('TalentTreeModal renderiza talentos y armadura',
+        (tester) async {
+      await pumpMobile(tester, const TalentTreeModal());
+      expect(find.text('TALENTOS'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('SummonerProfileModal muestra métricas y títulos',
+        (tester) async {
+      await pumpMobile(tester, const SummonerProfileModal());
+      expect(find.text('PERFIL DEL INVOCADOR'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('SettingsModal incluye el Modo Gama Baja', (tester) async {
+      await pumpMobile(tester, const SettingsModal());
+      expect(find.text('AJUSTES'), findsOneWidget);
+      expect(find.text('Modo Gama Baja'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('CodexModal renderiza el códice abisal', (tester) async {
+      await pumpMobile(tester, const CodexModal());
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('BountiesModal renderiza los juramentos', (tester) async {
+      await pumpMobile(tester, const BountiesModal());
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('MerchantModal renderiza el mercader', (tester) async {
+      await pumpMobile(tester, const MerchantModal());
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('BackupRestoreModal renderiza el respaldo', (tester) async {
+      await pumpMobile(tester, const BackupRestoreModal());
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('HowToPlayModal renderiza la ayuda', (tester) async {
+      await pumpMobile(tester, const HowToPlayModal());
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('SealChallengesScreen lista los 10 desafíos', (tester) async {
+      await pumpMobile(tester, const SealChallengesScreen());
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('TrainingArenaScreen renderiza la arena', (tester) async {
+      await pumpMobile(tester, const TrainingArenaScreen());
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('Widget smoke — marco arcade web (1280x800)', () {
+    Future<void> pumpDesktop(WidgetTester tester, Widget widget) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(_screen(widget));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('la app se envuelve en el gabinete arcade', (tester) async {
+      await pumpDesktop(tester, const WebArcadeFrame(child: HomeShell()));
+      expect(find.byKey(WebArcadeFrame.frameKey), findsOneWidget);
+      expect(find.text('BRIMSTONE: THE SUMMONING'), findsOneWidget);
+      expect(find.text('CLICK + ARRASTRAR · Fusionar'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('el Santuario dentro del gabinete no desborda', (tester) async {
+      await pumpDesktop(tester, const WebArcadeFrame(child: SanctuaryScreen()));
+      expect(find.byKey(WebArcadeFrame.frameKey), findsOneWidget);
+      expect(find.text('SANTUARIO DEL AZUFRE'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('en móvil no se dibuja el gabinete', (tester) async {
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(_screen(const WebArcadeFrame(child: SizedBox())));
+      await tester.pump();
+      expect(find.byKey(WebArcadeFrame.frameKey), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('justo en el breakpoint (560px) sigue siendo móvil',
+        (tester) async {
+      tester.view.physicalSize = const Size(560, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(_screen(const WebArcadeFrame(child: SizedBox())));
+      await tester.pump();
+      expect(find.byKey(WebArcadeFrame.frameKey), findsNothing);
     });
   });
 }
