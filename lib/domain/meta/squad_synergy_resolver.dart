@@ -93,7 +93,8 @@ class SquadSynergyResolver {
       return SquadSynergyBonus(
         type: SquadSynergyType.monoElemental,
         name: 'Dominio $_elementName(elements.keys.first)',
-        description: 'ATK global +35% y las cartas empiezan cada combate con 20% de maná.',
+        description:
+            'ATK global +35% y las cartas empiezan cada combate con 20% de maná.',
         atkMult: 1.35,
         startManaFraction: 0.20,
       );
@@ -128,16 +129,15 @@ class SquadSynergyResolver {
     return const SquadSynergyBonus(
       type: SquadSynergyType.none,
       name: 'Sin sinergia',
-      description:
-          'Combiná 4 cartas del mismo elemento o mezcla de elementos '
+      description: 'Combiná 4 cartas del mismo elemento o mezcla de elementos '
           'para activar una pasiva global.',
     );
   }
 
   static String _elementName(Element e) => switch (e) {
-    Element.igneous => 'Ígneo',
-    Element.abyssal => 'Abisal',
-    Element.telluric => 'Telúrico',
-    Element.empty => 'Vacío',
-  };
+        Element.igneous => 'Ígneo',
+        Element.abyssal => 'Abisal',
+        Element.telluric => 'Telúrico',
+        Element.empty => 'Vacío',
+      };
 }

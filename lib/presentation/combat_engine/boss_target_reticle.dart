@@ -17,12 +17,12 @@ class BossTargetReticle extends PositionComponent {
   }
 
   Color get auraColor => switch (combatGame.engine.aura) {
-    Element.igneous => const Color(0xFFFF5A26),
-    Element.abyssal => const Color(0xFF3FD8FF),
-    Element.telluric => const Color(0xFFB0703B),
-    Element.empty => const Color(0xFFB16EFF),
-    null => Colors.grey.shade700,
-  };
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+        null => Colors.grey.shade700,
+      };
 
   @override
   void render(Canvas canvas) {

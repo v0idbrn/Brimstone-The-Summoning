@@ -36,11 +36,11 @@ class BossActorComponent extends PositionComponent {
   }
 
   Color get elementColor => switch (combatGame.engine.boss.element) {
-    Element.igneous => const Color(0xFFFF5A26),
-    Element.abyssal => const Color(0xFF3FD8FF),
-    Element.telluric => const Color(0xFFB0703B),
-    Element.empty => const Color(0xFFB16EFF),
-  };
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
 
   /// Whether the boss is in enrage phase 2 (<45% HP).
   bool get _enraged => combatGame.engine.enraged;

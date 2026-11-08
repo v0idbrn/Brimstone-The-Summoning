@@ -58,25 +58,24 @@ class HowToPlayModal extends StatelessWidget {
       'title': '1. Fusionar Esferas',
       'text':
           'Arrastra dos esferas del mismo elemento y nivel en la bandeja para '
-          'fusionarlas en una de nivel superior (Nv.1 → Nv.2 → Nv.3).',
+              'fusionarlas en una de nivel superior (Nv.1 → Nv.2 → Nv.3).',
     },
     {
       'title': '2. Flick al Bullseye',
       'text':
           'Desliza una esfera hacia arriba (flick) para lanzarla contra una diana. '
-          'Impactar el centro (Bullseye) otorga daño crítico y maná extra.',
+              'Impactar el centro (Bullseye) otorga daño crítico y maná extra.',
     },
     {
       'title': '3. Reacciones Elementales',
       'text':
           'Aplica un aura de un elemento y luego impacta con otro para detonar '
-          'una reacción: ¡Erupción Magmática, Choque Térmico, Petrificación '
-          'Abisal o Colapso del Sello!',
+              'una reacción: ¡Erupción Magmática, Choque Térmico, Petrificación '
+              'Abisal o Colapso del Sello!',
     },
     {
       'title': '4. Counter-Flick y Habilidades',
-      'text':
-          'Toca un proyectil enemigo para destruirlo con Counter-Flick. '
+      'text': 'Toca un proyectil enemigo para destruirlo con Counter-Flick. '
           'Cuando una carta tiene maná completo, tócala para disparar su '
           'habilidad activa contra el jefe.',
     },

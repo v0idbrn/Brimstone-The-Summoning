@@ -34,14 +34,15 @@ class CombatScreen extends ConsumerStatefulWidget {
     CombatModifiers modifiers = const CombatModifiers(),
     SquadSynergyBonus? synergy,
     Map<String, RuneInstance> cardRunes = const {},
-  }) => CombatEngine(
-    boss: boss,
-    cards: cards,
-    playerMaxHp: playerMaxHp,
-    modifiers: modifiers,
-    synergy: synergy,
-    cardRunes: cardRunes,
-  );
+  }) =>
+      CombatEngine(
+        boss: boss,
+        cards: cards,
+        playerMaxHp: playerMaxHp,
+        modifiers: modifiers,
+        synergy: synergy,
+        cardRunes: cardRunes,
+      );
 
   @override
   ConsumerState<CombatScreen> createState() => _CombatScreenState();
@@ -262,36 +263,36 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
 }
 
 CombatEngine defaultEngine() => CombatEngine(
-  boss: BossConfig.pyroth,
-  cards: [
-    ManaCard(
-      id: 'ignis_hound',
-      name: 'Sabueso de Azufre',
-      element: Element.igneous,
-      baseManaCost: 100,
-      attack: 10,
-    ),
-    ManaCard(
-      id: 'abyss_stalker',
-      name: 'Acechador de Escarcha',
-      element: Element.abyssal,
-      baseManaCost: 95,
-      attack: 12,
-    ),
-    ManaCard(
-      id: 'terra_golem',
-      name: 'Gólem de Basalto',
-      element: Element.telluric,
-      baseManaCost: 100,
-      attack: 8,
-    ),
-    ManaCard(
-      id: 'void_specter',
-      name: 'Espectro del Sello',
-      element: Element.empty,
-      baseManaCost: 110,
-      attack: 15,
-    ),
-  ],
-  playerMaxHp: 100,
-);
+      boss: BossConfig.pyroth,
+      cards: [
+        ManaCard(
+          id: 'ignis_hound',
+          name: 'Sabueso de Azufre',
+          element: Element.igneous,
+          baseManaCost: 100,
+          attack: 10,
+        ),
+        ManaCard(
+          id: 'abyss_stalker',
+          name: 'Acechador de Escarcha',
+          element: Element.abyssal,
+          baseManaCost: 95,
+          attack: 12,
+        ),
+        ManaCard(
+          id: 'terra_golem',
+          name: 'Gólem de Basalto',
+          element: Element.telluric,
+          baseManaCost: 100,
+          attack: 8,
+        ),
+        ManaCard(
+          id: 'void_specter',
+          name: 'Espectro del Sello',
+          element: Element.empty,
+          baseManaCost: 110,
+          attack: 15,
+        ),
+      ],
+      playerMaxHp: 100,
+    );

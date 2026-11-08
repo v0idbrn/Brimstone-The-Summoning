@@ -187,8 +187,8 @@ class ProceduralSfxEngine {
       'evolution_success' => _evolutionSuccess(),
       'evolution_fail' => _evolutionFail(),
       _ when name.startsWith('summon_reveal_') => _summonReveal(
-        int.tryParse(name.substring('summon_reveal_'.length)) ?? 1,
-      ),
+          int.tryParse(name.substring('summon_reveal_'.length)) ?? 1,
+        ),
       _ => throw ArgumentError('unknown sound: $name'),
     };
   }
@@ -313,12 +313,10 @@ class ProceduralSfxEngine {
       final phase1 = 2 * math.pi * f1 * t;
       final phase2 = 2 * math.pi * f2 * t;
       // Metallic timbre: add odd harmonics
-      final s1 =
-          math.sin(phase1) +
+      final s1 = math.sin(phase1) +
           0.3 * math.sin(3 * phase1) +
           0.15 * math.sin(5 * phase1);
-      final s2 =
-          math.sin(phase2) +
+      final s2 = math.sin(phase2) +
           0.3 * math.sin(3 * phase2) +
           0.15 * math.sin(5 * phase2);
       // Bell decay: double exponential
@@ -361,7 +359,7 @@ class ProceduralSfxEngine {
       // Add some noise for "explosion" texture
       final noise =
           (math.sin(t * 12345.67) * 0.5 + math.sin(t * 23456.78) * 0.5) *
-          (1 - progress);
+              (1 - progress);
       // Envelope: fast attack, slow decay
       final env = math.exp(-progress * 4.0);
       result[i] = (sub * 0.6 + ring * 0.3 + noise * 0.1) * env * 0.5;
@@ -386,14 +384,12 @@ class ProceduralSfxEngine {
       final localProgress = (t - noteIndex * noteDuration) / noteDuration;
       final phase = 2 * math.pi * freq * t;
       // Rich harmonic content for "gothic" feel
-      final s =
-          math.sin(phase) +
+      final s = math.sin(phase) +
           0.4 * math.sin(2 * phase) +
           0.2 * math.sin(3 * phase) +
           0.1 * math.sin(4 * phase);
       // Per-note envelope with quick attack
-      final env =
-          math.exp(-localProgress * 5.0) * 0.8 +
+      final env = math.exp(-localProgress * 5.0) * 0.8 +
           math.exp(-localProgress * 20.0) * 0.2;
       result[i] = s * env * 0.25;
     }
@@ -412,8 +408,7 @@ class ProceduralSfxEngine {
       final freq = 1200.0;
       final phase = 2 * math.pi * freq * t;
       // Inharmonic partials for metallic clang
-      final s =
-          math.sin(phase) +
+      final s = math.sin(phase) +
           0.5 * math.sin(phase * 1.4) +
           0.3 * math.sin(phase * 1.9) +
           0.2 * math.sin(phase * 2.5);
@@ -454,16 +449,14 @@ class ProceduralSfxEngine {
       final localProgress = (t - noteIndex * noteDuration) / noteDuration;
       final phase = 2 * math.pi * freq * t;
       // Ethereal timbre: fundamental + soft harmonics
-      final s =
-          math.sin(phase) +
+      final s = math.sin(phase) +
           0.3 * math.sin(2 * phase) +
           0.15 * math.sin(3 * phase) +
           0.08 * math.sin(4 * phase);
       // Add subtle shimmer (amplitude modulation)
       final shimmer = 1 + 0.1 * math.sin(2 * math.pi * 6 * t);
       // Per-note envelope with overlapping tails
-      final env =
-          math.exp(-localProgress * 3.0) * 0.7 +
+      final env = math.exp(-localProgress * 3.0) * 0.7 +
           math.exp(-localProgress * 12.0) * 0.3;
       // Overall envelope
       final overallEnv = 1 - progress * 0.3;
@@ -482,8 +475,7 @@ class ProceduralSfxEngine {
       final t = i / _sampleRate;
       final progress = t / duration;
       // Deep rumble
-      final rumble =
-          math.sin(2 * math.pi * 40 * t) * 0.5 +
+      final rumble = math.sin(2 * math.pi * 40 * t) * 0.5 +
           math.sin(2 * math.pi * 60 * t) * 0.3;
       // Rising alarm
       final alarmFreq = 440 + progress * 440;

@@ -91,8 +91,8 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
                   subtitle: minorShards
                       ? '1 carta — 100 esquirlas'
                       : minorGold
-                      ? '1 carta — 500 oro (sin esquirlas)'
-                      : 'Sin fondos suficientes',
+                          ? '1 carta — 500 oro (sin esquirlas)'
+                          : 'Sin fondos suficientes',
                   enabled: !_channeling && (minorShards || minorGold),
                   onTap: () => _summon(grandRitual: false),
                 ),

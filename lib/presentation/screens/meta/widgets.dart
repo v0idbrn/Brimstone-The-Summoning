@@ -8,19 +8,19 @@ import '../../controllers/meta_controller.dart';
 
 /// Shared visual helpers for the gothic meta screens.
 Color elementColor(Element e) => switch (e) {
-  Element.igneous => const Color(0xFFFF5A26),
-  Element.abyssal => const Color(0xFF3FD8FF),
-  Element.telluric => const Color(0xFFB0703B),
-  Element.empty => const Color(0xFFB16EFF),
-};
+      Element.igneous => const Color(0xFFFF5A26),
+      Element.abyssal => const Color(0xFF3FD8FF),
+      Element.telluric => const Color(0xFFB0703B),
+      Element.empty => const Color(0xFFB16EFF),
+    };
 
 Color rarityColor(Rarity r) => switch (r) {
-  Rarity.common => const Color(0xFF9AA4A8),
-  Rarity.rare => const Color(0xFF4FC3F7),
-  Rarity.epic => const Color(0xFFB16EFF),
-  Rarity.legendary => const Color(0xFFFFC93C),
-  Rarity.mythic => const Color(0xFFFF5A26),
-};
+      Rarity.common => const Color(0xFF9AA4A8),
+      Rarity.rare => const Color(0xFF4FC3F7),
+      Rarity.epic => const Color(0xFFB16EFF),
+      Rarity.legendary => const Color(0xFFFFC93C),
+      Rarity.mythic => const Color(0xFFFF5A26),
+    };
 
 /// Compact card tile reused by squad preview, barracks and evolution altar.
 class CardTileSmall extends StatelessWidget {
@@ -154,15 +154,16 @@ class CurrencyBar extends ConsumerWidget {
     required IconData icon,
     required Color color,
     required String label,
-  }) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 2),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 13),
-        const SizedBox(width: 2),
-        Text(label, style: TextStyle(color: color, fontSize: 10)),
-      ],
-    ),
-  );
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 13),
+            const SizedBox(width: 2),
+            Text(label, style: TextStyle(color: color, fontSize: 10)),
+          ],
+        ),
+      );
 }

@@ -41,20 +41,20 @@ class ReactionResult {
     this.appliesVulnerability = false,
   });
   factory ReactionResult.magmaEruption() => ReactionResult(
-    name: 'Erupción Magmática',
-    damageMultiplier: 1.6,
-    isAoE: true,
-  );
+        name: 'Erupción Magmática',
+        damageMultiplier: 1.6,
+        isAoE: true,
+      );
   factory ReactionResult.thermalShock() => ReactionResult(
-    name: 'Choque Térmico',
-    damageMultiplier: 2.0,
-    manaBonusPercent: 0.25,
-  );
+        name: 'Choque Térmico',
+        damageMultiplier: 2.0,
+        manaBonusPercent: 0.25,
+      );
   factory ReactionResult.abyssalPetrification() =>
       ReactionResult(name: 'Petrificación Abisal', damageMultiplier: 1.4);
   factory ReactionResult.sealCollapse() => ReactionResult(
-    name: 'Colapso del Sello',
-    damageMultiplier: 1.75,
-    appliesVulnerability: true,
-  );
+        name: 'Colapso del Sello',
+        damageMultiplier: 1.75,
+        appliesVulnerability: true,
+      );
 }

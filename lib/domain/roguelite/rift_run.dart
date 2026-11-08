@@ -23,7 +23,7 @@ class RiftRunNode {
 /// Immutable rift run state (offline-first; pure Dart).
 class RiftRun {
   final int
-  difficulty; // 1..3: Grieta de Ceniza / Fosa Abisal / Trono del Vacío
+      difficulty; // 1..3: Grieta de Ceniza / Fosa Abisal / Trono del Vacío
   final List<RiftRunNode> nodes;
   final int currentNodeId;
   final double playerHp;
@@ -67,29 +67,30 @@ class RiftRun {
     Set<int>? clearedNodeIds,
     double? startManaFraction,
     bool? completed,
-  }) => RiftRun(
-    difficulty: difficulty,
-    nodes: nodes,
-    currentNodeId: currentNodeId ?? this.currentNodeId,
-    playerHp: playerHp ?? this.playerHp,
-    playerMaxHp: playerMaxHp,
-    relicIds: relicIds ?? this.relicIds,
-    gold: gold ?? this.gold,
-    shards: shards ?? this.shards,
-    clearedNodeIds: clearedNodeIds ?? this.clearedNodeIds,
-    startManaFraction: startManaFraction ?? this.startManaFraction,
-    completed: completed ?? this.completed,
-  );
+  }) =>
+      RiftRun(
+        difficulty: difficulty,
+        nodes: nodes,
+        currentNodeId: currentNodeId ?? this.currentNodeId,
+        playerHp: playerHp ?? this.playerHp,
+        playerMaxHp: playerMaxHp,
+        relicIds: relicIds ?? this.relicIds,
+        gold: gold ?? this.gold,
+        shards: shards ?? this.shards,
+        clearedNodeIds: clearedNodeIds ?? this.clearedNodeIds,
+        startManaFraction: startManaFraction ?? this.startManaFraction,
+        completed: completed ?? this.completed,
+      );
 }
 
 /// Difficulty presets: which abyssal boss closes each incursion.
 class RiftDifficulty {
   // Grieta de Ceniza (Nv.1) / Fosa Abisal (Nv.2) / Trono del Vacío (Nv.3).
   static BossConfig bossFor(int difficulty) => switch (difficulty) {
-    2 => BossConfig.vaelor,
-    3 => BossConfig.azathor,
-    _ => BossConfig.pyroth,
-  };
+        2 => BossConfig.vaelor,
+        3 => BossConfig.azathor,
+        _ => BossConfig.pyroth,
+      };
 
   static double combatRewardGold(int difficulty, bool isElite) {
     final base = 40.0 * difficulty;

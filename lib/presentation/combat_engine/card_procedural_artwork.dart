@@ -21,19 +21,19 @@ class CreatureProceduralArt {
 
   // Base colors per element
   static Color _elementColor(Element e) => switch (e) {
-    Element.igneous => const Color(0xFFFF5A26),
-    Element.abyssal => const Color(0xFF3FD8FF),
-    Element.telluric => const Color(0xFFB0703B),
-    Element.empty => const Color(0xFFB16EFF),
-  };
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
 
   // Accent colors per element
   static Color _elementAccent(Element e) => switch (e) {
-    Element.igneous => const Color(0xFFFFD980),
-    Element.abyssal => const Color(0xFF80E8FF),
-    Element.telluric => const Color(0xFFF0D0A0),
-    Element.empty => const Color(0xFFE5D4FF),
-  };
+        Element.igneous => const Color(0xFFFFD980),
+        Element.abyssal => const Color(0xFF80E8FF),
+        Element.telluric => const Color(0xFFF0D0A0),
+        Element.empty => const Color(0xFFE5D4FF),
+      };
 
   /// Draw a creature portrait at the given size and star level (1-4).
   static void drawPortrait(
@@ -455,8 +455,7 @@ class CreatureProceduralArt {
     if (stars >= 2) {
       for (int i = 0; i < 4; i++) {
         final angle = time * 2 + i * math.pi / 2;
-        final p =
-            center +
+        final p = center +
             Offset(math.cos(angle) * r * 0.8, math.sin(angle) * r * 0.8);
         canvas.drawCircle(p, 2 + math.sin(time * 5 + i) * 1, highlight);
       }

@@ -78,17 +78,18 @@ class CombatModifiers {
     double? startHpLossFraction,
     double? counterflickHealFraction,
     double? reactionMana,
-  }) => CombatModifiers(
-    critRadiusMult: critRadiusMult ?? base.critRadiusMult,
-    igneousLevel2Chance: igneousLevel2Chance ?? base.igneousLevel2Chance,
-    jumpToThreeChance: jumpToThreeChance ?? base.jumpToThreeChance,
-    manaSpeedMult: manaSpeedMult ?? base.manaSpeedMult,
-    startManaFraction: startManaFraction ?? base.startManaFraction,
-    startHpLossFraction: startHpLossFraction ?? base.startHpLossFraction,
-    counterflickHealFraction:
-        counterflickHealFraction ?? base.counterflickHealFraction,
-    reactionMana: reactionMana ?? base.reactionMana,
-  );
+  }) =>
+      CombatModifiers(
+        critRadiusMult: critRadiusMult ?? base.critRadiusMult,
+        igneousLevel2Chance: igneousLevel2Chance ?? base.igneousLevel2Chance,
+        jumpToThreeChance: jumpToThreeChance ?? base.jumpToThreeChance,
+        manaSpeedMult: manaSpeedMult ?? base.manaSpeedMult,
+        startManaFraction: startManaFraction ?? base.startManaFraction,
+        startHpLossFraction: startHpLossFraction ?? base.startHpLossFraction,
+        counterflickHealFraction:
+            counterflickHealFraction ?? base.counterflickHealFraction,
+        reactionMana: reactionMana ?? base.reactionMana,
+      );
 }
 
 /// Pure Dart combat simulation. The Flame layer only renders and feeds input.
@@ -181,12 +182,12 @@ class CombatEngine {
     math.Random? random,
     this.synergy,
     this.cardRunes = const {},
-  }) : modifiers = modifiers ?? const CombatModifiers(),
-       playerMaxHp = (playerMaxHp ?? 100) * (synergy?.hpMult ?? 1.0),
-       random = random ?? math.Random(),
-       bossHp = boss.maxHp,
-       playerHp = playerMaxHp ?? 100,
-       bossAttackTimer = boss.attackInterval {
+  })  : modifiers = modifiers ?? const CombatModifiers(),
+        playerMaxHp = (playerMaxHp ?? 100) * (synergy?.hpMult ?? 1.0),
+        random = random ?? math.Random(),
+        bossHp = boss.maxHp,
+        playerHp = playerMaxHp ?? 100,
+        bossAttackTimer = boss.attackInterval {
     _spawnTargetRing();
     _applyStartModifiers();
     // Aplicar bonos de sinergia y runas al ATK de las cartas (ManaCard.attack es
@@ -269,16 +270,14 @@ class CombatEngine {
   }
 
   double outerRadiusFor(CombatTarget t) {
-    final enlarged = t.enlargedUntil > time
-        ? (1.0 + t.enlargedRadiusBonus)
-        : 1.0;
+    final enlarged =
+        t.enlargedUntil > time ? (1.0 + t.enlargedRadiusBonus) : 1.0;
     return outerRadius * modifiers.critRadiusMult * enlarged;
   }
 
   double innerRadiusFor(CombatTarget t) {
-    final enlarged = t.enlargedUntil > time
-        ? (1.0 + t.enlargedRadiusBonus)
-        : 1.0;
+    final enlarged =
+        t.enlargedUntil > time ? (1.0 + t.enlargedRadiusBonus) : 1.0;
     return innerRadius * modifiers.critRadiusMult * enlarged;
   }
 
@@ -551,19 +550,18 @@ class CombatEngine {
   }
 
   static int _rank(HitKind k) => switch (k) {
-    HitKind.bullseye => 0,
-    HitKind.normal => 1,
-    HitKind.graze => 2,
-    HitKind.miss => 3,
-  };
+        HitKind.bullseye => 0,
+        HitKind.normal => 1,
+        HitKind.graze => 2,
+        HitKind.miss => 3,
+      };
 
   void _resolveHit(CombatOrb orb, CombatTarget target, HitKind kind) {
     var mult = CombatMath.hitMultiplier(kind, orb.level);
     if (vulnerableRemaining > 0) mult *= 1.3;
     registerDamage(orb: orb, target: target, multiplier: mult, kind: kind);
 
-    final mana =
-        CombatMath.hitMana(kind, orb.level) *
+    final mana = CombatMath.hitMana(kind, orb.level) *
         modifiers.manaSpeedMult *
         (kind == HitKind.bullseye ? synergy?.bullseyeManaMult ?? 1.0 : 1.0);
     addManaToCards(orb.element, mana);
@@ -583,14 +581,12 @@ class CombatEngine {
   String? applyAura(Element element, {int orbLevel = 1}) {
     if (aura == null) {
       aura = element;
-      auraRemaining =
-          ElementalReactionEngine.auraDuration *
+      auraRemaining = ElementalReactionEngine.auraDuration *
           (synergy?.auraDurationMult ?? 1.0);
       return null;
     }
     if (aura == element) {
-      auraRemaining =
-          ElementalReactionEngine.auraDuration *
+      auraRemaining = ElementalReactionEngine.auraDuration *
           (synergy?.auraDurationMult ?? 1.0);
       return null;
     }
@@ -659,8 +655,7 @@ class CombatEngine {
 
   void addManaToCards(Element element, double amount) {
     for (final c in cards) {
-      final gain =
-          amount *
+      final gain = amount *
           (c.element == element ? 1.0 : 0.25) *
           _effectiveManaSpeedMult;
       c.mana = (c.mana + gain).clamp(0.0, c.baseManaCost.toDouble());
@@ -684,8 +679,8 @@ class CombatEngine {
         text: kind == HitKind.bullseye
             ? '¡BULLSEYE! ${dmg.toInt()}'
             : kind == HitKind.graze
-            ? '${dmg.toInt()}'
-            : '${dmg.toInt()}',
+                ? '${dmg.toInt()}'
+                : '${dmg.toInt()}',
         x: x,
         y: y,
         kind: kind == HitKind.bullseye

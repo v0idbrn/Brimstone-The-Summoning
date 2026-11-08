@@ -210,11 +210,14 @@ class PlayerRepository {
   /// Guarda (inserta o actualiza) la runa equipada en [instanceId].
   Future<void> saveCardRune(int instanceId, RuneInstance rune) async {
     final db = await _db.db;
-    await db.insert('owned_card_runes', {
-      'owned_card_id': instanceId,
-      'rune_type': rune.type.name,
-      'level': rune.level,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+        'owned_card_runes',
+        {
+          'owned_card_id': instanceId,
+          'rune_type': rune.type.name,
+          'level': rune.level,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   /// Quita la runa de la carta [instanceId].

@@ -51,18 +51,18 @@ class _CombatHudOverlayState extends State<CombatHudOverlay> {
   }
 
   Color borderColor(int stars) => switch (stars) {
-    1 => const Color(0xFF9AA4A8),
-    2 => const Color(0xFF4FC3F7),
-    3 => const Color(0xFFB16EFF),
-    _ => const Color(0xFFFFC93C),
-  };
+        1 => const Color(0xFF9AA4A8),
+        2 => const Color(0xFF4FC3F7),
+        3 => const Color(0xFFB16EFF),
+        _ => const Color(0xFFFFC93C),
+      };
 
   Color elementColor(Element e) => switch (e) {
-    Element.igneous => const Color(0xFFFF5A26),
-    Element.abyssal => const Color(0xFF3FD8FF),
-    Element.telluric => const Color(0xFFB0703B),
-    Element.empty => const Color(0xFFB16EFF),
-  };
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
 
   @override
   Widget build(BuildContext context) {

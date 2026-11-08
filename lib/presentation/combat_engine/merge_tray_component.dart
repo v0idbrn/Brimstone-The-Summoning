@@ -24,11 +24,11 @@ class MergeTrayComponent extends PositionComponent {
   double get slotW => CombatEngine.layoutWidth / 5;
 
   Color orbColor(Element e) => switch (e) {
-    Element.igneous => const Color(0xFFFF5A26),
-    Element.abyssal => const Color(0xFF3FD8FF),
-    Element.telluric => const Color(0xFFB0703B),
-    Element.empty => const Color(0xFFB16EFF),
-  };
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
 
   @override
   void render(Canvas canvas) {
@@ -108,16 +108,14 @@ class MergeTrayComponent extends PositionComponent {
           for (var i = 1; i <= 14; i++) {
             final z = i / 14;
             final px = CombatMath.lerp(e.dragX, e.dragX, z);
-            final py =
-                CombatMath.lerp(e.dragY, CombatEngine.bossScreenY, z) -
+            final py = CombatMath.lerp(e.dragY, CombatEngine.bossScreenY, z) -
                 math.sin(z * math.pi) * 90;
             if (i % 2 == 0) {
               canvas.drawCircle(Offset(px, py), 2.6, dash);
             }
             // Luminous parabola (continuous arc).
             final pxPrev = CombatMath.lerp(e.dragX, e.dragX, (i - 1) / 14);
-            final pyPrev =
-                CombatMath.lerp(
+            final pyPrev = CombatMath.lerp(
                   e.dragY,
                   CombatEngine.bossScreenY,
                   (i - 1) / 14,

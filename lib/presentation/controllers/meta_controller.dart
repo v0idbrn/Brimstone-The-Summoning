@@ -18,8 +18,8 @@ final profileProvider = NotifierProvider<ProfileController, ProfileState>(
 
 final collectionProvider =
     NotifierProvider<CollectionController, CollectionState>(
-      CollectionController.new,
-    );
+  CollectionController.new,
+);
 
 /// Summoner profile currencies.
 class ProfileState {
@@ -79,14 +79,13 @@ class ProfileController extends Notifier<ProfileState> {
     await _persist(next);
   }
 
-  Future<void> _persist(ProfileState p) => ref
-      .read(playerRepositoryProvider)
-      .saveProfile(
-        gold: p.gold,
-        shards: p.shards,
-        energy: p.energy,
-        summonerLevel: p.summonerLevel,
-      );
+  Future<void> _persist(ProfileState p) =>
+      ref.read(playerRepositoryProvider).saveProfile(
+            gold: p.gold,
+            shards: p.shards,
+            energy: p.energy,
+            summonerLevel: p.summonerLevel,
+          );
 }
 
 /// Owned card collection + active squad with progression actions.
@@ -104,9 +103,9 @@ class CollectionController extends Notifier<CollectionState> {
   CollectionState build() => const CollectionState(owned: [], squad: []);
 
   OwnedCard _card(int instanceId) => state.owned.firstWhere(
-    (c) => c.instanceId == instanceId,
-    orElse: () => throw StateError('card $instanceId not found'),
-  );
+        (c) => c.instanceId == instanceId,
+        orElse: () => throw StateError('card $instanceId not found'),
+      );
 
   Future<void> load() async {
     final repo = ref.read(playerRepositoryProvider);
@@ -235,12 +234,13 @@ class CollectionController extends Notifier<CollectionState> {
 
 /// Picks a concrete card id matching the rolled rarity.
 String _catalogFor(Rarity r) => switch (r) {
-  Rarity.mythic => ['void_malakor', 'abyss_leviathan'],
-  Rarity.legendary => ['abyss_leviathan', 'void_malakor'],
-  Rarity.epic => ['ignis_lord', 'terra_titan', 'void_specter'],
-  Rarity.rare => ['void_specter', 'terra_golem'],
-  Rarity.common => ['ignis_hound', 'abyss_stalker', 'terra_golem'],
-}.first;
+      Rarity.mythic => ['void_malakor', 'abyss_leviathan'],
+      Rarity.legendary => ['abyss_leviathan', 'void_malakor'],
+      Rarity.epic => ['ignis_lord', 'terra_titan', 'void_specter'],
+      Rarity.rare => ['void_specter', 'terra_golem'],
+      Rarity.common => ['ignis_hound', 'abyss_stalker', 'terra_golem'],
+    }
+        .first;
 
 // =========================================================================
 // Bounties (Juramentos de Azufre)
@@ -251,7 +251,8 @@ class Bounty {
   final String id;
   final String title;
   final String description;
-  final String kind; // merge_to_three | bullseye_hits | reactions | counterflicks | evolution | rift_clear
+  final String
+      kind; // merge_to_three | bullseye_hits | reactions | counterflicks | evolution | rift_clear
   final int target;
   final int rewardShards;
   final int rewardGold;
@@ -329,9 +330,7 @@ class BountyController extends Notifier<BountyState> {
       }
     }
     state = BountyState(bounties: next);
-    ref
-        .read(playerRepositoryProvider)
-        .saveBounties(
+    ref.read(playerRepositoryProvider).saveBounties(
           next
               .map(
                 (b) => <String, Object?>{
@@ -362,9 +361,7 @@ class BountyController extends Notifier<BountyState> {
       }
     }
     state = BountyState(bounties: next);
-    ref
-        .read(playerRepositoryProvider)
-        .saveBounties(
+    ref.read(playerRepositoryProvider).saveBounties(
           next
               .map(
                 (b) => <String, Object?>{
@@ -428,7 +425,8 @@ final codexReactionsProvider = Provider<List<CodexReaction>>((ref) {
     CodexReaction(
       id: 'erupcion_magmatica',
       name: 'Erupción Magmática',
-      description: 'Ígnea + Abyssal: daño en área a todas las dianas y explosión de fuego.',
+      description:
+          'Ígnea + Abyssal: daño en área a todas las dianas y explosión de fuego.',
       trigger: 'Aura Ígnea + impacto Abyssal',
     ),
     CodexReaction(

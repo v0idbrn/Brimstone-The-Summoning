@@ -144,14 +144,16 @@ class DatabaseHelper {
       {
         'id': 'erupcion_magmatica',
         'name': 'Erupción Magmática',
-        'description': 'Ígnea + Abyssal: daño en área a todas las dianas y explosión de fuego.',
+        'description':
+            'Ígnea + Abyssal: daño en área a todas las dianas y explosión de fuego.',
         'trigger': 'Igneous aura + Abyssal hit',
         'detonations': 0,
       },
       {
         'id': 'choque_termico',
         'name': 'Choque Térmico',
-        'description': 'Abyssal + Telluric: restaura maná a todas las cartas y sobrecarga.',
+        'description':
+            'Abyssal + Telluric: restaura maná a todas las cartas y sobrecarga.',
         'trigger': 'Abyssal aura + Telluric hit',
         'detonations': 0,
       },
@@ -200,7 +202,8 @@ class DatabaseHelper {
         'attack': 20,
         'health': 30,
         'stars': 2,
-        'active_skill': 'Invoca un meteoro colosal que golpea todas las dianas con daño 3.5x y aura Ígnea.',
+        'active_skill':
+            'Invoca un meteoro colosal que golpea todas las dianas con daño 3.5x y aura Ígnea.',
       },
       {
         'id': 'abyss_stalker',
@@ -223,7 +226,8 @@ class DatabaseHelper {
         'attack': 25,
         'health': 45,
         'stars': 3,
-        'active_skill': 'Congela el movimiento de todas las dianas por 4.5s, limpia proyectiles enemigos y aplica aura Abisal.',
+        'active_skill':
+            'Congela el movimiento de todas las dianas por 4.5s, limpia proyectiles enemigos y aplica aura Abisal.',
       },
       {
         'id': 'terra_golem',
@@ -234,7 +238,8 @@ class DatabaseHelper {
         'attack': 8,
         'health': 25,
         'stars': 1,
-        'active_skill': 'Otorga un escudo de piedra que absorbe el próximo golpe del jefe y aplica aura Telúrica.',
+        'active_skill':
+            'Otorga un escudo de piedra que absorbe el próximo golpe del jefe y aplica aura Telúrica.',
       },
       {
         'id': 'terra_titan',
@@ -245,7 +250,8 @@ class DatabaseHelper {
         'attack': 18,
         'health': 40,
         'stars': 2,
-        'active_skill': 'Terremoto que aturde al jefe por 3.0s, agranda el tamaño de las dianas un 35% y aplica aura Telúrica.',
+        'active_skill':
+            'Terremoto que aturde al jefe por 3.0s, agranda el tamaño de las dianas un 35% y aplica aura Telúrica.',
       },
       {
         'id': 'void_specter',
@@ -256,7 +262,8 @@ class DatabaseHelper {
         'attack': 15,
         'health': 20,
         'stars': 1,
-        'active_skill': 'Golpe sombrío que roba vida al jefe y sube en +1 nivel dos esferas aleatorias de tu bandeja.',
+        'active_skill':
+            'Golpe sombrío que roba vida al jefe y sube en +1 nivel dos esferas aleatorias de tu bandeja.',
       },
       {
         'id': 'void_malakor',
@@ -267,7 +274,8 @@ class DatabaseHelper {
         'attack': 30,
         'health': 50,
         'stars': 3,
-        'active_skill': 'Abre una grieta que transforma toda tu bandeja a esferas Nivel 3 y aplica aura de Vacío.',
+        'active_skill':
+            'Abre una grieta que transforma toda tu bandeja a esferas Nivel 3 y aplica aura de Vacío.',
       },
     ];
     for (final c in cards) {
@@ -277,7 +285,8 @@ class DatabaseHelper {
       {
         'id': 'ceniza_volatil',
         'name': 'Ceniza Volátil',
-        'description': 'Las esferas Ígneas spawnean directamente en Nivel 2 con un 35% de probabilidad.',
+        'description':
+            'Las esferas Ígneas spawnean directamente en Nivel 2 con un 35% de probabilidad.',
         'effect_value': 0.35,
       },
       {
@@ -290,25 +299,29 @@ class DatabaseHelper {
       {
         'id': 'sello_resonancia',
         'name': 'Sello de Resonancia',
-        'description': 'Detonar cualquier Reacción Elemental devuelve 20 de maná a todas tus cartas.',
+        'description':
+            'Detonar cualquier Reacción Elemental devuelve 20 de maná a todas tus cartas.',
         'effect_value': 20.0,
       },
       {
         'id': 'pacto_sangre',
         'name': 'Pacto de Sangre',
-        'description': 'Tus cartas cargan maná un 50% más rápido, pero empezás cada nodo perdiendo un 8% de vida máxima.',
+        'description':
+            'Tus cartas cargan maná un 50% más rápido, pero empezás cada nodo perdiendo un 8% de vida máxima.',
         'effect_value': 0.50,
       },
       {
         'id': 'forja_perpetua',
         'name': 'Forja Perpetua',
-        'description': 'Al fusionar dos esferas de Nivel 1, tenés un 25% de probabilidad de que salten directamente a Nivel 3.',
+        'description':
+            'Al fusionar dos esferas de Nivel 1, tenés un 25% de probabilidad de que salten directamente a Nivel 3.',
         'effect_value': 0.25,
       },
       {
         'id': 'coraza_obsidiana',
         'name': 'Coraza de Obsidiana',
-        'description': 'Destruir un proyectil enemigo con Counter-Flick te cura un 4% de vida y genera una esfera de Nivel 2.5.',
+        'description':
+            'Destruir un proyectil enemigo con Counter-Flick te cura un 4% de vida y genera una esfera de Nivel 2.5.',
         'effect_value': 0.04,
       },
     ];

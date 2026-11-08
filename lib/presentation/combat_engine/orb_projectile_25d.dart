@@ -18,11 +18,11 @@ class OrbProjectile25D extends PositionComponent {
   }
 
   Color colorFor(Element e) => switch (e) {
-    Element.igneous => const Color(0xFFFF5A26),
-    Element.abyssal => const Color(0xFF3FD8FF),
-    Element.telluric => const Color(0xFFB0703B),
-    Element.empty => const Color(0xFFB16EFF),
-  };
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
 
   @override
   void render(Canvas canvas) {
@@ -35,8 +35,7 @@ class OrbProjectile25D extends PositionComponent {
       final z = math.min(1.0, p.elapsed / p.flightDuration);
       final scale = 1.0 - 0.62 * z;
       final x = CombatMathLerp.lerp(p.startX, p.targetX, z);
-      final y =
-          CombatMathLerp.lerp(p.startY, p.targetY, z) -
+      final y = CombatMathLerp.lerp(p.startY, p.targetY, z) -
           math.sin(z * math.pi) * 115.0;
       final r = 22.0 * scale;
 
@@ -49,8 +48,7 @@ class OrbProjectile25D extends PositionComponent {
       for (var i = 1; i <= 3; i++) {
         final zz = math.max(0.0, z - i * 0.05);
         final tx = CombatMathLerp.lerp(p.startX, p.targetX, zz);
-        final ty =
-            CombatMathLerp.lerp(p.startY, p.targetY, zz) -
+        final ty = CombatMathLerp.lerp(p.startY, p.targetY, zz) -
             math.sin(zz * math.pi) * 115.0;
         canvas.drawCircle(
           Offset(tx, ty),

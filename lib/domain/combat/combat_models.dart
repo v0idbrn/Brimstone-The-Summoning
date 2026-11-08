@@ -120,8 +120,8 @@ class OrbProjectile {
     required this.targetX,
     required this.targetY,
     required this.flightDuration,
-  }) : elapsed = 0,
-       alive = true;
+  })  : elapsed = 0,
+        alive = true;
 }
 
 /// Boss incoming corrupted projectile (boss plane -> player).
@@ -141,8 +141,8 @@ class EnemyProjectile {
     required this.endX,
     required this.endY,
     this.duration = 1.65,
-  }) : elapsed = 0,
-       alive = true;
+  })  : elapsed = 0,
+        alive = true;
 }
 
 /// Floating combat text event (damage / crit / reaction / skill).

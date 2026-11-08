@@ -62,16 +62,19 @@ class CardRepositoryImpl implements CardRepository {
   @override
   Future<void> saveCard(Card card) async {
     final db = await _db.db;
-    await db.insert('cards', {
-      'id': card.id,
-      'name': card.name,
-      'element': card.element.name,
-      'rarity': card.rarity.name,
-      'base_mana_cost': card.baseManaCost,
-      'attack': card.attack,
-      'health': card.health,
-      'stars': card.stars,
-      'active_skill': card.activeSkill,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+        'cards',
+        {
+          'id': card.id,
+          'name': card.name,
+          'element': card.element.name,
+          'rarity': card.rarity.name,
+          'base_mana_cost': card.baseManaCost,
+          'attack': card.attack,
+          'health': card.health,
+          'stars': card.stars,
+          'active_skill': card.activeSkill,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 }

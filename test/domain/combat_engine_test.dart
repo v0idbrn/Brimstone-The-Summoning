@@ -71,10 +71,10 @@ void main() {
 
   group('CombatEngine — bandeja y fusión', () {
     CombatEngine fresh() => CombatEngine(
-      boss: BossConfig.pyroth,
-      cards: [],
-      random: math.Random(42),
-    );
+          boss: BossConfig.pyroth,
+          cards: [],
+          random: math.Random(42),
+        );
 
     test('spawn orb into empty slot only', () {
       final e = fresh();
@@ -140,18 +140,18 @@ void main() {
 
   group('CombatEngine — flick y llegada de proyectiles', () {
     CombatEngine make() => CombatEngine(
-      boss: BossConfig.pyroth,
-      cards: [
-        ManaCard(
-          id: 'ignis_hound',
-          name: 'Sabueso de Azufre',
-          element: Element.igneous,
-          baseManaCost: 100,
-          attack: 10,
-        ),
-      ],
-      random: math.Random(7),
-    );
+          boss: BossConfig.pyroth,
+          cards: [
+            ManaCard(
+              id: 'ignis_hound',
+              name: 'Sabueso de Azufre',
+              element: Element.igneous,
+              baseManaCost: 100,
+              attack: 10,
+            ),
+          ],
+          random: math.Random(7),
+        );
 
     test('flick downward do not launch, swap behavior only', () {
       final e = make();

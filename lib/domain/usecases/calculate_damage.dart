@@ -6,9 +6,10 @@ class CalculateDamage {
     OrbLevel level, {
     bool bullseye = false,
     double reactionMult = 1.0,
-  }) => DamageCalculator.calculate(
-    level,
-    isBullseye: bullseye,
-    reactionMultiplier: reactionMult,
-  );
+  }) =>
+      DamageCalculator.calculate(
+        level,
+        isBullseye: bullseye,
+        reactionMultiplier: reactionMult,
+      );
 }

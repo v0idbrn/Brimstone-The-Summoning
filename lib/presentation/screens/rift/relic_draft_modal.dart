@@ -179,7 +179,8 @@ class BloodAltarModal extends StatelessWidget {
           ),
           _AltarOption(
             title: 'Resonancia de maná',
-            subtitle: 'El próximo combate empieza con 50% de maná en todas tus cartas',
+            subtitle:
+                'El próximo combate empieza con 50% de maná en todas tus cartas',
             color: const Color(0xFF3FD8FF),
             onTap: onManaBoost,
           ),

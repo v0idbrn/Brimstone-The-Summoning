@@ -22,26 +22,26 @@ class CardDto {
   });
 
   factory CardDto.fromJson(Map<String, dynamic> json) => CardDto(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    element: json['element'] as String,
-    rarity: json['rarity'] as String,
-    baseManaCost: json['base_mana_cost'] as int,
-    attack: json['attack'] as int,
-    health: json['health'] as int,
-    stars: json['stars'] as int,
-    activeSkill: json['active_skill'] as String,
-  );
+        id: json['id'] as String,
+        name: json['name'] as String,
+        element: json['element'] as String,
+        rarity: json['rarity'] as String,
+        baseManaCost: json['base_mana_cost'] as int,
+        attack: json['attack'] as int,
+        health: json['health'] as int,
+        stars: json['stars'] as int,
+        activeSkill: json['active_skill'] as String,
+      );
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'element': element,
-    'rarity': rarity,
-    'base_mana_cost': baseManaCost,
-    'attack': attack,
-    'health': health,
-    'stars': stars,
-    'active_skill': activeSkill,
-  };
+        'id': id,
+        'name': name,
+        'element': element,
+        'rarity': rarity,
+        'base_mana_cost': baseManaCost,
+        'attack': attack,
+        'health': health,
+        'stars': stars,
+        'active_skill': activeSkill,
+      };
 }

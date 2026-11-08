@@ -33,9 +33,8 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
       await ref.read(profileProvider.notifier).load();
       await ref.read(collectionProvider.notifier).load();
       await ref.read(bountyProvider.notifier).load();
-      final wave = await ref
-          .read(playerRepositoryProvider)
-          .loadHighestEndlessWave();
+      final wave =
+          await ref.read(playerRepositoryProvider).loadHighestEndlessWave();
       if (mounted) setState(() => _highestEndlessWave = wave);
     });
   }
@@ -239,19 +238,19 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
               ref.read(riftRunProvider.notifier).startRun(_difficulty);
               Navigator.of(context)
                   .push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const RiftMapScreen(),
-                    ),
-                  )
+                MaterialPageRoute<void>(
+                  builder: (_) => const RiftMapScreen(),
+                ),
+              )
                   .then((_) {
-                    // Loot from the finished run lands in the profile.
-                    final run = ref.read(riftRunProvider);
-                    if (run != null && (run.gold > 0 || run.shards > 0)) {
-                      ref
-                          .read(profileProvider.notifier)
-                          .grant(gold: run.gold, shards: run.shards);
-                    }
-                  });
+                // Loot from the finished run lands in the profile.
+                final run = ref.read(riftRunProvider);
+                if (run != null && (run.gold > 0 || run.shards > 0)) {
+                  ref
+                      .read(profileProvider.notifier)
+                      .grant(gold: run.gold, shards: run.shards);
+                }
+              });
             },
           ),
           const SizedBox(height: 14),

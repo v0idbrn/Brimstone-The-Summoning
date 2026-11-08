@@ -44,7 +44,9 @@ void main() {
       attack: 10,
     );
 
-    test('Dominio Monoelemental: 4 cartas del mismo elemento -> +35% ATK, 20% maná inicial', () {
+    test(
+        'Dominio Monoelemental: 4 cartas del mismo elemento -> +35% ATK, 20% maná inicial',
+        () {
       final bonus = SquadSynergyResolver.resolve([hound, lord, hound, lord]);
       expect(bonus.type, SquadSynergyType.monoElemental);
       expect(bonus.atkMult, 1.35);
@@ -76,7 +78,9 @@ void main() {
       expect(bonus.isActive, isTrue);
     });
 
-    test('Trinidad Arcana: 3 del mismo elemento + 1 otro -> +25% velocidad maná, escudo 12%', () {
+    test(
+        'Trinidad Arcana: 3 del mismo elemento + 1 otro -> +25% velocidad maná, escudo 12%',
+        () {
       final bonus = SquadSynergyResolver.resolve([hound, lord, hound, stalker]);
       expect(bonus.type, SquadSynergyType.arcaneTrinity);
       expect(bonus.manaSpeedMult, 1.25);
@@ -84,7 +88,9 @@ void main() {
       expect(bonus.isActive, isTrue);
     });
 
-    test('Armonía Primordial: 1 de cada uno de los 4 elementos -> auras 1.4x, bullseye 1.4x, +18% ATK/HP', () {
+    test(
+        'Armonía Primordial: 1 de cada uno de los 4 elementos -> auras 1.4x, bullseye 1.4x, +18% ATK/HP',
+        () {
       final bonus = SquadSynergyResolver.resolve([
         hound,
         stalker,
@@ -99,7 +105,9 @@ void main() {
       expect(bonus.isActive, isTrue);
     });
 
-    test('Sin sinergia: 3+1 que no es trinidad (ej. 4 distintos pero sin los 4 elementos)', () {
+    test(
+        'Sin sinergia: 3+1 que no es trinidad (ej. 4 distintos pero sin los 4 elementos)',
+        () {
       // 2 igneous, 1 abyssal, 1 telluric -> no primordial (missing empty), no dual, no mono, not 3+1
       final bonus = SquadSynergyResolver.resolve([hound, lord, stalker, golem]);
       expect(bonus.type, SquadSynergyType.none);
@@ -152,7 +160,9 @@ void main() {
       },
     );
 
-    test('twin_echo: +8% probabilidad de doble disparo por nivel (0.08 en Lv1, 0.40 en Lv5)', () {
+    test(
+        'twin_echo: +8% probabilidad de doble disparo por nivel (0.08 en Lv1, 0.40 en Lv5)',
+        () {
       expect(RuneSystem.doubleCastChance(RuneType.twinEcho, 1), 0.08);
       expect(RuneSystem.doubleCastChance(RuneType.twinEcho, 5), 0.40);
       expect(RuneSystem.doubleCastChance(RuneType.voidLeech, 5), 0.0);

@@ -226,9 +226,8 @@ class _RiftMapPainter extends CustomPainter {
     final rowH = (size.height - 40) / (floors.length - 1);
     for (var rowIndex = 0; rowIndex < floors.length; rowIndex++) {
       final floor = floors[rowIndex];
-      final laneNodes = run.nodes
-          .where((n) => n.floor == floor)
-          .toList(growable: false);
+      final laneNodes =
+          run.nodes.where((n) => n.floor == floor).toList(growable: false);
       final cy = 20 + rowIndex * rowH;
       for (var i = 0; i < laneNodes.length; i++) {
         final cx = size.width * ((i + 1) / (laneNodes.length + 1));
@@ -452,9 +451,8 @@ CombatEngine _buildCombatEngine(
     maxHp: bossBase.maxHp * scale,
     attackInterval: bossBase.attackInterval,
     attackDamage: bossBase.attackDamage * scale * 1.2,
-    projectilesPerAttack: node.type == RiftNodeType.boss
-        ? bossBase.projectilesPerAttack
-        : 2,
+    projectilesPerAttack:
+        node.type == RiftNodeType.boss ? bossBase.projectilesPerAttack : 2,
   );
   return CombatEngine(
     boss: boss,
@@ -488,32 +486,32 @@ List<ManaCard> _squadCards(CollectionState collection) {
 }
 
 List<ManaCard> _defaultSquad() => [
-  ManaCard(
-    id: 'ignis_hound',
-    name: 'Sabueso de Azufre',
-    element: Element.igneous,
-    baseManaCost: 100,
-    attack: 10,
-  ),
-  ManaCard(
-    id: 'abyss_stalker',
-    name: 'Acechador de Escarcha',
-    element: Element.abyssal,
-    baseManaCost: 95,
-    attack: 12,
-  ),
-  ManaCard(
-    id: 'terra_golem',
-    name: 'Gólem de Basalto',
-    element: Element.telluric,
-    baseManaCost: 100,
-    attack: 8,
-  ),
-  ManaCard(
-    id: 'void_specter',
-    name: 'Espectro del Sello',
-    element: Element.empty,
-    baseManaCost: 110,
-    attack: 15,
-  ),
-];
+      ManaCard(
+        id: 'ignis_hound',
+        name: 'Sabueso de Azufre',
+        element: Element.igneous,
+        baseManaCost: 100,
+        attack: 10,
+      ),
+      ManaCard(
+        id: 'abyss_stalker',
+        name: 'Acechador de Escarcha',
+        element: Element.abyssal,
+        baseManaCost: 95,
+        attack: 12,
+      ),
+      ManaCard(
+        id: 'terra_golem',
+        name: 'Gólem de Basalto',
+        element: Element.telluric,
+        baseManaCost: 100,
+        attack: 8,
+      ),
+      ManaCard(
+        id: 'void_specter',
+        name: 'Espectro del Sello',
+        element: Element.empty,
+        baseManaCost: 110,
+        attack: 15,
+      ),
+    ];

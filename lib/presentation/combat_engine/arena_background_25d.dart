@@ -20,11 +20,11 @@ class ArenaBackground25D extends PositionComponent {
   Element get bossElement => combatGame.engine.boss.element;
 
   Color get portalColor => switch (bossElement) {
-    Element.igneous => const Color(0xFFFF5A26),
-    Element.abyssal => const Color(0xFF3FD8FF),
-    Element.telluric => const Color(0xFFB0703B),
-    Element.empty => const Color(0xFFB16EFF),
-  };
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
 
   @override
   void render(Canvas canvas) {
@@ -117,8 +117,7 @@ class ArenaBackground25D extends PositionComponent {
       final baseY = horizonY + 40 + layer * 90;
       final path = Path()..moveTo(0, baseY);
       for (var x = 0; x <= w; x += 20) {
-        final y =
-            baseY +
+        final y = baseY +
             math.sin(x / 90 + time * (0.6 + layer * 0.25)) * 14 +
             layer * 6;
         path.lineTo(x.toDouble(), y);

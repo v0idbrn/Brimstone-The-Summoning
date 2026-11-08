@@ -40,9 +40,8 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
   }
 
   Future<void> _loadRecord() async {
-    final wave = await ref
-        .read(playerRepositoryProvider)
-        .loadHighestEndlessWave();
+    final wave =
+        await ref.read(playerRepositoryProvider).loadHighestEndlessWave();
     if (mounted) setState(() => _highestEndlessWave = wave);
   }
 
@@ -211,14 +210,14 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
               _runActive && !_victory && !_defeat
                   ? 'Oleada $_wave — En combate'
                   : _victory
-                  ? '¡Oleada $_wave superada!'
-                  : 'Derrota en oleada $_wave',
+                      ? '¡Oleada $_wave superada!'
+                      : 'Derrota en oleada $_wave',
               style: TextStyle(
                 color: _victory
                     ? const Color(0xFF4FFFA3)
                     : _defeat
-                    ? Colors.redAccent
-                    : Colors.white,
+                        ? Colors.redAccent
+                        : Colors.white,
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
               ),
@@ -273,9 +272,8 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: FilledButton.tonal(
         style: FilledButton.styleFrom(
-          backgroundColor: selected
-              ? const Color(0xFFB16EFF)
-              : const Color(0xFF1A0E14),
+          backgroundColor:
+              selected ? const Color(0xFFB16EFF) : const Color(0xFF1A0E14),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 10),
         ),

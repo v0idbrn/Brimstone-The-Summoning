@@ -173,8 +173,8 @@ class _EvolutionDetailState extends ConsumerState<_EvolutionDetail> {
             card.stars >= EvolutionRules.maxStars
                 ? 'Esta carta ya alcanzó su forma final de 4★.'
                 : duplicates.isEmpty
-                ? 'Necesitas otro duplicado de ${card.name} a ${card.stars}★ como sacrificio.'
-                : 'Sacrificio: ${duplicates.length} duplicado(s) a ${card.stars}★ · Coste: $cost oro',
+                    ? 'Necesitas otro duplicado de ${card.name} a ${card.stars}★ como sacrificio.'
+                    : 'Sacrificio: ${duplicates.length} duplicado(s) a ${card.stars}★ · Coste: $cost oro',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
@@ -184,12 +184,10 @@ class _EvolutionDetailState extends ConsumerState<_EvolutionDetail> {
           padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
           child: FilledButton.icon(
             style: FilledButton.styleFrom(
-              backgroundColor: canEvolve
-                  ? const Color(0xFFFFC93C)
-                  : Colors.white24,
-              foregroundColor: canEvolve
-                  ? const Color(0xFF14090D)
-                  : Colors.white54,
+              backgroundColor:
+                  canEvolve ? const Color(0xFFFFC93C) : Colors.white24,
+              foregroundColor:
+                  canEvolve ? const Color(0xFF14090D) : Colors.white54,
               minimumSize: const Size.fromHeight(52),
             ),
             icon: const Icon(Icons.auto_fix_high),

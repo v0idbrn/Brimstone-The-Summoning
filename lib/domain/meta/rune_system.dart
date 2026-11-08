@@ -52,21 +52,21 @@ class RuneSystem {
 
   /// Nombre de display de cada tipo de runa.
   static String displayName(RuneType type) => switch (type) {
-    RuneType.crimsonFury => 'Runa de Furia Carmesí',
-    RuneType.eternalFlow => 'Runa de Flujo Eterno',
-    RuneType.voidLeech => 'Runa de Vampirismo Abisal',
-    RuneType.twinEcho => 'Runa de Eco Gemelo',
-  };
+        RuneType.crimsonFury => 'Runa de Furia Carmesí',
+        RuneType.eternalFlow => 'Runa de Flujo Eterno',
+        RuneType.voidLeech => 'Runa de Vampirismo Abisal',
+        RuneType.twinEcho => 'Runa de Eco Gemelo',
+      };
 
   /// Descripción de efecto de cada tipo de runa.
   static String description(RuneType type, int level) => switch (type) {
-    RuneType.crimsonFury =>
-      '+${(0.12 * level * 100).round()}% ATK de la carta equipada.',
-    RuneType.eternalFlow =>
-      '-${(0.05 * level * 100).round()}% costo de maná de la habilidad.',
-    RuneType.voidLeech =>
-      'Curar ${(0.03 * level * 100).round()}% HP máximo al activar la habilidad.',
-    RuneType.twinEcho =>
-      '${(0.08 * level * 100).round()}% probabilidad de doble disparo de habilidad sin costo.',
-  };
+        RuneType.crimsonFury =>
+          '+${(0.12 * level * 100).round()}% ATK de la carta equipada.',
+        RuneType.eternalFlow =>
+          '-${(0.05 * level * 100).round()}% costo de maná de la habilidad.',
+        RuneType.voidLeech =>
+          'Curar ${(0.03 * level * 100).round()}% HP máximo al activar la habilidad.',
+        RuneType.twinEcho =>
+          '${(0.08 * level * 100).round()}% probabilidad de doble disparo de habilidad sin costo.',
+      };
 }

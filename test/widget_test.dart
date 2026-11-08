@@ -46,11 +46,11 @@ class _FakePlayerRepository extends PlayerRepository {
 
   @override
   Future<List<int>> loadProfile() async => [
-    _profileGold,
-    _profileShards,
-    20,
-    1,
-  ];
+        _profileGold,
+        _profileShards,
+        20,
+        1,
+      ];
 
   @override
   Future<void> saveProfile({
@@ -114,9 +114,9 @@ Override _fakeRepoOverride() =>
 
 /// Wraps a screen in ProviderScope with the fake repository.
 Widget _screen(Widget child) => ProviderScope(
-  overrides: [_fakeRepoOverride()],
-  child: MaterialApp(theme: ThemeData.dark(), home: child),
-);
+      overrides: [_fakeRepoOverride()],
+      child: MaterialApp(theme: ThemeData.dark(), home: child),
+    );
 
 void main() {
   group('Widget smoke — meta screens', () {
