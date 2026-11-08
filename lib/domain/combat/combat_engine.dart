@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../services/elemental_reaction_engine.dart';
 import '../meta/squad_synergy_resolver.dart';
 import '../meta/rune_system.dart';
+import '../meta/leader_skill.dart';
 import '../value_objects/element.dart';
 import '../value_objects/orb_level.dart';
 import 'combat_math.dart';
@@ -292,6 +293,11 @@ class CombatEngine {
   /// Velocidad de generación de maná efectiva (modificadores + sinergia Trinidad Arcana).
   double get _effectiveManaSpeedMult =>
       modifiers.manaSpeedMult * (synergy?.manaSpeedMult ?? 1.0);
+
+  /// LeaderSkill de la carta en el Slot 0 del escuadrón (nulo si vacío).
+  LeaderSkill? get leaderSkill => cards.isEmpty
+      ? null
+      : LeaderSkill(element: cards.first.element, stars: cards.first.stars);
 
   String _nextId(String prefix) => '${prefix}_${_idCounter++}';
 
@@ -692,10 +698,12 @@ class CombatEngine {
   }
 
   void addManaToCards(Element element, double amount) {
+    final manaMult = leaderSkill?.manaGainMult ?? 1.0;
     for (final c in cards) {
       final gain = amount *
           (c.element == element ? 1.0 : 0.25) *
-          _effectiveManaSpeedMult;
+          _effectiveManaSpeedMult *
+          manaMult;
       c.mana = (c.mana + gain).clamp(0.0, c.baseManaCost.toDouble());
     }
   }
@@ -707,7 +715,11 @@ class CombatEngine {
     required double multiplier,
     required HitKind kind,
   }) {
-    final dmg = baseDamage * multiplier * playerDamageMult;
+    final orbDmgMult = leaderSkill?.orbDamageMult ?? 1.0;
+    final critMult =
+        kind == HitKind.bullseye ? leaderSkill?.critBullseyeMult ?? 1.0 : 1.0;
+    final dmg =
+        baseDamage * multiplier * playerDamageMult * orbDmgMult * critMult;
     bossHp -= dmg;
     damageTotal += dmg.toInt();
     if (dmg > maxHit) maxHit = dmg;
@@ -754,7 +766,8 @@ class CombatEngine {
     final dmg = boss.attackDamage;
     final absorbed = math.min(shield, dmg);
     shield -= absorbed;
-    playerHp -= (dmg - absorbed);
+    final taken = (dmg - absorbed) * (leaderSkill?.damageTakenMult ?? 1.0);
+    playerHp -= taken;
     trauma = (trauma + 0.45).clamp(0.0, 1.0);
   }
 
@@ -1042,6 +1055,54 @@ class CombatEngine {
         }
         aoeSkillDamage(3.2);
         applyAura(Element.empty);
+      case 'ignis_drake':
+        singleSkillDamage(1.8);
+        applyAura(Element.igneous);
+      case 'ignis_seraph':
+        aoeSkillDamage(3.0);
+        applyAura(Element.igneous);
+      case 'ignis_colossus':
+        aoeSkillDamage(4.5);
+        bossStunRemaining = 2.0;
+        applyAura(Element.igneous);
+      case 'abyss_siren':
+        singleSkillDamage(1.8);
+        for (final t in targets) {
+          t.frozen = true;
+          t.frozenRemaining = 2.0;
+        }
+        applyAura(Element.abyssal);
+      case 'abyss_kraken':
+        aoeSkillDamage(2.8);
+        applyAura(Element.abyssal);
+      case 'abyss_wraith':
+        aoeSkillDamage(3.6);
+        for (final t in targets) {
+          t.frozen = true;
+          t.frozenRemaining = 4.0;
+        }
+        applyAura(Element.abyssal);
+      case 'terra_warden':
+        shield += playerMaxHp * 0.25;
+        applyAura(Element.telluric);
+      case 'terra_hydra':
+        aoeSkillDamage(2.6);
+        applyAura(Element.telluric);
+      case 'terra_behemoth':
+        aoeSkillDamage(4.0);
+        bossStunRemaining = 2.5;
+        applyAura(Element.telluric);
+      case 'void_reaper':
+        singleSkillDamage(2.0);
+        playerHp = math.min(playerMaxHp, playerHp + atk * 1.0);
+        applyAura(Element.empty);
+      case 'void_oracle':
+        aoeSkillDamage(3.2);
+        applyAura(Element.empty);
+      case 'void_archon':
+        aoeSkillDamage(4.8);
+        vulnerableRemaining = 4.0;
+        applyAura(Element.empty);
     }
     // Runa de Vampirismo Abisal: curar al jugador al activar la habilidad.
     final rune = cardRunes[c.id];
@@ -1094,6 +1155,41 @@ class CombatEngine {
         applyAura(Element.empty);
       case 'void_malakor':
         aoeSkillDamage(3.2);
+        applyAura(Element.empty);
+      case 'ignis_drake':
+        singleSkillDamage(1.8);
+        applyAura(Element.igneous);
+      case 'ignis_seraph':
+        aoeSkillDamage(3.0);
+        applyAura(Element.igneous);
+      case 'ignis_colossus':
+        aoeSkillDamage(4.5);
+        applyAura(Element.igneous);
+      case 'abyss_siren':
+        singleSkillDamage(1.8);
+        applyAura(Element.abyssal);
+      case 'abyss_kraken':
+        aoeSkillDamage(2.8);
+        applyAura(Element.abyssal);
+      case 'abyss_wraith':
+        aoeSkillDamage(3.6);
+        applyAura(Element.abyssal);
+      case 'terra_warden':
+        applyAura(Element.telluric);
+      case 'terra_hydra':
+        aoeSkillDamage(2.6);
+        applyAura(Element.telluric);
+      case 'terra_behemoth':
+        aoeSkillDamage(4.0);
+        applyAura(Element.telluric);
+      case 'void_reaper':
+        singleSkillDamage(2.0);
+        applyAura(Element.empty);
+      case 'void_oracle':
+        aoeSkillDamage(3.2);
+        applyAura(Element.empty);
+      case 'void_archon':
+        aoeSkillDamage(4.8);
         applyAura(Element.empty);
       default:
         break;
@@ -1156,5 +1252,17 @@ class CombatEngine {
     'terra_titan': 'Aturde 3s, dianas +35% radio, terremoto',
     'void_specter': 'Drena vida, sube +1 nivel a 2 esferas',
     'void_malakor': 'Transfiere bandeja a Nivel 3 + grieta abisal',
+    'ignis_drake': 'Ráfaga de escoria 1.8x + aura Ígnea',
+    'ignis_seraph': 'Descendencia de ceniza 3.0x a todas + aura Ígnea',
+    'ignis_colossus': 'Erupción del cráter 4.5x + aturde 2s',
+    'abyss_siren': 'Canto glacial 1.8x + congela 2s + aura Abisal',
+    'abyss_kraken': 'Tentáculos abisales 2.8x a todas + aura Abisal',
+    'abyss_wraith': 'Lamento glacial 3.6x + congela 4s + aura Abisal',
+    'terra_warden': 'Piel de obsidiana: escudo + aura Telúrica',
+    'terra_hydra': 'Múltiples cabezas 2.6x a todas + aura Telúrica',
+    'terra_behemoth': 'Temblor 4.0x + aturde 2.5s + aura Telúrica',
+    'void_reaper': 'Hoja del vacío 2.0x + drena vida + aura Vacío',
+    'void_oracle': 'Eclipse lunar 3.2x a todas + aura Vacío',
+    'void_archon': "Juicio del Arconte 4.8x + vulnera + aura Vacío",
   };
 }

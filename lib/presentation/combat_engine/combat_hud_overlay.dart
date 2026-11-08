@@ -165,10 +165,37 @@ class _CombatHudOverlayState extends State<CombatHudOverlay> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () => _cast(i),
-                    child: _CardTile(
-                      card: e.cards[i],
-                      readyCardColor: elementColor(e.cards[i].element),
-                      borderColor: borderColor(e.cards[i].stars),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        _CardTile(
+                          card: e.cards[i],
+                          readyCardColor: elementColor(e.cards[i].element),
+                          borderColor: borderColor(e.cards[i].stars),
+                        ),
+                        if (i == 0)
+                          Positioned(
+                            top: -6,
+                            left: -6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFC93C),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'LÍDER',
+                                style: TextStyle(
+                                  color: Color(0xFF0C0608),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 8,
+                                  letterSpacing: 0.6,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),

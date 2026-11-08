@@ -248,9 +248,35 @@ class _BarracksScreenState extends ConsumerState<BarracksScreen> {
         ),
       );
     }
-    return CardTileSmall(
-      card: card,
-      onTap: () => ref.read(collectionProvider.notifier).unequip(slot),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        CardTileSmall(
+          card: card,
+          onTap: () => ref.read(collectionProvider.notifier).unequip(slot),
+        ),
+        if (slot == 0)
+          Positioned(
+            top: -8,
+            left: -8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFC93C),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'LÍDER',
+                style: TextStyle(
+                  color: Color(0xFF0C0608),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 8,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

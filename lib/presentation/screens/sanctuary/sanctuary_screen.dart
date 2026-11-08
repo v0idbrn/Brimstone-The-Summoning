@@ -171,7 +171,34 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
                   child: Padding(
                     padding: EdgeInsets.only(right: i == 3 ? 0 : 6),
                     child: (i < squad.length)
-                        ? CardTileSmall(card: squad[i], raised: true)
+                        ? Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CardTileSmall(card: squad[i], raised: true),
+                              if (i == 0)
+                                Positioned(
+                                  top: -8,
+                                  left: -8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFC93C),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'LÍDER',
+                                      style: TextStyle(
+                                        color: Color(0xFF0C0608),
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 8,
+                                        letterSpacing: 0.6,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          )
                         : Container(
                             height: 84,
                             decoration: BoxDecoration(

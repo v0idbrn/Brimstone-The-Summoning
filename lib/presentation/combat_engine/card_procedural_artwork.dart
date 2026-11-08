@@ -11,12 +11,24 @@ class CreatureProceduralArt {
   static const Map<String, Element> _cardElements = {
     'ignis_hound': Element.igneous,
     'ignis_lord': Element.igneous,
+    'ignis_drake': Element.igneous,
+    'ignis_seraph': Element.igneous,
+    'ignis_colossus': Element.igneous,
     'abyss_stalker': Element.abyssal,
     'abyss_leviathan': Element.abyssal,
+    'abyss_siren': Element.abyssal,
+    'abyss_kraken': Element.abyssal,
+    'abyss_wraith': Element.abyssal,
     'terra_golem': Element.telluric,
     'terra_titan': Element.telluric,
+    'terra_warden': Element.telluric,
+    'terra_hydra': Element.telluric,
+    'terra_behemoth': Element.telluric,
     'void_specter': Element.empty,
     'void_malakor': Element.empty,
+    'void_reaper': Element.empty,
+    'void_oracle': Element.empty,
+    'void_archon': Element.empty,
   };
 
   // Base colors per element
@@ -355,6 +367,150 @@ class CreatureProceduralArt {
         break;
       case 'void_malakor':
         _drawVoidMalakor(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'ignis_drake':
+        _drawIgnisDrake(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'ignis_seraph':
+        _drawIgnisSeraph(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'ignis_colossus':
+        _drawIgnisColossus(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'abyss_siren':
+        _drawAbyssSiren(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'abyss_kraken':
+        _drawAbyssKraken(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'abyss_wraith':
+        _drawAbyssWraith(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'terra_warden':
+        _drawTerraWarden(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'terra_hydra':
+        _drawTerraHydra(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'terra_behemoth':
+        _drawTerraBehemoth(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'void_reaper':
+        _drawVoidReaper(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'void_oracle':
+        _drawVoidOracle(
+          canvas,
+          center,
+          radius,
+          silhouettePaint,
+          highlightPaint,
+          eyePaint,
+          stars,
+          time,
+        );
+        break;
+      case 'void_archon':
+        _drawVoidArchon(
           canvas,
           center,
           radius,
@@ -1101,6 +1257,662 @@ class CreatureProceduralArt {
     );
   }
 
+  // --- New creature silhouettes (Phase 13 catalog expansion) ---
+
+  static void _drawIgnisDrake(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Drake: winged serpent, low swoop, tail curled
+    final r = radius;
+    final path = Path();
+    path.moveTo(center.dx, center.dy - r * 0.5);
+    path.quadraticBezierTo(
+      center.dx + r * 0.7,
+      center.dy - r * 0.8,
+      center.dx + r * 0.6,
+      center.dy - r * 0.1,
+    );
+    path.quadraticBezierTo(
+      center.dx + r * 0.8,
+      center.dy + r * 0.3,
+      center.dx + r * 0.3,
+      center.dy + r * 0.5,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.3,
+      center.dy + r * 0.6,
+      center.dx - r * 0.6,
+      center.dy + r * 0.1,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.7,
+      center.dy - r * 0.3,
+      center.dx - r * 0.5,
+      center.dy - r * 0.6,
+    );
+    path.close();
+    canvas.drawPath(path, silhouette);
+    final wingPath = Path();
+    wingPath.moveTo(center.dx - r * 0.4, center.dy - r * 0.4);
+    wingPath.lineTo(center.dx - r * 1.0, center.dy - r * 0.9);
+    wingPath.lineTo(center.dx - r * 0.6, center.dy - r * 0.2);
+    canvas.drawPath(wingPath, highlight);
+    canvas.drawCircle(
+      center + Offset(-r * 0.15, center.dy - r * 0.2),
+      r * 0.09,
+      eye,
+    );
+    canvas.drawCircle(
+      center + Offset(r * 0.15, center.dy - r * 0.2),
+      r * 0.09,
+      eye,
+    );
+  }
+
+  static void _drawIgnisSeraph(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Seraph: humanoid with large wings, halo
+    final r = radius;
+    final path = Path();
+    path.moveTo(center.dx, center.dy - r * 0.55);
+    path.quadraticBezierTo(
+      center.dx + r * 0.45,
+      center.dy - r * 0.75,
+      center.dx + r * 0.5,
+      center.dy - r * 0.2,
+    );
+    path.quadraticBezierTo(
+      center.dx + r * 0.55,
+      center.dy + r * 0.2,
+      center.dx + r * 0.35,
+      center.dy + r * 0.5,
+    );
+    path.quadraticBezierTo(
+      center.dx,
+      center.dy + r * 0.8,
+      center.dx - r * 0.35,
+      center.dy + r * 0.5,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.55,
+      center.dy + r * 0.2,
+      center.dx - r * 0.5,
+      center.dy - r * 0.2,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.45,
+      center.dy - r * 0.75,
+      center.dx,
+      center.dy - r * 0.55,
+    );
+    canvas.drawPath(path, silhouette);
+    final haloPaint = Paint()
+      ..color = const Color(0xFFFFC93C).withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawCircle(
+      Offset(center.dx, center.dy - r * 0.75),
+      r * 0.18,
+      haloPaint,
+    );
+    canvas.drawCircle(
+      center + Offset(-r * 0.18, center.dy - r * 0.3),
+      r * 0.08,
+      eye,
+    );
+    canvas.drawCircle(
+      center + Offset(r * 0.18, center.dy - r * 0.3),
+      r * 0.08,
+      eye,
+    );
+  }
+
+  static void _drawIgnisColossus(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Colossus: massive, blocky, broad shoulders, crown of magma
+    final r = radius;
+    final bodyPath = Path();
+    bodyPath.addRRect(
+      RRect.fromRectAndCorners(
+        Rect.fromCenter(center: center, width: r * 1.5, height: r * 1.2),
+        topLeft: Radius.circular(r * 0.1),
+        topRight: Radius.circular(r * 0.1),
+        bottomLeft: Radius.circular(r * 0.05),
+        bottomRight: Radius.circular(r * 0.05),
+      ),
+    );
+    canvas.drawPath(bodyPath, silhouette);
+    final crackPaint = Paint()
+      ..color = const Color(0xFFFFC93C).withValues(alpha: 0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    for (int i = 0; i < 5; i++) {
+      final x = center.dx - r * 0.4 + i * r * 0.2;
+      final y = center.dy - r * 0.4 + math.sin(time + i) * r * 0.05;
+      canvas.drawLine(Offset(x, y), Offset(x, y + r * 0.5), crackPaint);
+    }
+    canvas.drawCircle(
+      center + Offset(-r * 0.25, center.dy - r * 0.25),
+      r * 0.1,
+      eye,
+    );
+    canvas.drawCircle(
+      center + Offset(r * 0.25, center.dy - r * 0.25),
+      r * 0.1,
+      eye,
+    );
+  }
+
+  static void _drawAbyssSiren(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Siren: slender, fish-tail lower body, long hair flowing
+    final r = radius;
+    final path = Path();
+    path.moveTo(center.dx, center.dy - r * 0.5);
+    path.quadraticBezierTo(
+      center.dx + r * 0.4,
+      center.dy - r * 0.7,
+      center.dx + r * 0.45,
+      center.dy - r * 0.2,
+    );
+    path.quadraticBezierTo(
+      center.dx + r * 0.5,
+      center.dy + r * 0.1,
+      center.dx + r * 0.3,
+      center.dy + r * 0.4,
+    );
+    path.quadraticBezierTo(
+      center.dx + r * 0.2,
+      center.dy + r * 0.7,
+      center.dx,
+      center.dy + r * 0.9,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.2,
+      center.dy + r * 0.7,
+      center.dx - r * 0.3,
+      center.dy + r * 0.4,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.5,
+      center.dy + r * 0.1,
+      center.dx - r * 0.45,
+      center.dy - r * 0.2,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.4,
+      center.dy - r * 0.7,
+      center.dx,
+      center.dy - r * 0.5,
+    );
+    canvas.drawPath(path, silhouette);
+    for (int i = 0; i < 4; i++) {
+      final strandPath = Path();
+      strandPath.moveTo(
+        center.dx - r * 0.3 + i * r * 0.2,
+        center.dy - r * 0.4,
+      );
+      strandPath.quadraticBezierTo(
+        center.dx - r * 0.5 + i * r * 0.25,
+        center.dy + math.cos(time + i) * r * 0.4,
+        center.dx - r * 0.4 + i * r * 0.2,
+        center.dy + r * 0.8,
+      );
+      canvas.drawPath(
+        strandPath,
+        Paint()
+          ..color = highlight.color.withValues(alpha: 0.6)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    canvas.drawCircle(
+      center + Offset(0, center.dy - r * 0.2),
+      r * 0.11,
+      eye,
+    );
+  }
+
+  static void _drawAbyssKraken(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Kraken: massive, coiled tentacles, central mass
+    final r = radius;
+    for (int t = 0; t < 5; t++) {
+      final angle = time * 0.4 + t * math.pi * 2 / 5;
+      final tentaclePath = Path();
+      tentaclePath.moveTo(center.dx, center.dy);
+      tentaclePath.quadraticBezierTo(
+        center.dx + math.cos(angle) * r * 0.6,
+        center.dy + math.sin(angle) * r * 0.6,
+        center.dx + math.cos(angle) * r * 1.1,
+        center.dy + math.sin(angle) * r * 1.1,
+      );
+      canvas.drawPath(
+        tentaclePath,
+        Paint()
+          ..color = silhouette.color.withValues(alpha: 0.85)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 7
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    canvas.drawCircle(center, r * 0.5, silhouette);
+    canvas.drawCircle(
+      center + Offset(-r * 0.15, center.dy - r * 0.1),
+      r * 0.1,
+      eye,
+    );
+    canvas.drawCircle(
+      center + Offset(r * 0.15, center.dy - r * 0.1),
+      r * 0.1,
+      eye,
+    );
+  }
+
+  static void _drawAbyssWraith(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Wraith: ethereal, tattered cloak, single glowing eye
+    final r = radius;
+    final path = Path();
+    path.moveTo(center.dx, center.dy - r * 0.4);
+    path.quadraticBezierTo(
+      center.dx + r * 0.5,
+      center.dy - r * 0.5,
+      center.dx + r * 0.5,
+      center.dy + r * 0.1,
+    );
+    path.quadraticBezierTo(
+      center.dx + r * 0.6,
+      center.dy + r * 0.5,
+      center.dx + r * 0.3,
+      center.dy + r * 0.8,
+    );
+    path.quadraticBezierTo(
+      center.dx,
+      center.dy + r * 1.0,
+      center.dx - r * 0.3,
+      center.dy + r * 0.8,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.6,
+      center.dy + r * 0.5,
+      center.dx - r * 0.5,
+      center.dy + r * 0.1,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.5,
+      center.dy - r * 0.5,
+      center.dx,
+      center.dy - r * 0.4,
+    );
+    canvas.drawPath(
+      path,
+      silhouette..color = silhouette.color.withValues(alpha: 0.65),
+    );
+    canvas.drawCircle(center + Offset(0, center.dy - r * 0.15), r * 0.14, eye);
+    final hemPaint = Paint()
+      ..color = highlight.color.withValues(alpha: 0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    for (int i = 0; i < 6; i++) {
+      final x = center.dx - r * 0.4 + i * r * 0.15;
+      canvas.drawLine(
+        Offset(x, center.dy + r * 0.8),
+        Offset(x, center.dy + r * 1.0),
+        hemPaint,
+      );
+    }
+  }
+
+  static void _drawTerraWarden(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Warden: stout, shield-bearing, stone plating
+    final r = radius;
+    final bodyPath = Path();
+    bodyPath.addRRect(
+      RRect.fromRectAndCorners(
+        Rect.fromCenter(center: center, width: r * 1.1, height: r * 1.0),
+        topLeft: Radius.circular(r * 0.15),
+        topRight: Radius.circular(r * 0.15),
+        bottomLeft: Radius.circular(r * 0.1),
+        bottomRight: Radius.circular(r * 0.1),
+      ),
+    );
+    canvas.drawPath(bodyPath, silhouette);
+    final shieldPath = Path();
+    shieldPath.moveTo(center.dx + r * 0.55, center.dy - r * 0.2);
+    shieldPath.quadraticBezierTo(
+      center.dx + r * 0.9,
+      center.dy - r * 0.5,
+      center.dx + r * 0.85,
+      center.dy + r * 0.2,
+    );
+    shieldPath.quadraticBezierTo(
+      center.dx + r * 0.8,
+      center.dy + r * 0.5,
+      center.dx + r * 0.55,
+      center.dy + r * 0.3,
+    );
+    canvas.drawPath(shieldPath, highlight);
+    canvas.drawCircle(
+      center + Offset(-r * 0.2, center.dy - r * 0.2),
+      r * 0.09,
+      eye,
+    );
+    canvas.drawCircle(
+      center + Offset(r * 0.2, center.dy - r * 0.2),
+      r * 0.09,
+      eye,
+    );
+  }
+
+  static void _drawTerraHydra(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Hydra: multiple heads on serpentine necks
+    final r = radius;
+    canvas.drawCircle(center, r * 0.45, silhouette);
+    for (int h = 0; h < 3; h++) {
+      final angle = -math.pi / 2 + h * math.pi / 3 + math.sin(time + h) * 0.1;
+      final headPath = Path();
+      headPath.moveTo(
+        center.dx + math.cos(angle) * r * 0.5,
+        center.dy + math.sin(angle) * r * 0.5,
+      );
+      headPath.quadraticBezierTo(
+        center.dx + math.cos(angle) * r * 0.8,
+        center.dy + math.sin(angle) * r * 0.8,
+        center.dx + math.cos(angle) * r * 1.05,
+        center.dy + math.sin(angle) * r * 1.05,
+      );
+      canvas.drawPath(
+        headPath,
+        Paint()
+          ..color = silhouette.color.withValues(alpha: 0.9)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 8
+          ..strokeCap = StrokeCap.round,
+      );
+      canvas.drawCircle(
+        Offset(
+          center.dx + math.cos(angle) * r * 1.05,
+          center.dy + math.sin(angle) * r * 1.05,
+        ),
+        r * 0.1,
+        eye,
+      );
+    }
+  }
+
+  static void _drawTerraBehemoth(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Behemoth: colossal quadruped, massive shoulders, tusks
+    final r = radius;
+    final bodyPath = Path();
+    bodyPath.moveTo(center.dx, center.dy - r * 0.4);
+    bodyPath.lineTo(center.dx + r * 0.9, center.dy - r * 0.2);
+    bodyPath.lineTo(center.dx + r * 0.7, center.dy + r * 0.5);
+    bodyPath.lineTo(center.dx - r * 0.7, center.dy + r * 0.5);
+    bodyPath.lineTo(center.dx - r * 0.9, center.dy - r * 0.2);
+    bodyPath.close();
+    canvas.drawPath(bodyPath, silhouette);
+    final tuskPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4;
+    final tuskPath = Path();
+    tuskPath.moveTo(center.dx - r * 0.6, center.dy + r * 0.2);
+    tuskPath.lineTo(center.dx - r * 0.7, center.dy + r * 0.6);
+    canvas.drawPath(tuskPath, tuskPaint);
+    tuskPath.reset();
+    tuskPath.moveTo(center.dx + r * 0.6, center.dy + r * 0.2);
+    tuskPath.lineTo(center.dx + r * 0.7, center.dy + r * 0.6);
+    canvas.drawPath(tuskPath, tuskPaint);
+    canvas.drawCircle(
+      center + Offset(-r * 0.3, center.dy - r * 0.15),
+      r * 0.1,
+      eye,
+    );
+    canvas.drawCircle(
+      center + Offset(r * 0.3, center.dy - r * 0.15),
+      r * 0.1,
+      eye,
+    );
+  }
+
+  static void _drawVoidReaper(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Reaper: hooded figure, scythe, floating
+    final r = radius;
+    final path = Path();
+    path.moveTo(center.dx, center.dy - r * 0.5);
+    path.lineTo(center.dx - r * 0.6, center.dy - r * 0.1);
+    path.lineTo(center.dx - r * 0.6, center.dy + r * 0.6);
+    path.lineTo(center.dx + r * 0.6, center.dy + r * 0.6);
+    path.lineTo(center.dx + r * 0.6, center.dy - r * 0.1);
+    path.close();
+    canvas.drawPath(path, silhouette);
+    final scythePath = Path();
+    scythePath.moveTo(center.dx - r * 0.6, center.dy + r * 0.3);
+    scythePath.lineTo(center.dx - r * 1.1, center.dy - r * 0.2);
+    scythePath.lineTo(center.dx - r * 0.9, center.dy + r * 0.1);
+    scythePath.lineTo(center.dx - r * 0.6, center.dy + r * 0.3);
+    canvas.drawPath(scythePath, highlight);
+    canvas.drawCircle(
+      center + Offset(-r * 0.15, center.dy - r * 0.35),
+      r * 0.09,
+      eye,
+    );
+    canvas.drawCircle(
+      center + Offset(r * 0.15, center.dy - r * 0.35),
+      r * 0.09,
+      eye,
+    );
+  }
+
+  static void _drawVoidOracle(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Oracle: robed, third eye, orbiting runes
+    final r = radius;
+    final path = Path();
+    path.moveTo(center.dx, center.dy - r * 0.5);
+    path.lineTo(center.dx - r * 0.5, center.dy + r * 0.1);
+    path.lineTo(center.dx - r * 0.4, center.dy + r * 0.7);
+    path.lineTo(center.dx + r * 0.4, center.dy + r * 0.7);
+    path.lineTo(center.dx + r * 0.5, center.dy + r * 0.1);
+    path.close();
+    canvas.drawPath(path, silhouette);
+    for (int i = 0; i < 6; i++) {
+      final angle = time * 0.6 + i * math.pi / 3;
+      final runeR = r * 0.75;
+      canvas.drawCircle(
+        Offset(
+          center.dx + math.cos(angle) * runeR,
+          center.dy + math.sin(angle) * runeR,
+        ),
+        2.5,
+        Paint()
+          ..color = highlight.color.withValues(alpha: 0.7)
+          ..style = PaintingStyle.fill,
+      );
+    }
+    canvas.drawCircle(
+      center + Offset(-r * 0.18, center.dy - r * 0.15),
+      r * 0.09,
+      eye,
+    );
+    canvas.drawCircle(
+      center + Offset(r * 0.18, center.dy - r * 0.15),
+      r * 0.09,
+      eye,
+    );
+    canvas.drawCircle(center + Offset(0, center.dy + r * 0.05), r * 0.11, eye);
+  }
+
+  static void _drawVoidArchon(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Paint silhouette,
+    Paint highlight,
+    Paint eye,
+    int stars,
+    double time,
+  ) {
+    // Archon: regal void entity, crown of spines, multiple arms
+    final r = radius;
+    final path = Path();
+    path.moveTo(center.dx, center.dy - r * 0.55);
+    path.quadraticBezierTo(
+      center.dx + r * 0.5,
+      center.dy - r * 0.8,
+      center.dx + r * 0.65,
+      center.dy - r * 0.2,
+    );
+    path.quadraticBezierTo(
+      center.dx + r * 0.8,
+      center.dy + r * 0.2,
+      center.dx + r * 0.5,
+      center.dy + r * 0.5,
+    );
+    path.quadraticBezierTo(
+      center.dx,
+      center.dy + r * 0.8,
+      center.dx - r * 0.5,
+      center.dy + r * 0.5,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.8,
+      center.dy + r * 0.2,
+      center.dx - r * 0.65,
+      center.dy - r * 0.2,
+    );
+    path.quadraticBezierTo(
+      center.dx - r * 0.5,
+      center.dy - r * 0.8,
+      center.dx,
+      center.dy - r * 0.55,
+    );
+    canvas.drawPath(path, silhouette);
+    for (int i = 0; i < 8; i++) {
+      final angle = time * 0.2 + i * math.pi / 4;
+      final spinePath = Path();
+      spinePath.moveTo(
+        center.dx + math.cos(angle) * r * 0.6,
+        center.dy + math.sin(angle) * r * 0.6,
+      );
+      spinePath.lineTo(
+        center.dx + math.cos(angle) * r * 1.0,
+        center.dy + math.sin(angle) * r * 1.0,
+      );
+      canvas.drawPath(
+        spinePath,
+        Paint()
+          ..color = highlight.color.withValues(alpha: 0.7)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+    canvas.drawCircle(
+      center + Offset(-r * 0.2, center.dy - r * 0.25),
+      r * 0.1,
+      eye,
+    );
+    canvas.drawCircle(
+      center + Offset(r * 0.2, center.dy - r * 0.25),
+      r * 0.1,
+      eye,
+    );
+  }
+
   static void _drawGeneric(
     Canvas canvas,
     Offset center,
@@ -1108,7 +1920,6 @@ class CreatureProceduralArt {
     Paint silhouette,
     Element element,
   ) {
-    canvas.drawCircle(center, radius * 0.7, silhouette);
     // Element symbol
     final symbolPaint = Paint()..color = Colors.white.withValues(alpha: 0.8);
     switch (element) {

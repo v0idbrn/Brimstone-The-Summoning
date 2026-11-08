@@ -235,9 +235,31 @@ class CollectionController extends Notifier<CollectionState> {
 /// Picks a concrete card id matching the rolled rarity.
 String _catalogFor(Rarity r) => switch (r) {
       Rarity.mythic => ['void_malakor', 'abyss_leviathan'],
-      Rarity.legendary => ['abyss_leviathan', 'void_malakor'],
-      Rarity.epic => ['ignis_lord', 'terra_titan', 'void_specter'],
-      Rarity.rare => ['void_specter', 'terra_golem'],
+      Rarity.legendary => [
+          'abyss_leviathan',
+          'void_malakor',
+          'ignis_colossus',
+          'abyss_wraith',
+          'terra_behemoth',
+          'void_archon',
+        ],
+      Rarity.epic => [
+          'ignis_lord',
+          'terra_titan',
+          'void_specter',
+          'ignis_seraph',
+          'abyss_kraken',
+          'terra_hydra',
+          'void_oracle',
+        ],
+      Rarity.rare => [
+          'void_specter',
+          'terra_golem',
+          'ignis_drake',
+          'abyss_siren',
+          'terra_warden',
+          'void_reaper',
+        ],
       Rarity.common => ['ignis_hound', 'abyss_stalker', 'terra_golem'],
     }
         .first;

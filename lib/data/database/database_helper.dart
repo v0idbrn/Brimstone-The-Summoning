@@ -281,6 +281,154 @@ class DatabaseHelper {
         'active_skill':
             'Abre una grieta que transforma toda tu bandeja a esferas Nivel 3 y aplica aura de Vacío.',
       },
+      // ------------------------------------------------------- Ígneas nuevas
+      {
+        'id': 'ignis_drake',
+        'name': 'Draco de Escoria',
+        'element': 'igneous',
+        'rarity': 'rare',
+        'base_mana_cost': 110,
+        'attack': 14,
+        'health': 18,
+        'stars': 1,
+        'active_skill':
+            'Ráfaga de escoria ígnea: daño 1.8x a una diana y aplica aura Ígnea.',
+      },
+      {
+        'id': 'ignis_seraph',
+        'name': 'Serafín Carbonizado',
+        'element': 'igneous',
+        'rarity': 'epic',
+        'base_mana_cost': 150,
+        'attack': 22,
+        'health': 32,
+        'stars': 2,
+        'active_skill':
+            'Descendencia de ceniza: daño 3.0x a todas las dianas y aplica aura Ígnea intensa.',
+      },
+      {
+        'id': 'ignis_colossus',
+        'name': 'Vulcanor, Rey del Cráter',
+        'element': 'igneous',
+        'rarity': 'legendary',
+        'base_mana_cost': 180,
+        'attack': 32,
+        'health': 55,
+        'stars': 3,
+        'active_skill':
+            'Erupción del cráter: daño masivo 4.5x a todas las dianas, aura Ígnea y aturde al jefe 2.0s.',
+      },
+      // ------------------------------------------------------- Abisales nuevas
+      {
+        'id': 'abyss_siren',
+        'name': 'Sirena de Escarcha',
+        'element': 'abyssal',
+        'rarity': 'rare',
+        'base_mana_cost': 105,
+        'attack': 13,
+        'health': 17,
+        'stars': 1,
+        'active_skill':
+            'Canto glacial: daño 1.8x a una diana, la congela 2.0s y aplica aura Abisal.',
+      },
+      {
+        'id': 'abyss_kraken',
+        'name': 'Kraken de la Fosa',
+        'element': 'abyssal',
+        'rarity': 'epic',
+        'base_mana_cost': 145,
+        'attack': 21,
+        'health': 35,
+        'stars': 2,
+        'active_skill':
+            'Tentáculos abisales: daño 2.8x a todas las dianas y aplica aura Abisal.',
+      },
+      {
+        'id': 'abyss_wraith',
+        'name': 'Espectro Glacial',
+        'element': 'abyssal',
+        'rarity': 'legendary',
+        'base_mana_cost': 170,
+        'attack': 30,
+        'health': 48,
+        'stars': 3,
+        'active_skill':
+            'Lamento glacial: daño 3.6x a todas las dianas, congela 4.0s y aplica aura Abisal.',
+      },
+      // ------------------------------------------------------- Telúricas nuevas
+      {
+        'id': 'terra_warden',
+        'name': 'Guardián de Obsidiana',
+        'element': 'telluric',
+        'rarity': 'rare',
+        'base_mana_cost': 105,
+        'attack': 11,
+        'health': 24,
+        'stars': 1,
+        'active_skill':
+            'Piel de obsidiana: escudo que absorbe el próximo golpe y aplica aura Telúrica.',
+      },
+      {
+        'id': 'terra_hydra',
+        'name': 'Hidra de Raíz Pétrea',
+        'element': 'telluric',
+        'rarity': 'epic',
+        'base_mana_cost': 140,
+        'attack': 19,
+        'health': 38,
+        'stars': 2,
+        'active_skill':
+            'Múltiples cabezas: daño 2.6x a todas las dianas y aplica aura Telúrica.',
+      },
+      {
+        'id': 'terra_behemoth',
+        'name': 'Behemot Rompecumbres',
+        'element': 'telluric',
+        'rarity': 'legendary',
+        'base_mana_cost': 175,
+        'attack': 28,
+        'health': 52,
+        'stars': 3,
+        'active_skill':
+            'Temblor de la tierra: daño 4.0x a todas las dianas, aturde 2.5s y aplica aura Telúrica.',
+      },
+      // ------------------------------------------------------- Vacío nuevas
+      {
+        'id': 'void_reaper',
+        'name': 'Segador Astral',
+        'element': 'void',
+        'rarity': 'rare',
+        'base_mana_cost': 115,
+        'attack': 16,
+        'health': 19,
+        'stars': 1,
+        'active_skill':
+            'Hoja del vacío: daño 2.0x a una diana, drena vida y aplica aura de Vacío.',
+      },
+      {
+        'id': 'void_oracle',
+        'name': 'Oráculo del Eclipse',
+        'element': 'void',
+        'rarity': 'epic',
+        'base_mana_cost': 155,
+        'attack': 24,
+        'health': 34,
+        'stars': 2,
+        'active_skill':
+            'Eclipse lunar: daño 3.2x a todas las dianas y aplica aura de Vacío.',
+      },
+      {
+        'id': 'void_archon',
+        'name': "Xal'atoh, Arconte del Vacío",
+        'element': 'void',
+        'rarity': 'legendary',
+        'base_mana_cost': 185,
+        'attack': 34,
+        'health': 58,
+        'stars': 3,
+        'active_skill':
+            'Juicio del Arconte: daño 4.8x a todas las dianas, vulnera al jefe y aplica aura de Vacío.',
+      },
     ];
     for (final c in cards) {
       await db.insert('cards', c);
