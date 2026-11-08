@@ -7,6 +7,8 @@ import '../../../domain/meta/rune_system.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
+import '../../widgets/brimstone_button.dart';
+import '../../widgets/tcg_card_widget.dart';
 import '../meta/widgets.dart';
 import '../training/training_arena_screen.dart';
 
@@ -516,7 +518,7 @@ extension FirstOrNullWhere on Iterable<OwnedCard> {
   OwnedCard? firstOrNullWhere() => isEmpty ? null : first;
 }
 
-/// Card detail: effective stats, level-up cost and equip action.
+/// Card detail: effective stats, level-up cost, rune forge, dismantle and equip action.
 class CardInspectorModal extends ConsumerWidget {
   final OwnedCard card;
 
@@ -535,152 +537,264 @@ class CardInspectorModal extends ConsumerWidget {
     // Debe conservar al menos 4 cartas después de la operación.
     final canDisenchant = !inSquad && collection.owned.length > 4;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: Color(0xFF14090D),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              for (var s = 0; s < live.stars; s++)
-                const Icon(Icons.star, size: 16, color: Color(0xFFFFC93C)),
-              const Spacer(),
-              Text(
-                'Nivel ${live.level}',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+    return SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Color(0xFF14090D),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Center large TcgCardWidget preview
+            Center(
+              child: SizedBox(
+                width: 140,
+                height: 194,
+                child: TcgCardWidget.fromOwnedCard(
+                  card: live,
+                  raised: true,
+                ),
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            live.name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'ATK ${live.baseAttack} · HP ${live.baseHealth} · Maná ${live.baseManaCost} · ${live.rarity.name}',
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          if (canEquip)
-            FilledButton.tonal(
-              onPressed: () async {
-                final ok = await ref
-                    .read(collectionProvider.notifier)
-                    .equip(live.instanceId);
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        ok
-                            ? 'Carta equipada al escuadrón'
-                            : 'No se puede equipar: dupllicado o escuadrón lleno',
+            const SizedBox(height: 14),
+
+            Text(
+              live.name,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Stat pills: ATK, HP, MANA, RARITY
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _statBadge(
+                    'ATK', '${live.baseAttack}', const Color(0xFFFF5A26)),
+                const SizedBox(width: 8),
+                _statBadge('HP', '${live.baseHealth}', const Color(0xFF4FFFA3)),
+                const SizedBox(width: 8),
+                _statBadge(
+                    'MANÁ', '${live.baseManaCost}', const Color(0xFF3FD8FF)),
+                const SizedBox(width: 8),
+                _statBadge(
+                    'ESTRELLAS', '${live.stars}★', const Color(0xFFFFD700)),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Skill descriptions
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E0E16),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.bolt, size: 14, color: Color(0xFFFFD700)),
+                      SizedBox(width: 4),
+                      Text(
+                        'HABILIDAD ACTIVA',
+                        style: TextStyle(
+                          color: Color(0xFFFFD700),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  );
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Inflige ${live.baseAttack * 2} de daño directo al impactar la diana dimensional y purga 1 proyectil.',
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: const [
+                      Icon(Icons.military_tech,
+                          size: 14, color: Color(0xFFFF5A26)),
+                      SizedBox(width: 4),
+                      Text(
+                        'HABILIDAD DE LÍDER (Slot 0)',
+                        style: TextStyle(
+                          color: Color(0xFFFF5A26),
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  const Text(
+                    'Otorga +15% de daño elemental y +10% de velocidad de generación de maná.',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Equip / Squad state
+            if (canEquip)
+              BrimstoneButton(
+                label: 'EQUIPAR AL ESCUADRÓN',
+                icon: Icons.add_moderator,
+                onPressed: () async {
+                  final ok = await ref
+                      .read(collectionProvider.notifier)
+                      .equip(live.instanceId);
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          ok
+                              ? 'Carta equipada al escuadrón'
+                              : 'No se puede equipar: duplicado o escuadrón lleno',
+                        ),
+                      ),
+                    );
+                  }
+                },
+              ),
+            if (inSquad)
+              const Center(
+                child: Text(
+                  '✓ Carta equipada en el escuadrón activo',
+                  style: TextStyle(
+                    color: Color(0xFF4FFFA3),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 10),
+
+            // Level Up button
+            BrimstoneButton(
+              label:
+                  'SUBIR NIVEL (Nv.${live.level + 1}) — $cost ORO (+10% ATK/HP)',
+              icon: Icons.trending_up,
+              onPressed: () async {
+                final result = await ref
+                    .read(collectionProvider.notifier)
+                    .levelUp(live.instanceId);
+                if (context.mounted) {
+                  if (result == -1) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Oro insuficiente')),
+                    );
+                  } else {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Carta subida a Nivel ${live.level + 1}'),
+                      ),
+                    );
+                  }
                 }
               },
-              child: const Text('Equipar al escuadrón'),
             ),
-          if (inSquad)
-            FilledButton.tonal(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Ya está equipada'),
-            ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            icon: const Icon(Icons.trending_up, size: 16),
-            label: Text('Subir de nivel — $cost oro (+10% ATK/HP)'),
-            onPressed: () async {
-              final result = await ref
-                  .read(collectionProvider.notifier)
-                  .levelUp(live.instanceId);
-              if (context.mounted) {
-                if (result == -1) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Oro insuficiente')),
-                  );
-                } else {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Carta subida a Nivel ${live.level + 1}'),
-                    ),
-                  );
-                }
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-          // ================= Desmantelar Copia =================
-          // Reglas: la carta no está en el escuadrón y el jugador conserva al
-          // menos 4 cartas tras el desmantelamiento.
-          FilledButton.tonal(
-            onPressed: canDisenchant
-                ? () async {
-                    final repo = ref.read(playerRepositoryProvider);
-                    final rewards = await repo.disenchantCopy(live.instanceId);
-                    if (rewards == null) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'No puedes desmantelar: el escuadrón debe conservar '
-                              'al menos 4 cartas.',
+            const SizedBox(height: 10),
+
+            // Desmantelar Copia
+            BrimstoneButton(
+              isSecondary: true,
+              label: canDisenchant
+                  ? 'DESMANTELAR (+${50 * live.stars} esq. / +${150 * live.stars} oro)'
+                  : 'DESMANTELAR COPIA (BLOQUEADO)',
+              icon: Icons.delete_forever,
+              onPressed: canDisenchant
+                  ? () async {
+                      final repo = ref.read(playerRepositoryProvider);
+                      final rewards =
+                          await repo.disenchantCopy(live.instanceId);
+                      if (rewards == null) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'No puedes desmantelar: el escuadrón debe conservar '
+                                'al menos 4 cartas.',
+                              ),
+                              backgroundColor: Colors.redAccent,
                             ),
-                            backgroundColor: Colors.redAccent,
+                          );
+                        }
+                        return;
+                      }
+                      await ref.read(profileProvider.notifier).load();
+                      await ref.read(collectionProvider.notifier).load();
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Desmantelado: +${rewards['shards']} esquirlas, '
+                              '+${rewards['gold']} oro',
+                            ),
+                            backgroundColor: const Color(0xFF4FFFA3),
                           ),
                         );
                       }
-                      return;
                     }
-                    await ref.read(profileProvider.notifier).load();
-                    await ref.read(collectionProvider.notifier).load();
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Desmantelado: +${rewards['shards']} esquirlas, '
-                            '+${rewards['gold']} oro',
-                          ),
-                          backgroundColor: const Color(0xFF4FFFA3),
-                        ),
-                      );
-                    }
-                  }
-                : null,
-            child: Text(
-              canDisenchant
-                  ? 'Desmantelar Copia (+${50 * live.stars} esquirlas '
-                      '+ ${150 * live.stars} oro)'
-                  : 'Desmantelar Copia (bloqueado)',
-              style: const TextStyle(fontWeight: FontWeight.w800),
+                  : null,
             ),
-          ),
-          const SizedBox(height: 16),
-          // ================= Forja de Runas Abisales =================
-          const Text(
-            'RUNAS ABIASALES',
+            const SizedBox(height: 16),
+
+            // Forja de Runas Abisales
+            const Text(
+              'FORJA DE RUNAS ABISALES',
+              style: TextStyle(
+                color: Color(0xFFB16EFF),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _RuneForgeSection(card: live),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _statBadge(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E0E16),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.5), width: 1),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
             style: TextStyle(
-              color: Color(0xFFB16EFF),
+                color: color, fontSize: 8, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
               fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.0,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 8),
-          _RuneForgeSection(card: live),
         ],
       ),
     );

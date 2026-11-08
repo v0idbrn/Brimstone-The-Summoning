@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../domain/entities/owned_card.dart';
 import '../../controllers/meta_controller.dart';
+import '../../widgets/tcg_card_widget.dart';
 import '../meta/widgets.dart';
 
 /// Summon Portal: Pacto Menor (1 card, 100 esquirlas / 500 oro) and
@@ -290,8 +291,9 @@ class _RevealDialog extends StatelessWidget {
               children: [
                 for (final c in cards)
                   SizedBox(
-                    width: 66,
-                    child: CardTileSmall(card: c, raised: true),
+                    width: 76,
+                    height: 104,
+                    child: TcgCardWidget.fromOwnedCard(card: c, raised: true),
                   ),
               ],
             ),

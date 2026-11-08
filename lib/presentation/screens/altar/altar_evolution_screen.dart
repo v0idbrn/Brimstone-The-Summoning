@@ -5,6 +5,7 @@ import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../domain/entities/owned_card.dart';
 import '../../../domain/meta/meta_rules.dart';
 import '../../controllers/meta_controller.dart';
+import '../../widgets/brimstone_button.dart';
 import '../meta/widgets.dart';
 
 /// Altar of Evolution: sacrifice a duplicate (same catalogId & stars) plus
@@ -179,27 +180,16 @@ class _EvolutionDetailState extends ConsumerState<_EvolutionDetail> {
             style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Padding(
           padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-          child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor:
-                  canEvolve ? const Color(0xFFFFC93C) : Colors.white24,
-              foregroundColor:
-                  canEvolve ? const Color(0xFF14090D) : Colors.white54,
-              minimumSize: const Size.fromHeight(52),
-            ),
-            icon: const Icon(Icons.auto_fix_high),
-            label: Text(
-              canEvolve
-                  ? 'EVOLUCIONAR A ${card.stars + 1}★ — $cost ORO'
-                  : 'EVOLUCIÓN BLOQUEADA',
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-              ),
-            ),
+          child: BrimstoneButton(
+            width: double.infinity,
+            height: 52,
+            icon: Icons.auto_fix_high,
+            label: canEvolve
+                ? 'EVOLUCIONAR A ${card.stars + 1}★ — $cost ORO'
+                : 'EVOLUCIÓN BLOQUEADA',
             onPressed: canEvolve
                 ? () async {
                     final ok = await ref

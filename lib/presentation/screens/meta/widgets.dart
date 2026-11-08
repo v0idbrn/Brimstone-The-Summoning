@@ -5,6 +5,7 @@ import '../../../domain/entities/owned_card.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../../domain/value_objects/rarity.dart';
 import '../../controllers/meta_controller.dart';
+import '../../widgets/tcg_card_widget.dart';
 
 /// Shared visual helpers for the gothic meta screens.
 Color elementColor(Element e) => switch (e) {
@@ -23,6 +24,7 @@ Color rarityColor(Rarity r) => switch (r) {
     };
 
 /// Compact card tile reused by squad preview, barracks and evolution altar.
+/// Backed by high-fidelity master [TcgCardWidget].
 class CardTileSmall extends StatelessWidget {
   final OwnedCard card;
   final VoidCallback? onTap;
@@ -37,77 +39,12 @@ class CardTileSmall extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = elementColor(card.element);
-    return GestureDetector(
-      onTap: onTap,
-      child: AspectRatio(
-        aspectRatio: 0.74,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A0E14),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: rarityColor(card.rarity),
-              width: raised ? 2.4 : 1.6,
-            ),
-            boxShadow: card.stars >= 4
-                ? [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.5),
-                      blurRadius: 10,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  children: [
-                    for (var s = 0; s < card.stars; s++)
-                      const Icon(Icons.star, size: 9, color: Color(0xFFFFC93C)),
-                    const Spacer(),
-                    Text(
-                      'Nv.${card.level}',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 8,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Center(
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: color.withValues(alpha: 0.85),
-                      border: Border.all(color: Colors.white70),
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4, left: 2, right: 2),
-                child: Text(
-                  card.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+    return AspectRatio(
+      aspectRatio: 0.72,
+      child: TcgCardWidget.fromOwnedCard(
+        card: card,
+        onTap: onTap,
+        raised: raised,
       ),
     );
   }

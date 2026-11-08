@@ -8,6 +8,8 @@ import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/combat/combat_models.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
+import '../../widgets/brimstone_button.dart';
+import '../../widgets/tcg_card_widget.dart';
 import '../combat/combat_screen.dart';
 import '../meta/how_to_play_modal.dart';
 import '../meta/widgets.dart';
@@ -434,35 +436,77 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
         children: [
           const CurrencyBar(),
           const SizedBox(height: 10),
-          // Perfil del Invocador: título equipado bajo el nombre.
+          // Header de Invocador ornamentado
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A0E14),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: const Color(0xFFFFC93C).withValues(alpha: 0.6),
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF22111A),
+                  Color(0xFF140810),
+                  Color(0xFF0D040A)
+                ],
               ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFD4AF37),
+                width: 1.5,
+              ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x33D4AF37),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
-            child: Column(
+            child: Row(
               children: [
-                const Text(
-                  'INVOCADOR DEL AZUFRE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13,
-                    letterSpacing: 1.2,
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const RadialGradient(
+                      colors: [
+                        Color(0xFFFFD700),
+                        Color(0xFFFF5A26),
+                        Color(0xFF2E050C)
+                      ],
+                    ),
+                    border:
+                        Border.all(color: const Color(0xFFD4AF37), width: 1.5),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.shield, color: Colors.white, size: 24),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  _equippedTitleName(),
-                  style: const TextStyle(
-                    color: Color(0xFFFFC93C),
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'INVOCADOR DEL AZUFRE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
+                          letterSpacing: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _equippedTitleName(),
+                        style: const TextStyle(
+                          color: Color(0xFFFFD700),
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -482,59 +526,78 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
             onBackup: _openBackup,
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Escuadrón activo',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              for (var i = 0; i < 4; i++)
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(right: i == 3 ? 0 : 6),
-                    child: (i < squad.length)
-                        ? Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              CardTileSmall(card: squad[i], raised: true),
-                              if (i == 0)
-                                Positioned(
-                                  top: -8,
-                                  left: -8,
+          // Altar del Escuadrón con PWR total y TcgCardWidget
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF140810),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
+                width: 1.2,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'ALTAR DEL ESCUADRÓN',
+                      style: TextStyle(
+                        color: Color(0xFFD4AF37),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    Text(
+                      'PWR TOTAL: ${squad.fold<int>(0, (sum, c) => sum + c.baseAttack)}',
+                      style: const TextStyle(
+                        color: Color(0xFFFF9E2C),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    for (var i = 0; i < 4; i++)
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(right: i == 3 ? 0 : 6),
+                          child: (i < squad.length)
+                              ? AspectRatio(
+                                  aspectRatio: 0.72,
+                                  child: TcgCardWidget.fromOwnedCard(
+                                    card: squad[i],
+                                    isLeader: i == 0,
+                                    raised: true,
+                                  ),
+                                )
+                              : AspectRatio(
+                                  aspectRatio: 0.72,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFFC93C),
-                                      borderRadius: BorderRadius.circular(4),
+                                      color: const Color(0xFF0C0508),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.white12),
                                     ),
-                                    child: const Text(
-                                      'LÍDER',
-                                      style: TextStyle(
-                                        color: Color(0xFF0C0608),
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 8,
-                                        letterSpacing: 0.6,
-                                      ),
+                                    child: const Center(
+                                      child: Icon(Icons.add,
+                                          color: Colors.white24),
                                     ),
                                   ),
                                 ),
-                            ],
-                          )
-                        : Container(
-                            height: 84,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.white12),
-                            ),
-                            child: const Center(
-                              child: Icon(Icons.add, color: Colors.white24),
-                            ),
-                          ),
-                  ),
+                        ),
+                      ),
+                  ],
                 ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           // Banner de sinergia activa.
@@ -589,87 +652,24 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
           const SizedBox(height: 8),
           ...campaignChapters.map(_chapterTile),
           const SizedBox(height: 18),
-          SizedBox(
+          BrimstoneButton(
             width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFB16EFF),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              icon: const Icon(Icons.play_arrow),
-              label: Text(
-                _chapterLocked ? 'CAPÍTULO BLOQUEADO' : 'INICIAR CAPÍTULO',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              onPressed: _chapterLocked ? null : _startChapter,
-            ),
+            height: 52,
+            icon: Icons.play_arrow,
+            label: _chapterLocked
+                ? 'CAPÍTULO BLOQUEADO'
+                : 'INICIAR INCURSIÓN DE GRIETA',
+            onPressed: _chapterLocked ? null : _startChapter,
           ),
-          const SizedBox(height: 14),
-          // Insignia del récord del Abismo Sin Fin.
-          if (_highestEndlessWave > 0)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A0E14),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFFFC93C), width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.emoji_events,
-                    color: Color(0xFFFFC93C),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Abismo Sin Fin — Récord',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                          ),
-                        ),
-                        Text(
-                          'Oleada máxima alcanzada: $_highestEndlessWave',
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          const SizedBox(height: 14),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF802020),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            icon: const Icon(Icons.rocket_launch),
-            label: const Text(
-              'ABISMO SIN FIN (ENDLESS)',
-              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2),
-            ),
+          const SizedBox(height: 12),
+          BrimstoneButton(
+            isSecondary: true,
+            width: double.infinity,
+            height: 50,
+            icon: Icons.rocket_launch,
+            label: _highestEndlessWave > 0
+                ? 'ABISMO SIN FIN (RÉCORD: OLA $_highestEndlessWave)'
+                : 'ABISMO SIN FIN (ENDLESS)',
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -701,42 +701,73 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
     final unlocked = chapterUnlocked(chapter.id, _clearedChapters.toList());
     final cleared = _clearedChapters.contains(chapter.id);
     final selected = _selectedChapterId == chapter.id;
+    final boss = chapter.boss;
+
     return GestureDetector(
       onTap: unlocked
           ? () => setState(() => _selectedChapterId = chapter.id)
           : null,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A0E14),
+          gradient: LinearGradient(
+            colors: selected
+                ? const [Color(0xFF32121D), Color(0xFF1E0A12)]
+                : const [Color(0xFF1A0E14), Color(0xFF0F060A)],
+          ),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: cleared
-                ? const Color(0xFF4FFFA3)
-                : unlocked
-                    ? const Color(0xFFB16EFF)
-                    : Colors.white38,
-            width: 1.2,
+            color: selected
+                ? const Color(0xFFFFD700)
+                : (cleared
+                    ? const Color(0xFF4FFFA3)
+                    : unlocked
+                        ? const Color(0xFFD4AF37)
+                        : Colors.white12),
+            width: selected ? 2.0 : 1.2,
           ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.35),
+                    blurRadius: 10,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: cleared
                     ? const Color(0xFF4FFFA3).withValues(alpha: 0.2)
                     : unlocked
-                        ? const Color(0xFFB16EFF).withValues(alpha: 0.2)
+                        ? const Color(0xFFFFD700).withValues(alpha: 0.2)
                         : Colors.white10,
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: cleared
+                      ? const Color(0xFF4FFFA3)
+                      : unlocked
+                          ? const Color(0xFFFFD700)
+                          : Colors.white24,
+                ),
               ),
-              child: Text(
-                '${chapter.number}',
-                style: TextStyle(
-                  color: cleared ? const Color(0xFF4FFFA3) : Colors.white,
-                  fontWeight: FontWeight.w900,
+              child: Center(
+                child: Text(
+                  '${chapter.number}',
+                  style: TextStyle(
+                    color: cleared
+                        ? const Color(0xFF4FFFA3)
+                        : unlocked
+                            ? const Color(0xFFFFD700)
+                            : Colors.white38,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
@@ -764,40 +795,70 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 6),
                       if (cleared)
-                        const Icon(
-                          Icons.check_circle,
-                          color: Color(0xFF4FFFA3),
-                          size: 16,
-                        ),
-                      if (!unlocked)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0x334FFFA3),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'COMPLETADO',
+                            style: TextStyle(
+                              color: Color(0xFF4FFFA3),
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      else if (unlocked)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0x33FFD700),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'DESBLOQUEADO',
+                            style: TextStyle(
+                              color: Color(0xFFFFD700),
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      else
                         const Icon(
                           Icons.lock,
                           color: Colors.white38,
-                          size: 16,
+                          size: 14,
                         ),
                     ],
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    chapter.bossTitle,
-                    style: const TextStyle(color: Colors.white54, fontSize: 10),
+                    'Jefe: ${boss.name} (${chapter.bossTitle})',
+                    style: TextStyle(
+                      color:
+                          unlocked ? const Color(0xFFFF9E2C) : Colors.white38,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
-                    'Primera victoria: +${chapter.rewardGold} oro, +${chapter.rewardShards} esquirlas',
+                    'Recompensa: +${chapter.rewardGold} oro, +${chapter.rewardShards} esquirlas',
                     style: const TextStyle(
                       color: Color(0xFFFFC93C),
-                      fontSize: 10,
+                      fontSize: 9.5,
                     ),
                   ),
                 ],
               ),
             ),
-            if (selected)
-              const Icon(Icons.check_circle, color: Color(0xFFB16EFF), size: 20)
-            else
-              const SizedBox(width: 20),
           ],
         ),
       ),

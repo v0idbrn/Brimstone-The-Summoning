@@ -66,6 +66,9 @@ class CreatureProceduralArt {
     final center = Offset(bounds.width / 2, bounds.height / 2);
     final radius = math.min(bounds.width, bounds.height) * 0.42;
 
+    // Scenic elemental landscape background
+    _drawScenicBackground(canvas, bounds, element, time);
+
     // ===== STAR LEVEL EFFECTS =====
     // 1★: Iron frame + base silhouette
     // 2★: Bronze runic frame + glowing eyes + floating particles
@@ -120,6 +123,277 @@ class CreatureProceduralArt {
     }
 
     canvas.restore();
+  }
+
+  /// Procedural scenic landscape per element:
+  /// - Igneous: Magma volcano peaks, molten lava river, ash sky
+  /// - Abyssal: Ice cavern stalactites, glacial crystals, frosted deeps
+  /// - Telluric: Monolithic ancient ruins, cracked stone pillars, mossy earth
+  /// - Empty/Void: Nebular vortex, celestial crescent eclipse, astral dust
+  static void _drawScenicBackground(
+    Canvas canvas,
+    Rect bounds,
+    Element element,
+    double time,
+  ) {
+    final w = bounds.width;
+    final h = bounds.height;
+    final bgRect = Rect.fromLTWH(0, 0, w, h);
+
+    switch (element) {
+      case Element.igneous:
+        // Sky / Magma chamber gradient
+        final skyPaint = Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A0507), Color(0xFF380E09), Color(0xFF6B1808)],
+          ).createShader(bgRect);
+        canvas.drawRect(bgRect, skyPaint);
+
+        // Volcano peaks silhouette
+        final volcanoPath = Path()
+          ..moveTo(0, h * 0.72)
+          ..lineTo(w * 0.28, h * 0.38)
+          ..lineTo(w * 0.44, h * 0.46)
+          ..lineTo(w * 0.68, h * 0.28)
+          ..lineTo(w, h * 0.78)
+          ..lineTo(w, h)
+          ..lineTo(0, h)
+          ..close();
+        canvas.drawPath(
+          volcanoPath,
+          Paint()..color = const Color(0xFF1F090B),
+        );
+
+        // Molten magma glow crater
+        final craterGlow = Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(0.36, -0.44),
+            radius: 0.4,
+            colors: [
+              const Color(0xFFFF9E2C),
+              const Color(0xFFFF3D00).withValues(alpha: 0.6),
+              Colors.transparent,
+            ],
+          ).createShader(bgRect);
+        canvas.drawCircle(Offset(w * 0.68, h * 0.3), w * 0.25, craterGlow);
+
+        // Molten lava pool at base
+        final lavaPath = Path()
+          ..moveTo(0, h * 0.82)
+          ..cubicTo(w * 0.35, h * 0.75, w * 0.65, h * 0.90, w, h * 0.80)
+          ..lineTo(w, h)
+          ..lineTo(0, h)
+          ..close();
+        canvas.drawPath(
+          lavaPath,
+          Paint()
+            ..shader = const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFFF7A00), Color(0xFFD62828), Color(0xFF4A0A0A)],
+            ).createShader(Rect.fromLTWH(0, h * 0.75, w, h * 0.25)),
+        );
+        break;
+
+      case Element.abyssal:
+        // Ice cavern ceiling & glacial depths
+        final iceSky = Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF040E1E), Color(0xFF0A233F), Color(0xFF0D3B5C)],
+          ).createShader(bgRect);
+        canvas.drawRect(bgRect, iceSky);
+
+        // Hanging stalactites
+        final stalactites = Path()
+          ..moveTo(0, 0)
+          ..lineTo(w * 0.12, h * 0.30)
+          ..lineTo(w * 0.22, 0)
+          ..lineTo(w * 0.40, h * 0.42)
+          ..lineTo(w * 0.52, 0)
+          ..lineTo(w * 0.75, h * 0.34)
+          ..lineTo(w * 0.88, 0)
+          ..lineTo(w, h * 0.22)
+          ..lineTo(w, 0)
+          ..close();
+        canvas.drawPath(
+          stalactites,
+          Paint()..color = const Color(0xFF081C30),
+        );
+
+        // Crystal frost shimmer glow
+        final frostGlow = Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(0.0, 0.2),
+            radius: 0.6,
+            colors: [
+              const Color(0xFF3FD8FF).withValues(alpha: 0.35),
+              const Color(0xFF0E5C8A).withValues(alpha: 0.15),
+              Colors.transparent,
+            ],
+          ).createShader(bgRect);
+        canvas.drawRect(bgRect, frostGlow);
+
+        // Glacial floor spikes
+        final iceFloor = Path()
+          ..moveTo(0, h)
+          ..lineTo(w * 0.18, h * 0.76)
+          ..lineTo(w * 0.32, h * 0.88)
+          ..lineTo(w * 0.55, h * 0.70)
+          ..lineTo(w * 0.78, h * 0.84)
+          ..lineTo(w, h * 0.72)
+          ..lineTo(w, h)
+          ..close();
+        canvas.drawPath(
+          iceFloor,
+          Paint()
+            ..shader = const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF5CE1E6), Color(0xFF144D66), Color(0xFF071926)],
+            ).createShader(Rect.fromLTWH(0, h * 0.65, w, h * 0.35)),
+        );
+        break;
+
+      case Element.telluric:
+        // Monolithic ancient ruins & dusk
+        final earthSky = Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1E140C), Color(0xFF332014), Color(0xFF4A301E)],
+          ).createShader(bgRect);
+        canvas.drawRect(bgRect, earthSky);
+
+        // Monolith pillars in perspective
+        final monoliths = Path()
+          // Pillar 1
+          ..addRect(Rect.fromLTWH(w * 0.10, h * 0.25, w * 0.14, h * 0.65))
+          // Broken lintel
+          ..addRect(Rect.fromLTWH(w * 0.06, h * 0.20, w * 0.40, h * 0.08))
+          // Pillar 2
+          ..addRect(Rect.fromLTWH(w * 0.32, h * 0.27, w * 0.12, h * 0.63))
+          // Distant obelisk
+          ..addRect(Rect.fromLTWH(w * 0.75, h * 0.35, w * 0.12, h * 0.55));
+        canvas.drawPath(
+          monoliths,
+          Paint()..color = const Color(0xFF160E08),
+        );
+
+        // Runes on pillars
+        final runePaint = Paint()
+          ..color = const Color(0xFFD4AF37).withValues(alpha: 0.45)
+          ..strokeWidth = 1.2
+          ..style = PaintingStyle.stroke;
+        canvas.drawLine(
+          Offset(w * 0.17, h * 0.38),
+          Offset(w * 0.17, h * 0.60),
+          runePaint,
+        );
+        canvas.drawLine(
+          Offset(w * 0.38, h * 0.42),
+          Offset(w * 0.38, h * 0.65),
+          runePaint,
+        );
+
+        // Overgrown craggy earth ground
+        final groundPath = Path()
+          ..moveTo(0, h * 0.80)
+          ..cubicTo(w * 0.3, h * 0.72, w * 0.7, h * 0.86, w, h * 0.78)
+          ..lineTo(w, h)
+          ..lineTo(0, h)
+          ..close();
+        canvas.drawPath(
+          groundPath,
+          Paint()
+            ..shader = const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF8A5A2B), Color(0xFF3B2411), Color(0xFF140C06)],
+            ).createShader(Rect.fromLTWH(0, h * 0.72, w, h * 0.28)),
+        );
+        break;
+
+      case Element.empty:
+        // Void nebular eclipse
+        final voidSky = Paint()
+          ..shader = const RadialGradient(
+            center: Alignment.center,
+            radius: 0.8,
+            colors: [Color(0xFF280B45), Color(0xFF120320), Color(0xFF07000C)],
+          ).createShader(bgRect);
+        canvas.drawRect(bgRect, voidSky);
+
+        // Nebular vortex swirls
+        final vortexPaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..color = const Color(0xFFB16EFF).withValues(alpha: 0.25)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+        for (var i = 1; i <= 3; i++) {
+          final arcR = w * (0.22 * i);
+          canvas.drawArc(
+            Rect.fromCircle(center: Offset(w * 0.5, h * 0.45), radius: arcR),
+            time * 0.5 + i * 1.2,
+            math.pi * 1.1,
+            false,
+            vortexPaint,
+          );
+        }
+
+        // Celestial Eclipse Crescent
+        final eclipseCenter = Offset(w * 0.5, h * 0.38);
+        final eclipseRadius = w * 0.22;
+        // Corona glow
+        canvas.drawCircle(
+          eclipseCenter,
+          eclipseRadius * 1.35,
+          Paint()
+            ..color = const Color(0xFFDA70D6).withValues(alpha: 0.25)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+        );
+        // Dark moon body
+        canvas.drawCircle(
+          eclipseCenter,
+          eclipseRadius,
+          Paint()..color = const Color(0xFF090212),
+        );
+        // Glowing eclipse ring rim
+        canvas.drawArc(
+          Rect.fromCircle(center: eclipseCenter, radius: eclipseRadius),
+          -math.pi * 0.65,
+          math.pi * 1.25,
+          false,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.0
+            ..color = const Color(0xFFE5D4FF),
+        );
+
+        // Astral rift void bottom
+        final riftPath = Path()
+          ..moveTo(0, h * 0.84)
+          ..lineTo(w * 0.35, h * 0.78)
+          ..lineTo(w * 0.50, h * 0.88)
+          ..lineTo(w * 0.72, h * 0.76)
+          ..lineTo(w, h * 0.85)
+          ..lineTo(w, h)
+          ..lineTo(0, h)
+          ..close();
+        canvas.drawPath(
+          riftPath,
+          Paint()
+            ..shader = const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF6B21A8), Color(0xFF2E0854), Color(0xFF0B0114)],
+            ).createShader(Rect.fromLTWH(0, h * 0.75, w, h * 0.25)),
+        );
+        break;
+    }
   }
 
   /// Draw the evolution frame (1★ iron -> 4★ animated gold).

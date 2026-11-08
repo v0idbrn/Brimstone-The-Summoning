@@ -262,33 +262,51 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(index: _tab, children: _screens),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: const Color(0xFF14090D),
-        indicatorColor: const Color(0xFFB16EFF).withValues(alpha: 0.25),
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined, color: Colors.white54),
-            selectedIcon: Icon(Icons.home, color: Color(0xFFB16EFF)),
-            label: 'Santuario',
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0B0814),
+          border: Border(
+            top: BorderSide(
+              color: Color(0xFFD4AF37),
+              width: 1.5,
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.shield_outlined, color: Colors.white54),
-            selectedIcon: Icon(Icons.shield, color: Color(0xFFB16EFF)),
-            label: 'Cuartel',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_fix_high_outlined, color: Colors.white54),
-            selectedIcon: Icon(Icons.auto_fix_high, color: Color(0xFFFFC93C)),
-            label: 'Altar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.auto_awesome_outlined, color: Colors.white54),
-            selectedIcon: Icon(Icons.auto_awesome, color: Color(0xFFB16EFF)),
-            label: 'Portal',
-          ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x55000000),
+              blurRadius: 10,
+              offset: Offset(0, -3),
+            ),
+          ],
+        ),
+        child: NavigationBar(
+          backgroundColor: const Color(0xFF0B0814),
+          indicatorColor: const Color(0xFFD4AF37).withValues(alpha: 0.22),
+          selectedIndex: _tab,
+          onDestinationSelected: (i) => setState(() => _tab = i),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined, color: Colors.white54),
+              selectedIcon: Icon(Icons.home, color: Color(0xFFFFD700)),
+              label: 'Santuario',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.shield_outlined, color: Colors.white54),
+              selectedIcon: Icon(Icons.shield, color: Color(0xFFFFD700)),
+              label: 'Cuartel',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.auto_fix_high_outlined, color: Colors.white54),
+              selectedIcon: Icon(Icons.auto_fix_high, color: Color(0xFFFFD700)),
+              label: 'Altar',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.auto_awesome_outlined, color: Colors.white54),
+              selectedIcon: Icon(Icons.auto_awesome, color: Color(0xFFFFD700)),
+              label: 'Portal',
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,5 +1,7 @@
 # AGENTS.md — Brimstone: The Summoning
 
+> **Token Economy (Caveman + Ponytail)**: Respuestas en modo caveman (ultra-concisas, sin prosa de relleno). Lectura de archivos quirúrgica (no releer archivos que no se van a tocar). Reutilizar clases existentes antes de crear archivos nuevos, pero manteniendo máxima riqueza visual en CustomPainter y widgets de UI.
+
 > Governance document for AI-assisted development of Brimstone: The Summoning (com.brimstone.summoning).
 > Mirrors CLAUDE.md for cross-agent compatibility.
 

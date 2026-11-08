@@ -239,9 +239,17 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     setState(() {});
   }
 
+  bool _bossDeathFlash = false;
+
   Future<void> _resolve(bool victory) async {
     if (_resolved) return;
     _resolved = true;
+
+    if (victory) {
+      if (mounted) setState(() => _bossDeathFlash = true);
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+      if (mounted) setState(() => _bossDeathFlash = false);
+    }
 
     if (engine.trainingMode) {
       await _showTrainingResult(victory);
@@ -425,6 +433,25 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                 child: _CombatDangerOverlay(engine: engine),
               ),
             ),
+            // Destello de fractura dimensional al morir el jefe
+            if (_bossDeathFlash)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0.95),
+                          const Color(0xFFFFD700).withValues(alpha: 0.8),
+                          const Color(0xFFFF2A54).withValues(alpha: 0.6),
+                          Colors.transparent,
+                        ],
+                        radius: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             // Reaction banner.
             if (_reactionBanner != null)
               Positioned(

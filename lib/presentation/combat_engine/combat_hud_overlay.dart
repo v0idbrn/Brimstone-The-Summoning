@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' hide Element;
 
 import '../../domain/combat/combat_engine.dart';
-import '../../domain/combat/combat_models.dart';
 import '../../domain/value_objects/element.dart';
-import 'card_procedural_artwork.dart';
+import '../widgets/tcg_card_widget.dart';
 
 /// Overlay HUD on top of the 2.5D combat: structured header with boss name,
 /// HP bar with elemental aura, 4 TCG cards with CreaturePortrait artwork,
@@ -64,14 +62,6 @@ class _CombatHudOverlayState extends State<CombatHudOverlay>
     _pulseCtrl.dispose();
     super.dispose();
   }
-
-  /// Border color by star tier: 1★ bronze, 2★ silver, 3★ gold, 4★ crimson-gold.
-  Color _starBorderColor(int stars) => switch (stars) {
-        1 => const Color(0xFF8B6914),
-        2 => const Color(0xFFC0C0C0),
-        3 => const Color(0xFFFFD700),
-        _ => const Color(0xFFFF6B35),
-      };
 
   Color _elementColor(Element e) => switch (e) {
         Element.igneous => const Color(0xFFFF5A26),
@@ -270,40 +260,12 @@ class _CombatHudOverlayState extends State<CombatHudOverlay>
             children: [
               for (var i = 0; i < e.cards.length; i++) ...[
                 Expanded(
-                  child: GestureDetector(
-                    onTap: () => _cast(i),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        _CardTile(
-                          card: e.cards[i],
-                          elementColor: _elementColor(e.cards[i].element),
-                          starBorderColor: _starBorderColor(e.cards[i].stars),
-                          pulseValue: _pulseCtrl.value,
-                        ),
-                        if (i == 0)
-                          Positioned(
-                            top: -6,
-                            left: -6,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFC93C),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'LÍDER',
-                                style: TextStyle(
-                                  color: Color(0xFF0C0608),
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 8,
-                                  letterSpacing: 0.6,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                  child: AspectRatio(
+                    aspectRatio: 0.72,
+                    child: TcgCardWidget.fromCombatCard(
+                      card: e.cards[i],
+                      isLeader: i == 0,
+                      onTap: () => _cast(i),
                     ),
                   ),
                 ),
@@ -471,192 +433,4 @@ class _HudIconBtn extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Card tile with CreaturePortrait ──────────────────────────────────────────
-
-class _CardTile extends StatelessWidget {
-  final ManaCard card;
-  final Color elementColor;
-  final Color starBorderColor;
-  final double pulseValue;
-
-  const _CardTile({
-    required this.card,
-    required this.elementColor,
-    required this.starBorderColor,
-    required this.pulseValue,
-  });
-
-  String _starStr() => '★' * card.stars.clamp(1, 4);
-
-  Color _glowBorderColor() {
-    if (!card.isReady) return starBorderColor;
-    return const Color(0xFFFFD700);
-  }
-
-  double _borderWidth() => card.isReady ? 2.5 : 1.4;
-
-  List<BoxShadow>? _boxShadow() {
-    if (!card.isReady) return null;
-    final glow = 0.5 + 0.5 * pulseValue;
-    return [
-      BoxShadow(
-        color: const Color(0xFFFFD700).withValues(alpha: glow * 0.7),
-        blurRadius: 14,
-        spreadRadius: 2,
-      ),
-    ];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final frac = (card.mana / card.baseManaCost).clamp(0.0, 1.0);
-    return AspectRatio(
-      aspectRatio: 0.72,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: card.isReady ? 1.0 : 0.80,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A0E14).withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: _glowBorderColor(),
-              width: _borderWidth(),
-            ),
-            boxShadow: _boxShadow(),
-          ),
-          child: Column(
-            children: [
-              // Stars + ATK row
-              Padding(
-                padding: const EdgeInsets.fromLTRB(4, 3, 4, 0),
-                child: Row(
-                  children: [
-                    Text(
-                      _starStr(),
-                      style: TextStyle(
-                        color: starBorderColor,
-                        fontSize: 8,
-                        height: 1,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'ATK${card.attack.toInt()}',
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 8,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Creature portrait (procedural art)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 2,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: CustomPaint(
-                      size: const Size(double.infinity, double.infinity),
-                      painter: _CreaturePortraitPainter(
-                        cardId: card.id,
-                        stars: card.stars,
-                        manaFrac: frac,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Card name
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Text(
-                  card.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              // INVOCAR! label
-              if (card.isReady)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 1),
-                  child: Text(
-                    '¡INVOCAR!',
-                    style: TextStyle(
-                      color: Color(0xFFFFD700),
-                      fontSize: 8,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              // Gradient mana bar
-              Directionality(
-                textDirection: ui.TextDirection.ltr,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(9),
-                    bottomRight: Radius.circular(9),
-                  ),
-                  child: SizedBox(
-                    height: 5,
-                    child: LinearProgressIndicator(
-                      value: frac,
-                      backgroundColor: Colors.white12,
-                      valueColor: AlwaysStoppedAnimation(
-                        card.isReady ? const Color(0xFFFFD700) : elementColor,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── CreaturePortrait CustomPainter ───────────────────────────────────────────
-
-/// Wraps [CreatureProceduralArt.drawPortrait] in a [CustomPainter] so it can
-/// be embedded inside the card tile's [CustomPaint] widget.
-class _CreaturePortraitPainter extends CustomPainter {
-  final String cardId;
-  final int stars;
-  final double manaFrac;
-
-  const _CreaturePortraitPainter({
-    required this.cardId,
-    required this.stars,
-    required this.manaFrac,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    CreatureProceduralArt.drawPortrait(
-      canvas,
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      cardId,
-      stars: stars,
-      time: manaFrac * math.pi * 2,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_CreaturePortraitPainter old) =>
-      old.cardId != cardId || old.stars != stars || old.manaFrac != manaFrac;
 }
