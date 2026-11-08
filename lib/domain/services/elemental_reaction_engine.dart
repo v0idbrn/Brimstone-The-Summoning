@@ -8,14 +8,17 @@ class ElementalReactionEngine {
     Element incomingElement,
     int incomingOrbLevel,
   ) {
-    if (activeAura == Element.igneous && incomingElement == Element.telluric) {
-      return ReactionResult.magmaEruption();
-    }
-    if (activeAura == Element.abyssal && incomingElement == Element.igneous) {
-      return ReactionResult.thermalShock();
-    }
-    if (activeAura == Element.telluric && incomingElement == Element.abyssal) {
-      return ReactionResult.abyssalPetrification();
+    final pair = {activeAura, incomingElement};
+    if (pair.length == 2) {
+      if (pair.containsAll({Element.igneous, Element.telluric})) {
+        return ReactionResult.magmaEruption();
+      }
+      if (pair.containsAll({Element.abyssal, Element.igneous})) {
+        return ReactionResult.thermalShock();
+      }
+      if (pair.containsAll({Element.telluric, Element.abyssal})) {
+        return ReactionResult.abyssalPetrification();
+      }
     }
     if (activeAura == Element.empty && incomingOrbLevel >= 3) {
       return ReactionResult.sealCollapse();
@@ -48,10 +51,10 @@ class ReactionResult {
     manaBonusPercent: 0.25,
   );
   factory ReactionResult.abyssalPetrification() =>
-      ReactionResult(name: 'Petrificación Abisal', damageMultiplier: 1.0);
+      ReactionResult(name: 'Petrificación Abisal', damageMultiplier: 1.4);
   factory ReactionResult.sealCollapse() => ReactionResult(
     name: 'Colapso del Sello',
-    damageMultiplier: 1.0,
+    damageMultiplier: 1.75,
     appliesVulnerability: true,
   );
 }

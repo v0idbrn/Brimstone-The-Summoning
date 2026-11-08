@@ -20,9 +20,17 @@ void main() {
       expect(r?.name, 'Choque Térmico');
       expect(r?.manaBonusPercent, 0.25);
     });
-    test('no reaction for incompatible', () {
+    test('thermal shock fires in any order (igneous aura + abyssal hit)', () {
       final e = ElementalReactionEngine();
-      expect(e.checkReaction(Element.igneous, Element.abyssal, 2), isNull);
+      final r = e.checkReaction(Element.igneous, Element.abyssal, 2);
+      expect(r?.name, 'Choque Térmico');
+      expect(r?.manaBonusPercent, 0.25);
+    });
+    test('telluric aura + abyssal hit -> petrification', () {
+      final e = ElementalReactionEngine();
+      final r = e.checkReaction(Element.telluric, Element.abyssal, 2);
+      expect(r?.name, 'Petrificación Abisal');
+      expect(r?.damageMultiplier, 1.4);
     });
     test('seal collapse requires void level 3', () {
       final e = ElementalReactionEngine();
