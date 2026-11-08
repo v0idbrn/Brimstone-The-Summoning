@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""
+Fetch real game-icons SVG vector art from https://github.com/game-icons/icons
+and generate lib/presentation/combat_engine/rpg_svg_catalog.dart with
+Map<String, List<String>> kRpgSvgPaths for 20 creature catalogIds and 5 bossIds.
+
+Uses GitHub API to get the tree, then downloads SVGs and extracts <path d="...">
+attributes (ignoring the background square path M0 0h512v512H0z).
+"""
+
+import os
+import re
+import json
+import urllib.request
+import urllib.error
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+# -----------------------------------------------------------------------------
+# Mapping from our catalog IDs to game-icons icon names (as found in the repo)
+# Some icons may not exist exactly, so we use closest available alternatives
+# -----------------------------------------------------------------------------
+CATALOG_TO_ICON = {
+    # 20 Creatures (4 per element × 5 elements, but we have 4 elements × 5 stages)
+    # Igneous line
+    'ignis_hound': 'hell-hound',
+    'ignis_lord': 'ifrit',
+    'ignis_drake': 'dragon-head',
+    'ignis_seraph': 'angel-outfit',  # winged-seraph not found, using angel-outfit
+    'ignis_colossus': 'volcano',  # fire-demon not found, using volcano
+    # Abyssal line
+    'abyss_stalker': 'sea-serpent',
+    'abyss_leviathan': 'kraken-tentacle',
+    'abyss_siren': 'siren',
+    'abyss_kraken': 'kraken-tentacle',  # kraken not found, using kraken-tentacle
+    'abyss_wraith': 'ghost',
+    # Telluric line
+    'terra_golem': 'rock-golem',
+    'terra_titan': 'golem-head',
+    'terra_warden': 'minotaur',
+    'terra_hydra': 'hydra',
+    'terra_behemoth': 'mountain-cave',
+    # Void line
+    'void_specter': 'spectre',
+    'void_malakor': 'eye-of-horus',  # evil-eye not found, using eye-of-horus
+    'void_reaper': 'grim-reaper',
+    'void_oracle': 'cultist',
+    'void_archon': 'daemon-skull',
+    # 5 Bosses
+    'pyroth': 'crowned-skull',
+    'vaelor': 'horned-skull',
+    'gorgath': 'evil-wings',
+    'nyxara': 'spiked-dragon-head',
+    'azathor': 'crowned-skull',
+}
+
+# Reverse mapping for output
+ICON_TO_CATALOG = {v: k for k, v in CATALOG_TO_ICON.items()}
+
+# GitHub API URLs
+GITHUB_API_TREE = "https://api.github.com/repos/game-icons/icons/git/trees/master?recursive=1"
+RAW_BASE = "https://raw.githubusercontent.com/game-icons/icons/master/"
+
+# Output paths
+OUTPUT_DART = Path(__file__).parent.parent / "lib" / "presentation" / "combat_engine" / "rpg_svg_catalog.dart"
+
+# Regex to extract path d attributes
+PATH_REGEX = re.compile(r'<path\s+[^>]*d\s*=\s*"([^"]*)"', re.IGNORECASE)
+# Background square to ignore
+BG_PATH_REGEX = re.compile(r'M0\s*0h512v512H0z', re.IGNORECASE)
+
+def fetch_github_tree() -> Dict:
+    """Fetch the recursive tree from GitHub API."""
+    print("Fetching GitHub tree...")
+    req = urllib.request.Request(GITHUB_API_TREE, headers={'User-Agent': 'BrimstoneArtFetcher'})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as e:
+        print(f"HTTP Error: {e.code} - {e.reason}")
+        raise
+    except Exception as e:
+        print(f"Error fetching tree: {e}")
+        raise
+
+def find_svg_paths(tree: Dict) -> Dict[str, str]:
+    """Find SVG file paths for our target icons."""
+    svg_paths = {}
+    for entry in tree.get('tree', []):
+        if entry['type'] == 'blob' and entry['path'].endswith('.svg'):
+            filename = entry['path'].split('/')[-1].replace('.svg', '')
+            if filename in ICON_TO_CATALOG:
+                svg_paths[filename] = entry['path']
+    return svg_paths
+
+def download_svg(icon_name: str, github_path: str) -> Optional[str]:
+    """Download SVG content from raw.githubusercontent.com."""
+    url = f"{RAW_BASE}{github_path}"
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'BrimstoneArtFetcher'})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return response.read().decode('utf-8')
+    except Exception as e:
+        print(f"  [ERR] Failed to download {icon_name}: {e}")
+        return None
+
+def extract_paths(svg_content: str) -> List[str]:
+    """Extract all path d attributes, ignoring the background square."""
+    paths = []
+    for match in PATH_REGEX.finditer(svg_content):
+        d = match.group(1).strip()
+        # Skip the background square path
+        if BG_PATH_REGEX.search(d):
+            continue
+        # Only keep paths with substantial content
+        if len(d) > 10:
+            paths.append(d)
+    return paths
+
+def escape_dart_string(s: str) -> str:
+    """Escape string for Dart string literal."""
+    return s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+
+def generate_dart_code(svg_data: Dict[str, List[str]]) -> str:
+    """Generate the Dart catalog file content."""
+    lines = []
+    lines.append("// GENERATED FILE - DO NOT EDIT MANUALLY")
+    lines.append("// Generated by tools/fetch_rpg_art.py from game-icons/icons (CC-BY 3.0)")
+    lines.append("")
+    lines.append("/// Real game-icons SVG path data for creatures and bosses.")
+    lines.append("/// Each entry is a list of SVG path 'd' strings (viewBox 0 0 512 512).")
+    lines.append("/// Use with [SvgPathParser] to render scalable vector artwork.")
+    lines.append("const Map<String, List<String>> kRpgSvgPaths = {")
+    
+    # Sort for deterministic output
+    for catalog_id in sorted(svg_data.keys()):
+        paths = svg_data[catalog_id]
+        lines.append(f"  '{catalog_id}': [")
+        for path in paths:
+            escaped = escape_dart_string(path)
+            lines.append(f"    \"{escaped}\",")
+        lines.append("  ],")
+    
+    lines.append("};")
+    return "\n".join(lines)
+
+def main():
+    print("=" * 60)
+    print("Brimstone: The Summoning - RPG Art Fetcher")
+    print("Fetching professional vector art from game-icons/icons (CC-BY)")
+    print("=" * 60)
+    
+    # Fetch tree
+    tree = fetch_github_tree()
+    
+    # Find our SVG files
+    svg_paths = find_svg_paths(tree)
+    print(f"\nFound {len(svg_paths)} matching SVG files:")
+    for icon, path in sorted(svg_paths.items()):
+        print(f"  {icon} -> {path}")
+    
+    # Check for missing icons
+    missing = set(ICON_TO_CATALOG.keys()) - set(svg_paths.keys())
+    if missing:
+        print(f"\n[WARN] Missing icons: {sorted(missing)}")
+    
+    # Download and extract paths
+    svg_data = {}
+    for icon_name, github_path in sorted(svg_paths.items()):
+        catalog_id = ICON_TO_CATALOG[icon_name]
+        print(f"\nDownloading {icon_name} ({catalog_id})...")
+        svg_content = download_svg(icon_name, github_path)
+        if svg_content:
+            paths = extract_paths(svg_content)
+            if paths:
+                svg_data[catalog_id] = paths
+                print(f"  [OK] Extracted {len(paths)} path(s)")
+            else:
+                print(f"  [ERR] No valid paths found")
+        else:
+            print(f"  [ERR] Download failed")
+    
+    # Generate Dart file
+    print(f"\nGenerating {OUTPUT_DART}...")
+    OUTPUT_DART.parent.mkdir(parents=True, exist_ok=True)
+    dart_code = generate_dart_code(svg_data)
+    OUTPUT_DART.write_text(dart_code, encoding='utf-8', newline='\n')
+    print(f"[OK] Written {len(svg_data)} entries to {OUTPUT_DART}")
+    
+    # Summary
+    print("\n" + "=" * 60)
+    print("SUMMARY")
+    print("=" * 60)
+    for catalog_id in sorted(svg_data.keys()):
+        print(f"  {catalog_id}: {len(svg_data[catalog_id])} path(s)")
+    print(f"\nTotal: {len(svg_data)} catalog entries")
+    print("Done!")
+
+if __name__ == "__main__":
+    main()

@@ -126,20 +126,35 @@ class TcgCardWidget extends StatefulWidget {
 
 class _TcgCardWidgetState extends State<TcgCardWidget>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _pulseCtrl;
+  AnimationController? _pulseCtrl;
 
   @override
   void initState() {
     super.initState();
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
+    if (widget.inCombat) {
+      _pulseCtrl = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      )..repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant TcgCardWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.inCombat && !oldWidget.inCombat) {
+      _pulseCtrl ??= AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      )..repeat(reverse: true);
+    } else if (!widget.inCombat && oldWidget.inCombat) {
+      _pulseCtrl?.stop();
+    }
   }
 
   @override
   void dispose() {
-    _pulseCtrl.dispose();
+    _pulseCtrl?.dispose();
     super.dispose();
   }
 
@@ -183,182 +198,189 @@ class _TcgCardWidgetState extends State<TcgCardWidget>
         ? (widget.currentMana / widget.maxMana).clamp(0.0, 1.0)
         : 0.0;
 
+    // If not in combat, no pulse animation needed - build directly
+    if (!widget.inCombat) {
+      return _buildCardContent(0.0, manaFrac);
+    }
+
+    // In combat: use AnimatedBuilder for pulse animation
     return AnimatedBuilder(
-      animation: _pulseCtrl,
-      builder: (context, _) {
-        final pulse = _pulseCtrl.value;
-        final isReady = _isReady;
+      animation: _pulseCtrl!,
+      builder: (context, _) => _buildCardContent(_pulseCtrl!.value, manaFrac),
+    );
+  }
 
-        final double elevation = isReady ? 8.0 : (widget.raised ? 4.0 : 0.0);
+  Widget _buildCardContent(double pulse, double manaFrac) {
+    final isReady = _isReady;
+    final double elevation = isReady ? 8.0 : (widget.raised ? 4.0 : 0.0);
 
-        final List<BoxShadow> shadows = [];
-        if (isReady) {
-          shadows.add(
-            BoxShadow(
-              color:
-                  const Color(0xFFFFD700).withValues(alpha: 0.6 + 0.4 * pulse),
-              blurRadius: 16 + 6 * pulse,
-              spreadRadius: 2 + 2 * pulse,
-            ),
-          );
-          shadows.add(
-            BoxShadow(
-              color: const Color(0xFFFF2A54).withValues(alpha: 0.5 * pulse),
-              blurRadius: 24,
-              spreadRadius: 3,
-            ),
-          );
-        } else if (widget.stars >= 4) {
-          shadows.add(
-            BoxShadow(
-              color: const Color(0xFFFF2A54).withValues(alpha: 0.45),
-              blurRadius: 10,
-              spreadRadius: 1,
-            ),
-          );
-        } else if (widget.raised) {
-          shadows.add(
-            BoxShadow(
-              color: _elementColor.withValues(alpha: 0.35),
-              blurRadius: 8,
-              spreadRadius: 1,
-            ),
-          );
-        }
+    final List<BoxShadow> shadows = [];
+    if (isReady) {
+      shadows.add(
+        BoxShadow(
+          color: const Color(0xFFFFD700).withValues(alpha: 0.6 + 0.4 * pulse),
+          blurRadius: 16 + 6 * pulse,
+          spreadRadius: 2 + 2 * pulse,
+        ),
+      );
+      shadows.add(
+        BoxShadow(
+          color: const Color(0xFFFF2A54).withValues(alpha: 0.5 * pulse),
+          blurRadius: 24,
+          spreadRadius: 3,
+        ),
+      );
+    } else if (widget.stars >= 4) {
+      shadows.add(
+        BoxShadow(
+          color: const Color(0xFFFF2A54).withValues(alpha: 0.45),
+          blurRadius: 10,
+          spreadRadius: 1,
+        ),
+      );
+    } else if (widget.raised) {
+      shadows.add(
+        BoxShadow(
+          color: _elementColor.withValues(alpha: 0.35),
+          blurRadius: 8,
+          spreadRadius: 1,
+        ),
+      );
+    }
 
-        Widget cardContent = Transform.translate(
-          offset: Offset(0, isReady ? -elevation : 0),
-          child: Container(
-            width: widget.width,
-            height: widget.height,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF22111A),
-                  Color(0xFF10070B),
-                  Color(0xFF070205)
-                ],
+    return Transform.translate(
+      offset: Offset(0, isReady ? -elevation : 0),
+      child: Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF22111A), Color(0xFF10070B), Color(0xFF070205)],
+          ),
+          boxShadow: shadows,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 1. Procedural Scenic Artwork Portrait
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _TcgPortraitCustomPainter(
+                    cardId: widget.cardId,
+                    stars: widget.stars,
+                    time: pulse * math.pi * 2,
+                  ),
+                ),
               ),
-              boxShadow: shadows,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // 1. Procedural Scenic Artwork Portrait
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _TcgPortraitCustomPainter(
-                        cardId: widget.cardId,
-                        stars: widget.stars,
-                        time: _pulseCtrl.value * math.pi * 2,
+
+              // 2. Liquid Mana Rising Overlay (In Combat)
+              if (widget.inCombat && manaFrac > 0)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: (widget.height ?? 160) * manaFrac,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          _elementColor.withValues(alpha: 0.45),
+                          _elementColor.withValues(alpha: 0.15),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
                   ),
+                ),
 
-                  // 2. Liquid Mana Rising Overlay (In Combat)
-                  if (widget.inCombat && manaFrac > 0)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      height: (widget.height ?? 160) * manaFrac,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              _elementColor.withValues(alpha: 0.45),
-                              _elementColor.withValues(alpha: 0.15),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                  // 3. Dark gradient scrims for top and bottom readability
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 38,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Color(0xEE0A0407),
-                            Color(0x990A0407),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
+              // 3. Dark gradient scrims for top and bottom readability
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 38,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xEE0A0407),
+                        Color(0x990A0407),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 54,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Color(0xF50A0407),
-                            Color(0xBB0A0407),
-                            Colors.transparent,
-                          ],
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 54,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Color(0xF50A0407),
+                        Color(0xBB0A0407),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // 4. TOP BAR: Medallion, Stars, Level, Leader Badge
+              Positioned(
+                top: 4,
+                left: 4,
+                right: 4,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Element Medallion
+                    Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF160910),
+                        border: Border.all(
+                          color: _elementColor,
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          _elementIcon,
+                          size: 10,
+                          color: _elementColor,
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 3),
 
-                  // 4. TOP BAR: Medallion, Stars, Level, Leader Badge
-                  Positioned(
-                    top: 4,
-                    left: 4,
-                    right: 4,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Element Medallion
-                        Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF160910),
-                            border: Border.all(
-                              color: _elementColor,
-                              width: 1.4,
-                            ),
-                          ),
-                          child: Center(
-                            child: Icon(
-                              _elementIcon,
-                              size: 11,
-                              color: _elementColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-
-                        // Stars row
-                        Row(
-                          children: [
-                            for (int i = 0; i < widget.stars; i++)
-                              Icon(
+                    // Stars row - flexible to prevent overflow
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (int i = 0; i < widget.stars; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 1),
+                              child: Icon(
                                 Icons.star,
-                                size: 10,
+                                size: 9,
                                 color: widget.stars >= 4
                                     ? const Color(0xFFFFD700)
                                     : (widget.stars == 3
@@ -367,285 +389,279 @@ class _TcgCardWidgetState extends State<TcgCardWidget>
                                             ? const Color(0xFF80E8FF)
                                             : const Color(0xFFCD7F32))),
                               ),
-                          ],
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 4),
+
+                    // Level badge
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
                         ),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: Colors.white24,
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Text(
+                          'Nv.${widget.level}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
 
-                        const Spacer(),
-
-                        // Level badge
-                        Container(
+                    // Leader badge
+                    if (widget.isLeader) ...[
+                      const SizedBox(width: 2),
+                      Flexible(
+                        child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
+                            horizontal: 3,
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black54,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFFD700), Color(0xFFFF5A26)],
+                            ),
                             borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: Colors.white24,
-                              width: 0.8,
-                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x66FF5A26),
+                                blurRadius: 4,
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            'Nv.${widget.level}',
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
+                          child: const Text(
+                            'LÍDER',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 7,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.5,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
 
-                        // Leader badge
-                        if (widget.isLeader) ...[
-                          const SizedBox(width: 3),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFFFD700), Color(0xFFFF5A26)],
-                              ),
-                              borderRadius: BorderRadius.circular(4),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x66FF5A26),
+              // 5. BOTTOM BAR: Name, ATK, Rune badge, Mana bar (inCombat)
+              Positioned(
+                bottom: 4,
+                left: 4,
+                right: 4,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Name + Rune
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black,
                                   blurRadius: 4,
                                 ),
                               ],
                             ),
-                            child: const Text(
-                              'LÍDER',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 8,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
                           ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  // 5. BOTTOM BAR: Name, ATK, Rune badge, Mana bar (inCombat)
-                  Positioned(
-                    bottom: 4,
-                    left: 4,
-                    right: 4,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Name + Rune
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                widget.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  shadows: [
-                                    Shadow(
-                                      color: Colors.black,
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            if (widget.runeName != null &&
-                                widget.runeName!.isNotEmpty)
-                              Container(
-                                margin: const EdgeInsets.only(left: 3),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 3,
-                                  vertical: 0.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2A153A),
-                                  borderRadius: BorderRadius.circular(3),
-                                  border: Border.all(
-                                    color: const Color(0xFFB16EFF),
-                                    width: 0.8,
-                                  ),
-                                ),
-                                child: Text(
-                                  widget.runeName!,
-                                  style: const TextStyle(
-                                    color: Color(0xFFE5D4FF),
-                                    fontSize: 7.5,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                          ],
                         ),
-                        const SizedBox(height: 2),
-
-                        // ATK + Mana/MaxMana
-                        Row(
-                          children: [
-                            // ATK with sword icon
-                            const Icon(
-                              Icons.colorize,
-                              size: 10,
-                              color: Color(0xFFFF5A26),
+                        if (widget.runeName != null &&
+                            widget.runeName!.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(left: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 3,
+                              vertical: 0.5,
                             ),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${widget.attack}',
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2A153A),
+                              borderRadius: BorderRadius.circular(3),
+                              border: Border.all(
+                                color: const Color(0xFFB16EFF),
+                                width: 0.8,
+                              ),
+                            ),
+                            child: Text(
+                              widget.runeName!,
                               style: const TextStyle(
-                                color: Color(0xFFFF9E2C),
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-
-                            const Spacer(),
-
-                            if (widget.inCombat)
-                              Text(
-                                '${widget.currentMana}/${widget.maxMana}',
-                                style: TextStyle(
-                                  color: isReady
-                                      ? const Color(0xFFFFD700)
-                                      : Colors.white70,
-                                  fontSize: 9,
-                                  fontWeight: isReady
-                                      ? FontWeight.w900
-                                      : FontWeight.w600,
-                                ),
-                              ),
-                          ],
-                        ),
-
-                        // Mana bar indicator in combat
-                        if (widget.inCombat) ...[
-                          const SizedBox(height: 2),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
-                            child: Container(
-                              height: 3,
-                              color: const Color(0xFF1E0A12),
-                              child: FractionallySizedBox(
-                                alignment: Alignment.centerLeft,
-                                widthFactor: manaFrac,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: isReady
-                                          ? const [
-                                              Color(0xFFFFD700),
-                                              Color(0xFFFF2A54),
-                                            ]
-                                          : [
-                                              _elementColor,
-                                              _elementColor.withValues(
-                                                  alpha: 0.7),
-                                            ],
-                                    ),
-                                  ),
-                                ),
+                                color: Color(0xFFE5D4FF),
+                                fontSize: 7.5,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                        ],
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 2),
 
-                  // 6. ¡INVOCAR! Banner when 100% mana
-                  if (isReady)
-                    Positioned(
-                      top: 0,
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
+                    // ATK + Mana/MaxMana
+                    Row(
+                      children: [
+                        // ATK with sword icon
+                        const Icon(
+                          Icons.colorize,
+                          size: 10,
+                          color: Color(0xFFFF5A26),
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          '${widget.attack}',
+                          style: const TextStyle(
+                            color: Color(0xFFFF9E2C),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
                           ),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF2A54), Color(0xFFFFD700)],
-                            ),
-                            borderRadius: BorderRadius.circular(6),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFFD700)
-                                    .withValues(alpha: 0.8),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                            border: Border.all(
-                              color: Colors.white,
-                              width: 1.2,
-                            ),
-                          ),
-                          child: const Text(
-                            '¡INVOCAR!',
+                        ),
+
+                        const Spacer(),
+
+                        if (widget.inCombat)
+                          Text(
+                            '${widget.currentMana}/${widget.maxMana}',
                             style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.0,
+                              color: isReady
+                                  ? const Color(0xFFFFD700)
+                                  : Colors.white70,
+                              fontSize: 9,
+                              fontWeight:
+                                  isReady ? FontWeight.w900 : FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    // Mana bar indicator in combat
+                    if (widget.inCombat) ...[
+                      const SizedBox(height: 2),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: Container(
+                          height: 3,
+                          color: const Color(0xFF1E0A12),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: manaFrac,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: isReady
+                                      ? const [
+                                          Color(0xFFFFD700),
+                                          Color(0xFFFF2A54),
+                                        ]
+                                      : [
+                                          _elementColor,
+                                          _elementColor.withValues(alpha: 0.7),
+                                        ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
+                  ],
+                ),
+              ),
 
-                  // 7. Beveled Metallic Gothic Border Frame
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: CustomPaint(
-                        painter: _GothicBeveledFramePainter(
-                          borderColors: isReady
-                              ? [
-                                  Color.lerp(
-                                    const Color(0xFFFFD700),
-                                    Colors.white,
-                                    pulse,
-                                  )!,
-                                  const Color(0xFFFF2A54),
-                                ]
-                              : _frameBorderColors,
-                          primaryColor: isReady
-                              ? const Color(0xFFFFD700)
-                              : _primaryBorderColor,
-                          borderWidth:
-                              isReady ? 2.8 : (widget.raised ? 2.4 : 1.8),
-                          stars: widget.stars,
+              // 6. ¡INVOCAR! Banner when 100% mana
+              if (isReady)
+                Positioned(
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF2A54), Color(0xFFFFD700)],
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                const Color(0xFFFFD700).withValues(alpha: 0.8),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 1.2,
+                        ),
+                      ),
+                      child: const Text(
+                        '¡INVOCAR!',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.0,
                         ),
                       ),
                     ),
                   ),
-                ],
+                ),
+
+              // 7. Beveled Metallic Gothic Border Frame
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: _GothicBeveledFramePainter(
+                      borderColors: isReady
+                          ? [
+                              Color.lerp(
+                                const Color(0xFFFFD700),
+                                Colors.white,
+                                pulse,
+                              )!,
+                              const Color(0xFFFF2A54),
+                            ]
+                          : _frameBorderColors,
+                      primaryColor: isReady
+                          ? const Color(0xFFFFD700)
+                          : _primaryBorderColor,
+                      borderWidth: isReady ? 2.8 : (widget.raised ? 2.4 : 1.8),
+                      stars: widget.stars,
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        );
-
-        if (widget.onTap != null) {
-          return GestureDetector(
-            onTap: widget.onTap,
-            child: cardContent,
-          );
-        }
-
-        return cardContent;
-      },
+        ),
+      ),
     );
   }
 }

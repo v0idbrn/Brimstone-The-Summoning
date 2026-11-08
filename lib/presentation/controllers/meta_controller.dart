@@ -109,10 +109,33 @@ class CollectionController extends Notifier<CollectionState> {
 
   Future<void> load() async {
     final repo = ref.read(playerRepositoryProvider);
-    state = CollectionState(
-      owned: await repo.loadCollection(),
-      squad: await repo.loadSquad(),
-    );
+    final loadedOwned = await repo.loadCollection();
+    final loadedSquad = await repo.loadSquad();
+
+    // Seed starter deck on web/first run if collection is empty
+    if (loadedOwned.isEmpty) {
+      final starterCards = <OwnedCard>[];
+      final starterCatalogIds = [
+        'ignis_hound',
+        'ignis_drake',
+        'abyss_stalker',
+        'abyss_siren',
+        'terra_golem',
+        'terra_warden',
+        'void_specter',
+        'void_reaper',
+      ];
+      for (final catalogId in starterCatalogIds) {
+        final card = await repo.insertSummonedCard(catalogId);
+        starterCards.add(card);
+      }
+      final starterSquad =
+          starterCards.take(4).map((c) => c.instanceId).toList();
+      await repo.saveSquad(starterSquad);
+      state = CollectionState(owned: starterCards, squad: starterSquad);
+    } else {
+      state = CollectionState(owned: loadedOwned, squad: loadedSquad);
+    }
   }
 
   /// Adds a card to the squad if there is room and no duplicate catalogId.

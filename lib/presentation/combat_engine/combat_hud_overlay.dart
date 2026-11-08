@@ -251,27 +251,29 @@ class _CombatHudOverlayState extends State<CombatHudOverlay>
           ),
         ),
 
-        // Squad cards
+        // Squad cards - strictly contained in SizedBox(height: 122)
         Positioned(
           bottom: 218,
           left: 10,
           right: 10,
-          child: Row(
-            children: [
-              for (var i = 0; i < e.cards.length; i++) ...[
-                Expanded(
-                  child: AspectRatio(
-                    aspectRatio: 0.72,
+          child: SizedBox(
+            height: 122,
+            child: Row(
+              children: [
+                for (var i = 0; i < e.cards.length; i++) ...[
+                  SizedBox(
+                    width: 96,
+                    height: 122,
                     child: TcgCardWidget.fromCombatCard(
                       card: e.cards[i],
                       isLeader: i == 0,
                       onTap: () => _cast(i),
                     ),
                   ),
-                ),
-                if (i < e.cards.length - 1) const SizedBox(width: 6),
+                  if (i < e.cards.length - 1) const SizedBox(width: 6),
+                ],
               ],
-            ],
+            ),
           ),
         ),
 

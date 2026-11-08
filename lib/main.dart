@@ -40,7 +40,11 @@ class BrimstoneApp extends StatelessWidget {
           contentTextStyle: TextStyle(color: Colors.white),
         ),
       ),
-      home: const WebArcadeFrame(child: HomeShell()),
+      builder: (context, child) => Material(
+        color: const Color(0xFF07050C),
+        child: WebArcadeFrame(child: child ?? const SizedBox.shrink()),
+      ),
+      home: const HomeShell(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -50,8 +54,7 @@ class BrimstoneApp extends StatelessWidget {
 ///
 /// - `<= 560px` (móvil/portrait): el juego ocupa el 100% del viewport.
 /// - `> 560px` (web de escritorio): se centra un gabinete de 440×920 con borde
-///   metálico gótico, el título en vertical a la izquierda y las pistas de
-///   control con ratón a la derecha.
+///   metálico gótico, paneles laterales horizontales elegantes con bordes dorados.
 class WebArcadeFrame extends StatelessWidget {
   const WebArcadeFrame({
     super.key,
@@ -96,7 +99,7 @@ class WebArcadeFrame extends StatelessWidget {
           ),
           child: Row(
             children: [
-              if (showPanels) const Expanded(child: _VerticalBanner()),
+              if (showPanels) const Expanded(child: _SidePanelLeft()),
               SizedBox(
                 width: width,
                 child: Center(
@@ -115,7 +118,7 @@ class WebArcadeFrame extends StatelessWidget {
                   ),
                 ),
               ),
-              if (showPanels) const Expanded(child: _ControlHints()),
+              if (showPanels) const Expanded(child: _SidePanelRight()),
             ],
           ),
         );
@@ -155,88 +158,103 @@ class _GothicBezel extends StatelessWidget {
   }
 }
 
-class _VerticalBanner extends StatelessWidget {
-  const _VerticalBanner();
+/// Panel lateral izquierdo: título del juego horizontal con borde dorado fino.
+class _SidePanelLeft extends StatelessWidget {
+  const _SidePanelLeft();
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: RotatedBox(
-        quarterTurns: 3,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.local_fire_department, color: Color(0xFFFF5A26)),
-              SizedBox(width: 10),
-              Text(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1A0E14), Color(0xFF0F060A)],
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.local_fire_department,
+                color: Color(0xFFFF5A26), size: 20),
+            SizedBox(width: 10),
+            Flexible(
+              child: Text(
                 'BRIMSTONE: THE SUMMONING',
                 maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Color(0xFFB16EFF),
-                  fontSize: 22,
+                  fontSize: 14,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 6,
+                  letterSpacing: 3,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _ControlHints extends StatelessWidget {
-  const _ControlHints();
+/// Panel lateral derecho: pistas de control horizontales con bordes dorados.
+class _SidePanelRight extends StatelessWidget {
+  const _SidePanelRight();
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: RotatedBox(
-        quarterTurns: 1,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              _Hint(
-                  icon: Icons.touch_app, text: 'CLICK + ARRASTRAR · Fusionar'),
-              SizedBox(height: 8),
-              _Hint(icon: Icons.swipe_up, text: 'DESLIZAR ↑ · Lanzar esfera'),
-              SizedBox(height: 8),
-              _Hint(icon: Icons.ads_click, text: 'CLICK EN DIANA · Bullseye'),
-              SizedBox(height: 8),
-              _Hint(
-                  icon: Icons.gesture, text: 'DESLIZAR FUERA · Counter-Flick'),
-            ],
-          ),
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: const [
+          _SideHint(
+              icon: Icons.touch_app, text: 'CLICK + ARRASTRAR · Fusionar'),
+          SizedBox(height: 12),
+          _SideHint(icon: Icons.swipe_up, text: 'DESLIZAR ↑ · Lanzar esfera'),
+          SizedBox(height: 12),
+          _SideHint(icon: Icons.ads_click, text: 'CLICK EN DIANA · Bullseye'),
+          SizedBox(height: 12),
+          _SideHint(
+              icon: Icons.gesture, text: 'DESLIZAR FUERA · Counter-Flick'),
+        ],
       ),
     );
   }
 }
 
-class _Hint extends StatelessWidget {
-  const _Hint({required this.icon, required this.text});
+class _SideHint extends StatelessWidget {
+  const _SideHint({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: const Color(0xFFFFC93C)),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: const TextStyle(color: Colors.white54, fontSize: 12),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A0E14), Color(0xFF0F060A)],
         ),
-      ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFFFFC93C)),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: const TextStyle(color: Colors.white54, fontSize: 11),
+          ),
+        ],
+      ),
     );
   }
 }

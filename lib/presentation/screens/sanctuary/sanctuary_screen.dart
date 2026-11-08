@@ -543,21 +543,30 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'ALTAR DEL ESCUADRÓN',
-                      style: TextStyle(
-                        color: Color(0xFFD4AF37),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11,
-                        letterSpacing: 1.2,
+                    Flexible(
+                      child: Text(
+                        'ALTAR DEL ESCUADRÓN',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Color(0xFFD4AF37),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          letterSpacing: 1.2,
+                        ),
                       ),
                     ),
-                    Text(
-                      'PWR TOTAL: ${squad.fold<int>(0, (sum, c) => sum + c.baseAttack)}',
-                      style: const TextStyle(
-                        color: Color(0xFFFF9E2C),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'PWR TOTAL: ${squad.fold<int>(0, (sum, c) => sum + c.baseAttack)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFFFF9E2C),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ],
