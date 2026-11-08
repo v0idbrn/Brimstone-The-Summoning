@@ -6,6 +6,7 @@ import '../../../domain/combat/combat_models.dart';
 import '../../../domain/roguelite/rift_run.dart';
 import '../../../domain/services/rift_map_generator.dart';
 import '../../../domain/value_objects/element.dart';
+import '../../controllers/meta_controller.dart';
 import '../combat/combat_screen.dart';
 import 'relic_draft_modal.dart';
 import 'rift_run_notifier.dart';
@@ -369,7 +370,11 @@ class RiftMapFlow {
     final run = container.read(riftRunProvider);
     if (run == null) return;
     container.read(riftRunProvider.notifier).enterNode(node.id);
-    final engine = _buildCombatEngine(run, node);
+    final engine = _buildCombatEngine(
+      run,
+      node,
+      container.read(collectionProvider),
+    );
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
@@ -416,7 +421,11 @@ class RiftMapFlow {
 
 /// Sweeps the run's relics + bloodaltar mana boost into engine modifiers and
 /// scales minion fights (non-boss) to the floor and difficulty.
-CombatEngine _buildCombatEngine(RiftRun run, RiftRunNode node) {
+CombatEngine _buildCombatEngine(
+  RiftRun run,
+  RiftRunNode node,
+  CollectionState collection,
+) {
   final relics = CombatModifiers.fromRelics(run.relicIds);
   final mods = CombatModifiers(
     critRadiusMult: relics.critRadiusMult,
@@ -449,10 +458,33 @@ CombatEngine _buildCombatEngine(RiftRun run, RiftRunNode node) {
   );
   return CombatEngine(
     boss: boss,
-    cards: _defaultSquad(),
+    cards: _squadCards(collection),
     playerMaxHp: run.playerMaxHp,
     modifiers: mods,
   );
+}
+
+/// Maps the equipped squad (up to 4 owned cards) into combat ManaCards,
+/// falling back to the default roster while the barracks is still empty.
+List<ManaCard> _squadCards(CollectionState collection) {
+  final cards = <ManaCard>[];
+  for (final id in collection.squad.take(4)) {
+    for (final c in collection.owned) {
+      if (c.instanceId != id) continue;
+      cards.add(
+        ManaCard(
+          id: c.catalogId,
+          name: c.name,
+          element: c.element,
+          baseManaCost: c.baseManaCost,
+          attack: c.baseAttack * (1.0 + 0.10 * (c.level - 1)),
+          stars: c.stars,
+        ),
+      );
+      break;
+    }
+  }
+  return cards.isNotEmpty ? cards : _defaultSquad();
 }
 
 List<ManaCard> _defaultSquad() => [

@@ -3,7 +3,7 @@ import 'package:path_provider/path_provider.dart';
 
 class DatabaseHelper {
   static Database? _db;
-  static const int version = 1;
+  static const int version = 2;
 
   Future<Database> get db async {
     _db ??= await _initDb();
@@ -14,7 +14,22 @@ class DatabaseHelper {
     sqfliteFfiInit();
     final docs = await getApplicationDocumentsDirectory();
     final path = '${docs.path}/brimstone.db';
-    return await openDatabase(path, version: version, onCreate: _onCreate);
+    return await openDatabase(
+      path,
+      version: version,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    // Fresh v2 schema: drop and reseed (pre-release data is disposable).
+    await db.execute('DROP TABLE IF EXISTS cards');
+    await db.execute('DROP TABLE IF EXISTS relics');
+    await db.execute('DROP TABLE IF EXISTS player_profile');
+    await db.execute('DROP TABLE IF EXISTS owned_cards');
+    await db.execute('DROP TABLE IF EXISTS player_squad');
+    await _onCreate(db, newVersion);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -25,7 +40,13 @@ class DatabaseHelper {
       'CREATE TABLE relics(id TEXT PRIMARY KEY, name TEXT, description TEXT, effect_value REAL)',
     );
     await db.execute(
-      'CREATE TABLE player_profile(id TEXT PRIMARY KEY, gold INTEGER, shards INTEGER, max_hp INTEGER, current_hp INTEGER)',
+      'CREATE TABLE player_profile(id TEXT PRIMARY KEY, gold INTEGER, shards INTEGER, max_hp INTEGER, current_hp INTEGER, energy INTEGER DEFAULT 20, summoner_level INTEGER DEFAULT 1)',
+    );
+    await db.execute(
+      'CREATE TABLE owned_cards(id INTEGER PRIMARY KEY AUTOINCREMENT, card_id TEXT, level INTEGER DEFAULT 1, stars INTEGER DEFAULT 1)',
+    );
+    await db.execute(
+      'CREATE TABLE player_squad(slot INTEGER PRIMARY KEY, owned_card_id INTEGER)',
     );
     await _seedCatalog(db);
   }
@@ -174,6 +195,8 @@ class DatabaseHelper {
       'shards': 100,
       'max_hp': 100,
       'current_hp': 100,
+      'energy': 20,
+      'summoner_level': 1,
     });
   }
 }
