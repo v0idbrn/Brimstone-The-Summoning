@@ -2,17 +2,19 @@ import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
+import '../../../domain/campaign/campaign_chapters.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/combat/combat_models.dart';
+import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
+import '../combat/combat_screen.dart';
 import '../meta/how_to_play_modal.dart';
 import '../meta/widgets.dart';
-import '../rift/rift_map_screen.dart';
 import '../endless/endless_abyss_screen.dart';
-import '../rift/rift_run_notifier.dart';
 import 'bounties_modal.dart';
 import 'codex_modal.dart';
 import 'backup_restore_modal.dart';
+import 'merchant_modal.dart';
 
 /// Main hub: summoner level, currencies, active squad preview, rift difficulty
 /// selector and the main play CTA.
@@ -24,7 +26,8 @@ class SanctuaryScreen extends ConsumerStatefulWidget {
 }
 
 class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
-  int _difficulty = 1;
+  String _selectedChapterId = 'chapter_ceniza';
+  Set<String> _clearedChapters = {};
   int _highestEndlessWave = 0;
 
   @override
@@ -34,6 +37,9 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
       await ref.read(profileProvider.notifier).load();
       await ref.read(collectionProvider.notifier).load();
       await ref.read(bountyProvider.notifier).load();
+      final cleared =
+          await ref.read(playerRepositoryProvider).loadClearedChapters();
+      if (mounted) setState(() => _clearedChapters = cleared.toSet());
       final wave =
           await ref.read(playerRepositoryProvider).loadHighestEndlessWave();
       if (mounted) setState(() => _highestEndlessWave = wave);
@@ -124,6 +130,17 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
               builder: (_) => const BountiesModal(),
             ),
             tooltip: 'Juramentos de Azufre',
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.store, color: Color(0xFFB16EFF)),
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: const Color(0xFF14090D),
+              builder: (_) => const MerchantModal(),
+            ),
+            tooltip: 'Mercader del Vacío',
           ),
           SizedBox(width: 220, child: const CurrencyBar()),
           const SizedBox(width: 8),
@@ -216,52 +233,33 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
             ),
           const SizedBox(height: 18),
           const Text(
-            'Dificultad de la Grieta',
+            'Capítulos de la Campaña',
             style: TextStyle(color: Colors.white54, fontSize: 12),
           ),
           const SizedBox(height: 8),
-          SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 1, label: Text('Ceniza Nv.1')),
-              ButtonSegment(value: 2, label: Text('Fosa Nv.2')),
-              ButtonSegment(value: 3, label: Text('Vacío Nv.3')),
-            ],
-            selected: {_difficulty},
-            onSelectionChanged: (s) => setState(() => _difficulty = s.first),
-          ),
+          ...campaignChapters.map(_chapterTile),
           const SizedBox(height: 18),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFB16EFF),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            icon: const Icon(Icons.local_fire_department),
-            label: const Text(
-              'DESCENDER A LA GRIETA',
-              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2),
-            ),
-            onPressed: () {
-              ref.read(riftRunProvider.notifier).startRun(_difficulty);
-              Navigator.of(context)
-                  .push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const RiftMapScreen(),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB16EFF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              )
-                  .then((_) {
-                // Loot from the finished run lands in the profile.
-                final run = ref.read(riftRunProvider);
-                if (run != null && (run.gold > 0 || run.shards > 0)) {
-                  ref
-                      .read(profileProvider.notifier)
-                      .grant(gold: run.gold, shards: run.shards);
-                }
-              });
-            },
+              ),
+              icon: const Icon(Icons.play_arrow),
+              label: Text(
+                _chapterLocked ? 'CAPÍTULO BLOQUEADO' : 'INICIAR CAPÍTULO',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              onPressed: _chapterLocked ? null : _startChapter,
+            ),
           ),
           const SizedBox(height: 14),
           // Insignia del récord del Abismo Sin Fin.
@@ -339,6 +337,228 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  bool get _chapterLocked {
+    final chapter = chapterById(_selectedChapterId);
+    if (chapter == null) return true;
+    return !chapterUnlocked(chapter.id, _clearedChapters.toList());
+  }
+
+  Widget _chapterTile(CampaignChapter chapter) {
+    final unlocked = chapterUnlocked(chapter.id, _clearedChapters.toList());
+    final cleared = _clearedChapters.contains(chapter.id);
+    final selected = _selectedChapterId == chapter.id;
+    return GestureDetector(
+      onTap: unlocked
+          ? () => setState(() => _selectedChapterId = chapter.id)
+          : null,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A0E14),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: cleared
+                ? const Color(0xFF4FFFA3)
+                : unlocked
+                    ? const Color(0xFFB16EFF)
+                    : Colors.white38,
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: cleared
+                    ? const Color(0xFF4FFFA3).withValues(alpha: 0.2)
+                    : unlocked
+                        ? const Color(0xFFB16EFF).withValues(alpha: 0.2)
+                        : Colors.white10,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '${chapter.number}',
+                style: TextStyle(
+                  color: cleared ? const Color(0xFF4FFFA3) : Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        chapter.name,
+                        style: TextStyle(
+                          color: cleared
+                              ? const Color(0xFF4FFFA3)
+                              : unlocked
+                                  ? Colors.white
+                                  : Colors.white38,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (cleared)
+                        const Icon(
+                          Icons.check_circle,
+                          color: Color(0xFF4FFFA3),
+                          size: 16,
+                        ),
+                      if (!unlocked)
+                        const Icon(
+                          Icons.lock,
+                          color: Colors.white38,
+                          size: 16,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    chapter.bossTitle,
+                    style: const TextStyle(color: Colors.white54, fontSize: 10),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Primera victoria: +${chapter.rewardGold} oro, +${chapter.rewardShards} esquirlas',
+                    style: const TextStyle(
+                      color: Color(0xFFFFC93C),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_circle, color: Color(0xFFB16EFF), size: 20)
+            else
+              const SizedBox(width: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startChapter() async {
+    final chapter = chapterById(_selectedChapterId);
+    if (chapter == null) return;
+    if (!chapterUnlocked(chapter.id, _clearedChapters.toList())) return;
+
+    final collectionState = ref.read(collectionProvider);
+    final cards = <ManaCard>[];
+    for (final id in collectionState.squad.take(4)) {
+      final owned = collectionState.owned.firstWhere(
+        (c) => c.instanceId == id,
+      );
+      cards.add(
+        ManaCard(
+          id: owned.catalogId,
+          name: owned.name,
+          element: owned.element,
+          baseManaCost: owned.baseManaCost,
+          attack: owned.baseAttack.toDouble(),
+          stars: owned.stars,
+        ),
+      );
+    }
+    if (cards.isEmpty) {
+      cards.addAll(
+        [
+          ManaCard(
+            id: 'ignis_hound',
+            name: 'Sabueso de Azufre',
+            element: Element.igneous,
+            baseManaCost: 100,
+            attack: 10,
+          ),
+          ManaCard(
+            id: 'abyss_stalker',
+            name: 'Acechador de Escarcha',
+            element: Element.abyssal,
+            baseManaCost: 95,
+            attack: 12,
+          ),
+          ManaCard(
+            id: 'terra_golem',
+            name: 'Gólem de Basalto',
+            element: Element.telluric,
+            baseManaCost: 100,
+            attack: 8,
+          ),
+          ManaCard(
+            id: 'void_specter',
+            name: 'Espectro del Sello',
+            element: Element.empty,
+            baseManaCost: 110,
+            attack: 15,
+          ),
+        ],
+      );
+    }
+    final engine = CombatScreen.buildEngine(
+      boss: chapter.boss,
+      cards: cards,
+      playerMaxHp: 100,
+    );
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CombatScreen(
+          engine: engine,
+          onCombatResolved: (victory, playerHp) async {
+            if (!victory) return;
+            final firstWin =
+                await ref.read(playerRepositoryProvider).markChapterCleared(
+                      chapter.id,
+                      rewardGold: chapter.rewardGold,
+                      rewardShards: chapter.rewardShards,
+                    );
+            if (!mounted) return;
+            final cleared =
+                await ref.read(playerRepositoryProvider).loadClearedChapters();
+            setState(() => _clearedChapters = cleared.toSet());
+            if (!mounted) return;
+            await showDialog<void>(
+              context: context,
+              builder: (_) => AlertDialog(
+                backgroundColor: const Color(0xFF14090D),
+                title: Text(
+                  'CAPÍTULO ${chapter.number} COMPLETADO',
+                  style: const TextStyle(
+                    color: Color(0xFF4FFFA3),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                content: Text(
+                  firstWin
+                      ? 'Primera victoria: +${chapter.rewardGold} oro, +${chapter.rewardShards} esquirlas.'
+                      : 'Capítulo ya limpiado previamente.',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      'CONTINUAR',
+                      style: TextStyle(color: Color(0xFFB16EFF)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

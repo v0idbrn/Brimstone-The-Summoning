@@ -2,9 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flame/components.dart';
 import 'package:flame/text.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Element;
 
 import '../../domain/combat/combat_models.dart';
+import '../../domain/value_objects/element.dart';
 import 'brimstone_combat_game.dart';
 
 /// Floating combat text: normal damage, golden bullseye crits and reaction
@@ -25,17 +26,17 @@ class FloatingCombatText extends PositionComponent {
     canvas.scale(combatGame.viewScale);
 
     for (final t in e.texts) {
-      final rise = 42.0 * t.age;
-      final opacity = (1.0 - t.age / 1.1).clamp(0.0, 1.0);
+      final rise = 45.0 * t.age;
+      final opacity = (1.0 - t.age / 0.75).clamp(0.0, 1.0);
       final fontSize = switch (t.kind) {
-        FloatingTextKind.crit => 26.0,
-        FloatingTextKind.reaction => 22.0,
+        FloatingTextKind.crit => 22.0,
+        FloatingTextKind.reaction => 20.0,
         FloatingTextKind.skill => 20.0,
         FloatingTextKind.normal => 16.0,
       };
       final color = switch (t.kind) {
-        FloatingTextKind.crit => Colors.amberAccent,
-        FloatingTextKind.reaction => const Color(0xFFB16EFF),
+        FloatingTextKind.crit => Colors.amber,
+        FloatingTextKind.reaction => _reactionColor(t.element),
         FloatingTextKind.skill => const Color(0xFF3FD8FF),
         FloatingTextKind.normal => Colors.white,
       };
@@ -57,4 +58,12 @@ class FloatingCombatText extends PositionComponent {
 
   double widthGuess(String text, double fontSize) =>
       fontSize * 0.58 * math.max(4, text.length * 0.75);
+
+  Color _reactionColor(Element? e) => switch (e) {
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+        null => const Color(0xFFB16EFF),
+      };
 }

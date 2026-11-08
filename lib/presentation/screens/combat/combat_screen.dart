@@ -65,6 +65,21 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   CombatEngine get engine => _engine!;
 
+  /// Particle bursts born at exact impact/merge (dx, dy) coordinates.
+  final List<_BurstEffect> _bursts = [];
+
+  void _addBurst(double x, double y, Color color) {
+    _bursts.add(_BurstEffect(x: x, y: y, color: color));
+    _particleCtrl.forward(from: 0);
+  }
+
+  Color _elementColor(Element e) => switch (e) {
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +87,11 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
+    _particleCtrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        setState(() => _bursts.clear());
+      }
+    });
     _initEngine();
   }
 
@@ -108,7 +128,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       playerDamageMult: base.playerDamageMult,
     );
     // Wire combat audio + bounty events to the procedural SFX engine.
-    _engine!.onHit = (kind) {
+    _engine!.onHit = (kind, damage, x, y, element) {
       switch (kind) {
         case HitKind.bullseye:
           ProceduralSfxEngine.playHitBullseye();
@@ -120,8 +140,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         case HitKind.miss:
           break;
       }
-      // Radial particle burst on impact.
-      _particleCtrl.forward(from: 0);
+      _addBurst(x, y, _elementColor(element));
       if (mounted) setState(() {});
     };
     _engine!.onReaction = (name) {
@@ -134,13 +153,12 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         if (mounted) setState(() => _reactionBanner = null);
       });
     };
-    _engine!.onMerge = (level) {
+    _engine!.onMerge = (level, x, y, element) {
       ProceduralSfxEngine.playOrbMerge(level.index);
       if (level == OrbLevel.three) {
         ref.read(bountyProvider.notifier).increment('merge_to_three');
       }
-      // Radial particle burst on orb merge.
-      _particleCtrl.forward(from: 0);
+      _addBurst(x, y, _elementColor(element));
       if (mounted) setState(() {});
     };
     _engine!.onEnrage = () {
@@ -245,13 +263,13 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         child: Stack(
           children: [
             Positioned.fill(child: GameWidget(game: game)),
-            // Radial particle bursts on hits and merges.
-            if (_particleCtrl.value > 0)
+            // Particle bursts born at exact impact/merge (dx, dy) coordinates.
+            if (_bursts.isNotEmpty)
               Positioned.fill(
                 child: CustomPaint(
-                  painter: _BurstPainter(
+                  painter: _BurstsPainter(
+                    bursts: _bursts,
                     progress: _particleCtrl.value,
-                    size: MediaQuery.sizeOf(context),
                   ),
                 ),
               ),
@@ -350,37 +368,50 @@ CombatEngine defaultEngine() => CombatEngine(
       playerMaxHp: 100,
     );
 
-/// Radial burst painter: expanding concentric circles that fade out.
-class _BurstPainter extends CustomPainter {
-  final double progress; // 0..1
-  final Size size;
+/// Particle burst born at an exact impact/merge (dx, dy) engine coordinate.
+class _BurstEffect {
+  final double x;
+  final double y;
+  final Color color;
 
-  _BurstPainter({required this.progress, required this.size});
+  _BurstEffect({required this.x, required this.y, required this.color});
+}
+
+/// Bursts painter: expanding concentric rings at each (dx, dy) impact point.
+class _BurstsPainter extends CustomPainter {
+  final List<_BurstEffect> bursts;
+  final double progress; // 0..1
+
+  _BurstsPainter({required this.bursts, required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * 0.40);
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5;
-    const base = Color(0xFFB16EFF);
-    for (var i = 0; i < 4; i++) {
-      final p = (progress - i * 0.18).clamp(0.0, 1.0);
-      if (p <= 0.0) continue;
-      final radius = p * 210.0;
-      final alpha = ((1.0 - p) * 0.9).clamp(0.0, 1.0);
-      paint.color = base.withValues(alpha: alpha);
-      canvas.drawCircle(center, radius, paint);
+    for (final b in bursts) {
+      for (var i = 0; i < 4; i++) {
+        final p = (progress - i * 0.18).clamp(0.0, 1.0);
+        if (p <= 0.0) continue;
+        final radius = p * 120.0;
+        final alpha = ((1.0 - p) * 0.9).clamp(0.0, 1.0);
+        paint.color = b.color.withValues(alpha: alpha);
+        canvas.drawCircle(Offset(b.x, b.y), radius, paint);
+      }
+      // Impact core.
+      canvas.drawCircle(
+        Offset(b.x, b.y),
+        6.0 + progress * 10.0,
+        Paint()
+          ..color =
+              Colors.white.withValues(alpha: (1.0 - progress).clamp(0.0, 1.0)),
+      );
     }
-    // Impact core.
-    final core = Paint()
-      ..color =
-          Colors.white.withValues(alpha: (1.0 - progress).clamp(0.0, 1.0));
-    canvas.drawCircle(center, 6.0 + progress * 10.0, core);
   }
 
   @override
-  bool shouldRepaint(_BurstPainter old) => old.progress != progress;
+  bool shouldRepaint(_BurstsPainter old) =>
+      old.progress != progress || old.bursts != bursts;
 }
 
 /// Post-combat tactical summary dialog.

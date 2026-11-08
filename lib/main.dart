@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Element;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'presentation/screens/altar/altar_evolution_screen.dart';
@@ -7,6 +8,14 @@ import 'presentation/screens/sanctuary/sanctuary_screen.dart';
 import 'presentation/screens/summon/summon_portal_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Color(0xFF0B0914),
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
   runApp(const ProviderScope(child: BrimstoneApp()));
 }
 

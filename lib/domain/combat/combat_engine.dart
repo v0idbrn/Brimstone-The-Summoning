@@ -187,9 +187,15 @@ class CombatEngine {
   void Function()? onVictory;
   void Function()? onDefeat;
   void Function()? onEnrage;
-  void Function(HitKind)? onHit;
+
+  /// Impact callback with exact engine (x, y) coordinates, damage and element.
+  void Function(HitKind kind, int damage, double x, double y, Element element)?
+      onHit;
   void Function(String)? onReaction;
-  void Function(OrbLevel)? onMerge;
+
+  /// Merge callback with exact engine (x, y) slot-center coordinates, resulting
+  /// level and element.
+  void Function(OrbLevel level, double x, double y, Element element)? onMerge;
 
   CombatEngine({
     required this.boss,
@@ -419,7 +425,9 @@ class CombatEngine {
     );
     tray[a] = null;
     trauma = (trauma + 0.25).clamp(0.0, 1.0);
-    onMerge?.call(newLevel);
+    final mergeX = CombatEngine.layoutWidth / 5 * (b + 0.5);
+    final mergeY = (CombatEngine.trayY + CombatEngine.layoutHeight) / 2;
+    onMerge?.call(newLevel, mergeX, mergeY, orbA.element);
     if (newLevel == OrbLevel.three) mergesToThree++;
     return newLevel;
   }
@@ -602,7 +610,6 @@ class CombatEngine {
       hitStopRemaining = 0.045;
       trauma = (trauma + 0.55).clamp(0.0, 1.0);
     }
-    onHit?.call(kind);
   }
 
   /// Applies an elemental imprint or detonates a reaction if one is pending.
@@ -624,13 +631,13 @@ class CombatEngine {
     if (reaction == null) return null;
     aura = null;
     auraRemaining = 0;
-    _detonateReaction(reaction);
+    _detonateReaction(reaction, element);
     onReaction?.call(reaction.name);
     reactions++;
     return reaction.name;
   }
 
-  void _detonateReaction(ReactionResult r) {
+  void _detonateReaction(ReactionResult r, Element element) {
     final mult = r.damageMultiplier * (synergy?.reactionDamageMult ?? 1.0);
     if (mult > 1.0) {
       final base = baseDamage * mult;
@@ -643,6 +650,7 @@ class CombatEngine {
           x: bossScreenX,
           y: bossScreenY - 120,
           kind: FloatingTextKind.reaction,
+          element: element,
         ),
       );
     }
@@ -709,11 +717,12 @@ class CombatEngine {
     texts.add(
       FloatingText(
         id: _nextId('txt'),
-        text: kind == HitKind.bullseye
-            ? '¡BULLSEYE! ${dmg.toInt()}'
-            : kind == HitKind.graze
-                ? '${dmg.toInt()}'
-                : '${dmg.toInt()}',
+        text: switch (kind) {
+          HitKind.bullseye => '¡CRÍTICO -${dmg.toInt()}!',
+          HitKind.normal => '-${dmg.toInt()}',
+          HitKind.graze => '-${dmg.toInt()}',
+          HitKind.miss => '',
+        },
         x: x,
         y: y,
         kind: kind == HitKind.bullseye
@@ -722,6 +731,7 @@ class CombatEngine {
       ),
     );
     trauma = (trauma + 0.25).clamp(0.0, 1.0);
+    onHit?.call(kind, dmg.toInt(), x, y, orb.element);
   }
 
   // New reaction mana from relic Sello de Resonancia (kept out of const ctor).
@@ -907,7 +917,7 @@ class CombatEngine {
     for (final t in texts) {
       t.age += s;
     }
-    texts.removeWhere((t) => t.age > 1.1);
+    texts.removeWhere((t) => t.age > 0.75);
   }
 
   void _destroyEnemyProjectile(

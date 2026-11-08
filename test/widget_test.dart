@@ -124,7 +124,7 @@ void main() {
       await tester.pumpWidget(_screen(const SanctuaryScreen()));
       await tester.pumpAndSettle();
       expect(find.text('SANTUARIO DEL AZUFRE'), findsOneWidget);
-      expect(find.text('DESCENDER A LA GRIETA'), findsOneWidget);
+      expect(find.text('INICIAR CAPÍTULO'), findsOneWidget);
     });
 
     testWidgets('BarracksScreen renders title', (tester) async {

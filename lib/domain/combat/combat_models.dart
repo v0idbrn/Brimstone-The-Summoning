@@ -152,6 +152,9 @@ class FloatingText {
   final double x;
   final double y;
   final FloatingTextKind kind;
+
+  /// Originating element for reaction texts (colors the text per element).
+  final Element? element;
   double age;
   FloatingText({
     required this.id,
@@ -159,6 +162,7 @@ class FloatingText {
     required this.x,
     required this.y,
     required this.kind,
+    this.element,
   }) : age = 0;
 }
 

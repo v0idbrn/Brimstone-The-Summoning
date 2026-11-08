@@ -32,6 +32,8 @@ class PlayerRepository {
     }
     final bounties = await loadBounties();
     final highestWave = await loadHighestEndlessWave();
+    final clearedChapters = await loadClearedChapters();
+    final lastTribute = await loadLastTributeDate();
 
     return {
       'formatVersion': 1,
@@ -67,6 +69,8 @@ class PlayerRepository {
             'claimed': b['claimed'],
           },
       ],
+      'chapters': clearedChapters,
+      'merchant': {'lastTributeDate': lastTribute},
     };
   }
 
@@ -83,6 +87,8 @@ class PlayerRepository {
     final squad = (data['squad'] as List?) ?? <dynamic>[];
     final runes = (data['runes'] as Map?) ?? <String, dynamic>{};
     final bounties = (data['bounties'] as List?) ?? <dynamic>[];
+    final chapters = (data['chapters'] as List?) ?? <dynamic>[];
+    final merchant = (data['merchant'] as Map?) ?? <String, dynamic>{};
 
     final db = await _db.db;
     await db.transaction((txn) async {
@@ -175,6 +181,22 @@ class PlayerRepository {
         );
       }
     });
+
+    // Restaurar capítulos limpiados (sin volver a otorgar recompensas).
+    for (final c in chapters) {
+      if (c is String) await recordChapterCleared(c);
+    }
+    // Restaurar fecha de último tributo diario si existe.
+    final lastTribute = merchant['lastTributeDate'];
+    if (lastTribute is String && lastTribute.isNotEmpty) {
+      final restoreDb = await _db.db;
+      await restoreDb.update(
+        'player_profile',
+        {'last_tribute_date': lastTribute},
+        where: 'id = ?',
+        whereArgs: ['player_1'],
+      );
+    }
   }
 
   static int _asInt(dynamic v, int fallback) {
@@ -235,7 +257,7 @@ class PlayerRepository {
   Future<List<OwnedCard>> loadCollection() async {
     final db = await _db.db;
     final rows = await db.rawQuery('''
-      SELECT o.id AS instance_id, c.card_id AS catalog_id, c.name, c.element,
+      SELECT o.id AS instance_id, c.id AS catalog_id, c.name, c.element,
              c.rarity, c.base_mana_cost, c.attack, c.health, o.level, o.stars
       FROM owned_cards o
       LEFT JOIN cards c ON c.id = o.card_id
@@ -438,6 +460,139 @@ class PlayerRepository {
         whereArgs: [existing.first['id']],
       );
     }
+  }
+
+  // --------------------------------------------------------- campaign chapters
+
+  /// Carga los ids de los capítulos de campaña ya limpiados.
+  Future<List<String>> loadClearedChapters() async {
+    final db = await _db.db;
+    final rows = await db.query('chapters_cleared');
+    return [for (final r in rows) r['chapter_id'] as String];
+  }
+
+  /// Carga la última fecha de tributo diario reclamada (YYYY-MM-DD) o null.
+  Future<String?> loadLastTributeDate() async {
+    final db = await _db.db;
+    final rows = await db.query('player_profile', limit: 1);
+    if (rows.isEmpty) return null;
+    return rows.first['last_tribute_date'] as String?;
+  }
+
+  /// Marca [chapterId] como limpiado y otorga las recompensas de primera
+  /// victoria si aún no estaba limpiado. Retorna true si fue primera victoria.
+  Future<bool> markChapterCleared(String chapterId,
+      {required int rewardGold, required int rewardShards}) async {
+    final db = await _db.db;
+    final existing = await db.query(
+      'chapters_cleared',
+      where: 'chapter_id = ?',
+      whereArgs: [chapterId],
+    );
+    final isFirstWin = existing.isEmpty;
+    await db.insert(
+      'chapters_cleared',
+      {
+        'chapter_id': chapterId,
+        'cleared_at': DateTime.now().millisecondsSinceEpoch,
+        'first_win': isFirstWin ? 1 : 0,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    if (isFirstWin && (rewardGold > 0 || rewardShards > 0)) {
+      final profile = await loadProfile();
+      await saveProfile(
+        gold: profile[0] + rewardGold,
+        shards: profile[1] + rewardShards,
+        energy: profile[2],
+        summonerLevel: profile[3],
+      );
+    }
+    return isFirstWin;
+  }
+
+  /// Registra un capítulo como limpiado sin otorgar recompensas (usado por
+  /// restore de backup para no duplicar botín).
+  Future<void> recordChapterCleared(String chapterId,
+      {bool firstWin = false}) async {
+    final db = await _db.db;
+    await db.insert(
+      'chapters_cleared',
+      {
+        'chapter_id': chapterId,
+        'cleared_at': DateTime.now().millisecondsSinceEpoch,
+        'first_win': firstWin ? 1 : 0,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // ------------------------------------------------------------------- merchant
+
+  /// Reclama el tributo diario del Mercader del Vacío (150 esquirlas + 400 oro)
+  /// una vez por fecha de calendario. Retorna las recompensas otorgadas o null
+  /// si ya se reclamó hoy. [now] es inyectable para pruebas.
+  Future<Map<String, int>?> claimDailyTribute({DateTime? now}) async {
+    final today = (now ?? DateTime.now()).toIso8601String().substring(0, 10);
+    final db = await _db.db;
+    final rows = await db.query('player_profile', limit: 1);
+    if (rows.isEmpty) return null;
+    final last = rows.first['last_tribute_date'] as String?;
+    if (last == today) return null;
+    final profile = await loadProfile();
+    await saveProfile(
+      gold: profile[0] + 400,
+      shards: profile[1] + 150,
+      energy: profile[2],
+      summonerLevel: profile[3],
+    );
+    await db.update(
+      'player_profile',
+      {'last_tribute_date': today},
+      where: 'id = ?',
+      whereArgs: [rows.first['id']],
+    );
+    return {'gold': 400, 'shards': 150};
+  }
+
+  /// Transmuta 400 oro en 100 esquirlas. Retorna false si hay fondos insuficientes.
+  Future<bool> transmuteGoldToShards() async {
+    final profile = await loadProfile();
+    if (profile[0] < 400) return false;
+    await saveProfile(
+      gold: profile[0] - 400,
+      shards: profile[1] + 100,
+      energy: profile[2],
+      summonerLevel: profile[3],
+    );
+    return true;
+  }
+
+  /// Transmuta 100 esquirlas en 400 oro. Retorna false si hay fondos insuficientes.
+  Future<bool> transmuteShardsToGold() async {
+    final profile = await loadProfile();
+    if (profile[1] < 100) return false;
+    await saveProfile(
+      gold: profile[0] + 400,
+      shards: profile[1] - 100,
+      energy: profile[2],
+      summonerLevel: profile[3],
+    );
+    return true;
+  }
+
+  /// Compra un contrato de élite: 300 esquirlas por 1 copia 1★ de [catalogId].
+  Future<bool> purchaseEliteContract(String catalogId) async {
+    final profile = await loadProfile();
+    if (profile[1] < 300) return false;
+    await saveProfile(
+      gold: profile[0],
+      shards: profile[1] - 300,
+      energy: profile[2],
+      summonerLevel: profile[3],
+    );
+    await insertSummonedCard(catalogId);
+    return true;
   }
 
   // ----------------------------------------------------------------- bounty

@@ -3,7 +3,7 @@ import 'package:path_provider/path_provider.dart';
 
 class DatabaseHelper {
   static Database? _db;
-  static const int version = 4;
+  static const int version = 5;
 
   Future<Database> get db async {
     _db ??= await _initDb();
@@ -31,6 +31,7 @@ class DatabaseHelper {
     await db.execute('DROP TABLE IF EXISTS player_squad');
     await db.execute('DROP TABLE IF EXISTS bounties');
     await db.execute('DROP TABLE IF EXISTS codex_reactions');
+    await db.execute('DROP TABLE IF EXISTS chapters_cleared');
     await _onCreate(db, newVersion);
   }
 
@@ -42,7 +43,7 @@ class DatabaseHelper {
       'CREATE TABLE relics(id TEXT PRIMARY KEY, name TEXT, description TEXT, effect_value REAL)',
     );
     await db.execute(
-      'CREATE TABLE player_profile(id TEXT PRIMARY KEY, gold INTEGER, shards INTEGER, max_hp INTEGER, current_hp INTEGER, energy INTEGER DEFAULT 20, summoner_level INTEGER DEFAULT 1, highest_endless_wave INTEGER DEFAULT 0)',
+      'CREATE TABLE player_profile(id TEXT PRIMARY KEY, gold INTEGER, shards INTEGER, max_hp INTEGER, current_hp INTEGER, energy INTEGER DEFAULT 20, summoner_level INTEGER DEFAULT 1, highest_endless_wave INTEGER DEFAULT 0, last_tribute_date TEXT)',
     );
     await db.execute(
       'CREATE TABLE owned_cards(id INTEGER PRIMARY KEY AUTOINCREMENT, card_id TEXT, level INTEGER DEFAULT 1, stars INTEGER DEFAULT 1)',
@@ -62,6 +63,9 @@ class DatabaseHelper {
     await _seedCatalog(db);
     await _seedBounties(db);
     await _seedCodexReactions(db);
+    await db.execute(
+      'CREATE TABLE chapters_cleared(chapter_id TEXT PRIMARY KEY, cleared_at INTEGER NOT NULL, first_win INTEGER DEFAULT 0)',
+    );
   }
 
   Future<void> _seedBounties(Database db) async {
