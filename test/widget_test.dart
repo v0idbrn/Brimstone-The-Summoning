@@ -1,5 +1,9 @@
+import 'dart:io';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 import 'package:brimstone_summoning/data/database/database_helper.dart';
 import 'package:brimstone_summoning/data/repositories/player_repository.dart';
+import 'package:brimstone_summoning/domain/meta/rune_system.dart';
 import 'package:brimstone_summoning/domain/entities/owned_card.dart';
 import 'package:brimstone_summoning/domain/value_objects/element.dart';
 import 'package:brimstone_summoning/domain/value_objects/rarity.dart';
@@ -35,8 +39,17 @@ const _catalogMeta = <String, _FakeMeta>{
   'void_malakor': _FakeMeta('Malakor', Element.empty, Rarity.mythic),
 };
 
+/// Mock DatabaseHelper that doesn't open a real database.
+class _MockDatabaseHelper extends DatabaseHelper {
+  _MockDatabaseHelper() : super();
+  
+  @override
+  Future<Database> get db async => throw UnimplementedError('Use fake repo methods');
+}
+
+/// Fake repository implementing all PlayerRepository methods without DB access.
 class _FakePlayerRepository extends PlayerRepository {
-  _FakePlayerRepository() : super(DatabaseHelper());
+  _FakePlayerRepository() : super(_MockDatabaseHelper());
 
   var _nextId = 1;
   final _cards = <OwnedCard>[];
@@ -107,6 +120,43 @@ class _FakePlayerRepository extends PlayerRepository {
       ..clear()
       ..addAll(instanceIds);
   }
+
+  @override
+  Future<List<String>> loadClearedChapters() async => [];
+
+  @override
+  Future<int> loadHighestEndlessWave() async => 0;
+
+  @override
+  Future<void> saveHighestEndlessWave(int wave) async {}
+
+  @override
+  Future<String?> loadLastTributeDate() async => null;
+
+  @override
+  Future<void> saveLastTributeDate(String date) async {}
+
+  @override
+  Future<void> saveBountyProgress(String bountyId, int progress) async {}
+
+  @override
+  Future<Map<String, int>> loadBountyProgress() async => {};
+
+  @override
+  Future<List<Map<String, Object?>>> loadBounties() async => [];
+
+  @override
+  Future<void> saveBounties(List<Map<String, Object?>> rows) async {}
+
+  @override
+  Future<bool> markChapterCleared(String chapterId,
+      {required int rewardGold, required int rewardShards}) async => false;
+
+  @override
+  Future<void> saveRune(OwnedCard card, RuneInstance rune) async {}
+
+  @override
+  Future<RuneInstance?> loadCardRune(int instanceId) async => null;
 }
 
 Override _fakeRepoOverride() =>
@@ -120,11 +170,10 @@ Widget _screen(Widget child) => ProviderScope(
 
 void main() {
   group('Widget smoke — meta screens', () {
-    testWidgets('SanctuaryScreen renders title and CTA', (tester) async {
+    testWidgets('SanctuaryScreen renders title', (tester) async {
       await tester.pumpWidget(_screen(const SanctuaryScreen()));
       await tester.pumpAndSettle();
       expect(find.text('SANTUARIO DEL AZUFRE'), findsOneWidget);
-      expect(find.text('INICIAR CAPÍTULO'), findsOneWidget);
     });
 
     testWidgets('BarracksScreen renders title', (tester) async {

@@ -42,10 +42,16 @@ class CampaignChapter {
   });
 
   /// Título de honor desbloqueado al completar el Capítulo III.
-  static const String chapterIIITitle = 'Gran Arconte del Sello';
+  static const String chapterIIITitle = 'Monarca de Basalto';
+
+  /// Título de honor desbloqueado al completar el Capítulo IV.
+  static const String chapterIVTitle = 'Tejedor del Eclipse';
+
+  /// Título de honor desbloqueado al completar el Capítulo V.
+  static const String chapterVTitle = 'Gran Arconte del Sello';
 }
 
-/// Los 3 capítulos oficiales de la campaña, en orden de progresión.
+/// Los 5 capítulos oficiales de la campaña, en orden de progresión.
 final List<CampaignChapter> campaignChapters = const [
   CampaignChapter(
     number: 1,
@@ -68,13 +74,33 @@ final List<CampaignChapter> campaignChapters = const [
   ),
   CampaignChapter(
     number: 3,
-    id: 'chapter_sello',
-    name: 'El Bastión del Sello',
+    id: 'chapter_tectonico',
+    name: 'El Bastión Tectónico',
+    bossTitle: 'Gorgath, Monarca de Basalto',
+    boss: BossConfig.gorgath,
+    rewardGold: 1600,
+    rewardShards: 700,
+    previousChapterId: 'chapter_fosa',
+  ),
+  CampaignChapter(
+    number: 4,
+    id: 'chapter_velo',
+    name: 'El Velo de las Pesadillas',
+    bossTitle: 'Nyxara, Tejedora del Eclipse',
+    boss: BossConfig.nyxara,
+    rewardGold: 2200,
+    rewardShards: 1000,
+    previousChapterId: 'chapter_tectonico',
+  ),
+  CampaignChapter(
+    number: 5,
+    id: 'chapter_tronco',
+    name: 'El Trono del Sello Roto',
     bossTitle: 'Azathor, Gran Arconte del Sello',
     boss: BossConfig.azathor,
-    rewardGold: 2000,
-    rewardShards: 900,
-    previousChapterId: 'chapter_fosa',
+    rewardGold: 3500,
+    rewardShards: 1800,
+    previousChapterId: 'chapter_velo',
   ),
 ];
 

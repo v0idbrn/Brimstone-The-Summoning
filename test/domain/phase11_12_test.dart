@@ -162,22 +162,42 @@ void main() {
   });
 
   group('Phase 12A — capítulos de campaña', () {
-    test('campaignChapters tiene exactamente 3 capítulos', () {
-      expect(campaignChapters.length, 3);
+    test('campaignChapters tiene exactamente 5 capítulos', () {
+      expect(campaignChapters.length, 5);
     });
 
     test('chapterById encuentra cada capítulo y rechaza ids inválidos', () {
       expect(chapterById('chapter_ceniza')?.name, 'La Forja de Ceniza');
       expect(chapterById('chapter_fosa')?.name, 'La Fosa de Escarcha');
-      expect(chapterById('chapter_sello')?.name, 'El Bastión del Sello');
+      expect(chapterById('chapter_tectonico')?.name, 'El Bastión Tectónico');
+      expect(chapterById('chapter_velo')?.name, 'El Velo de las Pesadillas');
+      expect(chapterById('chapter_tronco')?.name, 'El Trono del Sello Roto');
       expect(chapterById('inexistente'), isNull);
     });
 
-    test('Capítulo III es Azathor con título Gran Arconte del Sello', () {
-      final c = chapterById('chapter_sello');
+    test('Capítulo III es Gorgath (telúrico) con título Monarca de Basalto',
+        () {
+      final c = chapterById('chapter_tectonico');
+      expect(c?.boss.id, 'gorgath');
+      expect(c?.boss.element, Element.telluric);
+      expect(c?.bossTitle, contains('Monarca de Basalto'));
+      expect(CampaignChapter.chapterIIITitle, 'Monarca de Basalto');
+    });
+
+    test('Capítulo IV es Nyxara (vacío) con título Tejedor del Eclipse', () {
+      final c = chapterById('chapter_velo');
+      expect(c?.boss.id, 'nyxara');
+      expect(c?.boss.element, Element.empty);
+      expect(c?.bossTitle, contains('Tejedora del Eclipse'));
+      expect(CampaignChapter.chapterIVTitle, 'Tejedor del Eclipse');
+    });
+
+    test('Capítulo V es Azathor (vacío) con título Gran Arconte del Sello', () {
+      final c = chapterById('chapter_tronco');
       expect(c?.boss.id, 'azathor');
+      expect(c?.boss.element, Element.empty);
       expect(c?.bossTitle, contains('Gran Arconte del Sello'));
-      expect(CampaignChapter.chapterIIITitle, 'Gran Arconte del Sello');
+      expect(CampaignChapter.chapterVTitle, 'Gran Arconte del Sello');
     });
 
     test('capítulo 1 está desbloqueado sin nada limpiado', () {
@@ -186,7 +206,7 @@ void main() {
 
     test('capítulo 2 está bloqueado sin capítulo 1 limpiado', () {
       expect(chapterUnlocked('chapter_fosa', []), isFalse);
-      expect(chapterUnlocked('chapter_sello', []), isFalse);
+      expect(chapterUnlocked('chapter_tectonico', []), isFalse);
     });
 
     test('capítulo 2 se desbloquea tras limpiar capítulo 1', () {
@@ -195,7 +215,31 @@ void main() {
 
     test('capítulo 3 se desbloquea tras limpiar capítulo 2', () {
       expect(
-        chapterUnlocked('chapter_sello', ['chapter_ceniza', 'chapter_fosa']),
+        chapterUnlocked(
+            'chapter_tectonico', ['chapter_ceniza', 'chapter_fosa']),
+        isTrue,
+      );
+    });
+
+    test('capítulo 4 se desbloquea tras limpiar capítulo 3', () {
+      expect(
+        chapterUnlocked('chapter_velo', [
+          'chapter_ceniza',
+          'chapter_fosa',
+          'chapter_tectonico',
+        ]),
+        isTrue,
+      );
+    });
+
+    test('capítulo 5 se desbloquea tras limpiar capítulo 4', () {
+      expect(
+        chapterUnlocked('chapter_tronco', [
+          'chapter_ceniza',
+          'chapter_fosa',
+          'chapter_tectonico',
+          'chapter_velo',
+        ]),
         isTrue,
       );
     });
@@ -209,13 +253,36 @@ void main() {
       expect(nextLockedChapter(['chapter_ceniza'])?.id, 'chapter_fosa');
       expect(
         nextLockedChapter(['chapter_ceniza', 'chapter_fosa'])?.id,
-        'chapter_sello',
+        'chapter_tectonico',
+      );
+      expect(
+        nextLockedChapter([
+          'chapter_ceniza',
+          'chapter_fosa',
+          'chapter_tectonico',
+        ])?.id,
+        'chapter_velo',
+      );
+      expect(
+        nextLockedChapter([
+          'chapter_ceniza',
+          'chapter_fosa',
+          'chapter_tectonico',
+          'chapter_velo',
+        ])?.id,
+        'chapter_tronco',
       );
     });
 
     test('nextLockedChapter es null cuando la campaña está completa', () {
       expect(
-        nextLockedChapter(['chapter_ceniza', 'chapter_fosa', 'chapter_sello']),
+        nextLockedChapter([
+          'chapter_ceniza',
+          'chapter_fosa',
+          'chapter_tectonico',
+          'chapter_velo',
+          'chapter_tronco',
+        ]),
         isNull,
       );
     });

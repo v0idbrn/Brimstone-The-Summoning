@@ -145,6 +145,14 @@ class CombatEngine {
   bool _rotationInverted = false;
   double _rotationInvertUntil = 5.0;
 
+  // Gorgath (Telúrico) enrage: petrifica la carta con más maná 4.0s y
+  // reduce el radio de las dianas un 20% mientras dura el enrage.
+  String? _gorgathPetrifiedCardId;
+  double _gorgathPetrifyRemaining = 0;
+
+  // Nyxara (Vacío) enrage: teletransporta las dianas cada 4.0s.
+  double _nyxaraTeleportRemaining = 0;
+
   // Aura & timers.
   Element? aura;
   double auraRemaining = 0;
@@ -579,6 +587,12 @@ class CombatEngine {
       }
     }
     if (best == null || bestKind == HitKind.miss) {
+      // Nyxara (Vacío) enrage: fallar un tiro drena 10 de maná al escuadrón.
+      if (boss.id == 'nyxara' && enraged) {
+        for (final c in cards) {
+          c.mana = math.max(0, c.mana - 10);
+        }
+      }
       if (bestKind == HitKind.graze) {
         registerDamage(
           orb: orb,
@@ -742,6 +756,12 @@ class CombatEngine {
             : FloatingTextKind.normal,
       ),
     );
+    // Nyxara (Vacío) enrage: fallar un tiro drena 10 de maná al escuadrón.
+    if (boss.id == 'nyxara' && kind == HitKind.miss) {
+      for (final c in cards) {
+        c.mana = math.max(0, c.mana - 10);
+      }
+    }
     trauma = (trauma + 0.25).clamp(0.0, 1.0);
     onHit?.call(kind, dmg.toInt(), x, y, orb.element);
   }
@@ -821,6 +841,12 @@ class CombatEngine {
         break;
       case 'azathor':
         _tickAzathorEnrage(s);
+        break;
+      case 'gorgath':
+        _tickGorgathEnrage(s);
+        break;
+      case 'nyxara':
+        _tickNyxaraEnrage(s);
         break;
     }
   }
@@ -907,6 +933,36 @@ class CombatEngine {
     // projectilesPerAttack boost).
   }
 
+  /// Gorgath (Telúrico): petrifica por 4.0s la carta con más maná y reduce
+  /// un 20% el radio de las dianas mientras está enfurecido.
+  void _tickGorgathEnrage(double s) {
+    _gorgathPetrifyRemaining = math.max(0, _gorgathPetrifyRemaining - s);
+    if (_gorgathPetrifyRemaining <= 0 && cards.isNotEmpty) {
+      final leader = cards.reduce(
+        (a, b) => a.mana > b.mana ? a : b,
+      );
+      _gorgathPetrifiedCardId = leader.id;
+      _gorgathPetrifyRemaining = 4.0;
+    }
+    if (boss.id == 'gorgath') {
+      for (final t in targets) {
+        t.enlargedRadiusBonus = -0.2;
+      }
+    }
+  }
+
+  /// Nyxara (Vacío): teletransporta las dianas cada 4.0s durante el enrage.
+  void _tickNyxaraEnrage(double s) {
+    _nyxaraTeleportRemaining = math.max(0, _nyxaraTeleportRemaining - s);
+    if (_nyxaraTeleportRemaining <= 0 && targets.isNotEmpty) {
+      for (final t in targets) {
+        t.cx = bossScreenX + 85.0 - random.nextDouble() * 120;
+        t.cy = bossScreenY - 30.0 - random.nextDouble() * 100;
+      }
+      _nyxaraTeleportRemaining = 4.0;
+    }
+  }
+
   /// Number of enemy projectiles per boss attack (doubled for Azathor enrage).
   int get bossProjectileCount {
     var base = 1 + random.nextInt(boss.projectilesPerAttack);
@@ -916,6 +972,18 @@ class CombatEngine {
 
   /// Whether Azathor's enrage rotation is currently inverted (for tests).
   bool get rotationInverted => _rotationInverted;
+
+  /// Id of the card petrified by Gorgath during enrage (null if none).
+  String? get gorgathPetrifiedCardId => _gorgathPetrifiedCardId;
+
+  /// Remaining petrify duration for Gorgath (tests).
+  double get gorgathPetrifyRemaining => _gorgathPetrifyRemaining;
+
+  /// Target radius multiplier (0.8 with Gorgath enraged).
+  double get targetRadiusMult => enraged && boss.id == 'gorgath' ? 0.8 : 1.0;
+
+  /// Remaining time until Nyxara's next teleport (tests).
+  double get nyxaraTeleportRemaining => _nyxaraTeleportRemaining;
 
   /// Current enrage timer value (for tests).
   double get enrageTimer => _enrageTimer;

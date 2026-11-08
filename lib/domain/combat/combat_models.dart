@@ -13,8 +13,11 @@ enum HitKind { bullseye, normal, graze, miss }
 class CombatTarget {
   final String id;
   final TargetTrajectory trajectory;
-  final double cx;
-  final double cy;
+
+  /// Centro base de la órbita; mutable para el teletransporte de Nyxara en
+  /// enrage (engine-owned).
+  double cx;
+  double cy;
   final double amplitude;
   final double baseAngularSpeed;
   final double phase;
@@ -185,7 +188,15 @@ class BossConfig {
     this.attackInterval = 6.0,
     this.attackDamage = 10.0,
     this.projectilesPerAttack = 2,
+    this.threatDialog = '',
+    this.furyDialog = '',
   });
+
+  /// Diálogo de amenaza mostrado al iniciar la batalla del Piso 7.
+  final String threatDialog;
+
+  /// Diálogo de Furia Abisal mostrado al entrar en enrage (<45% HP).
+  final String furyDialog;
 
   static const BossConfig pyroth = BossConfig(
     id: 'pyroth',
@@ -195,6 +206,8 @@ class BossConfig {
     attackInterval: 6.0,
     attackDamage: 10,
     projectilesPerAttack: 2,
+    threatDialog: 'La Forja de Ceniza arde bajo mi mando.',
+    furyDialog: '¡QUÉMENSE HASTA EL HUESO! El fuego no perdona.',
   );
   static const BossConfig vaelor = BossConfig(
     id: 'vaelor',
@@ -204,6 +217,8 @@ class BossConfig {
     attackInterval: 5.0,
     attackDamage: 13,
     projectilesPerAttack: 3,
+    threatDialog: 'El frío eterno aguarda en la Fosa de Escarcha.',
+    furyDialog: '¡ESCARCHA ABSOLUTA! El hielo me pertenece.',
   );
   static const BossConfig azathor = BossConfig(
     id: 'azathor',
@@ -213,6 +228,30 @@ class BossConfig {
     attackInterval: 4.5,
     attackDamage: 16,
     projectilesPerAttack: 3,
+    threatDialog: 'El Trono del Sello Roto espera a su cadáver, invocador.',
+    furyDialog: '¡EL SELLO ESTÁ ROTO! Cambio de elemento ahora.',
+  );
+  static const BossConfig gorgath = BossConfig(
+    id: 'gorgath',
+    name: 'Gorgath, Monarca de Basalto',
+    element: Element.telluric,
+    maxHp: 3600,
+    attackInterval: 5.5,
+    attackDamage: 14,
+    projectilesPerAttack: 2,
+    threatDialog: 'El Bastión Tectónico no se rinde ante mortales.',
+    furyDialog: '¡PETRIFICACIÓN TOTAL! Las dianas se encogen.',
+  );
+  static const BossConfig nyxara = BossConfig(
+    id: 'nyxara',
+    name: 'Nyxara, Tejedora del Eclipse',
+    element: Element.empty,
+    maxHp: 3800,
+    attackInterval: 5.0,
+    attackDamage: 15,
+    projectilesPerAttack: 2,
+    threatDialog: 'Sueños rotos bajo el Velo de las Pesadillas.',
+    furyDialog: '¡TELEPORTACIÓN ABISAL! Fallar drena tu maná.',
   );
 }
 

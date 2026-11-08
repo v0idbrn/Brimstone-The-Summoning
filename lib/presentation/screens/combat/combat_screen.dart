@@ -62,6 +62,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   int _lastPanMs = 0;
   bool _resolved = false;
   String? _reactionBanner;
+  String? _bossDialog;
 
   CombatEngine get engine => _engine!;
 
@@ -127,6 +128,14 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       cardRunes: cardRunes,
       playerDamageMult: base.playerDamageMult,
     );
+    // Diálogo de amenaza del jefe al iniciar la batalla del Piso 7.
+    final threat = _engine!.boss.threatDialog;
+    if (threat.isNotEmpty) {
+      setState(() => _bossDialog = threat);
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _bossDialog = null);
+      });
+    }
     // Wire combat audio + bounty events to the procedural SFX engine.
     _engine!.onHit = (kind, damage, x, y, element) {
       switch (kind) {
@@ -163,6 +172,13 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     };
     _engine!.onEnrage = () {
       ProceduralSfxEngine.playBossEnrage();
+      final fury = _engine!.boss.furyDialog;
+      if (fury.isNotEmpty) {
+        setState(() => _bossDialog = '¡FURIA ABISSAL! $fury');
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _bossDialog = null);
+        });
+      }
     };
     game = BrimstoneCombatGame(
       engine: _engine!,
@@ -300,6 +316,37 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                       ),
                       child: Text(
                         '¡$_reactionBanner!',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            // Boss dialogue banner (threat at start / fury on enrage).
+            if (_bossDialog != null)
+              Positioned(
+                top: 100,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFFC93C)),
+                      ),
+                      child: Text(
+                        _bossDialog!,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
