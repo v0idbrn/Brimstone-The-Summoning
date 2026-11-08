@@ -14,7 +14,7 @@ import '../../combat_engine/combat_hud_overlay.dart';
 /// counter-flick it.
 class CombatScreen extends StatefulWidget {
   final CombatEngine? engine;
-  final void Function(bool victory)? onCombatResolved;
+  final void Function(bool victory, double playerHp)? onCombatResolved;
 
   const CombatScreen({super.key, this.engine, this.onCombatResolved});
 
@@ -55,7 +55,7 @@ class _CombatScreenState extends State<CombatScreen> {
   void _resolve(bool victory) {
     if (_resolved) return;
     _resolved = true;
-    widget.onCombatResolved?.call(victory);
+    widget.onCombatResolved?.call(victory, engine.playerHp);
   }
 
   (double, double) _toEngine(Offset p) => game.toEngineCoords(p.dx, p.dy);
