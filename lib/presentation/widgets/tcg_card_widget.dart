@@ -533,12 +533,9 @@ class _TcgCardWidgetState extends State<TcgCardWidget>
                   Text(
                     '${widget.currentMana}/${widget.maxMana}',
                     style: TextStyle(
-                      color: isReady
-                          ? const Color(0xFFFFD700)
-                          : Colors.white70,
+                      color: isReady ? const Color(0xFFFFD700) : Colors.white70,
                       fontSize: 9,
-                      fontWeight:
-                          isReady ? FontWeight.w900 : FontWeight.w600,
+                      fontWeight: isReady ? FontWeight.w900 : FontWeight.w600,
                     ),
                   ),
               ],
@@ -597,8 +594,7 @@ class _TcgCardWidgetState extends State<TcgCardWidget>
                 borderRadius: BorderRadius.circular(6),
                 boxShadow: [
                   BoxShadow(
-                    color:
-                        const Color(0xFFFFD700).withValues(alpha: 0.8),
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.8),
                     blurRadius: 10,
                     spreadRadius: 1,
                   ),
@@ -649,9 +645,8 @@ class _TcgCardWidgetState extends State<TcgCardWidget>
                       const Color(0xFFFF2A54),
                     ]
                   : _frameBorderColors,
-              primaryColor: isReady
-                  ? const Color(0xFFFFD700)
-                  : _primaryBorderColor,
+              primaryColor:
+                  isReady ? const Color(0xFFFFD700) : _primaryBorderColor,
               borderWidth: isReady ? 2.8 : (widget.raised ? 2.4 : 1.8),
               stars: widget.stars,
             ),
@@ -720,9 +715,11 @@ class _ReadyFramePainter extends CustomPainter {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color.lerp(const Color(0xFFFFD700), Colors.white, math.sin(pulse * math.pi))!,
+          Color.lerp(const Color(0xFFFFD700), Colors.white,
+              math.sin(pulse * math.pi))!,
           const Color(0xFFFF2A54),
-          Color.lerp(const Color(0xFFFFD700), Colors.white, math.sin(pulse * math.pi + 1))!,
+          Color.lerp(const Color(0xFFFFD700), Colors.white,
+              math.sin(pulse * math.pi + 1))!,
         ],
       ).createShader(rect);
 

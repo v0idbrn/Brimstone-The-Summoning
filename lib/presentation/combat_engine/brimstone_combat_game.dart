@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flame/game.dart';
 
 import '../../domain/combat/combat_engine.dart';
@@ -9,12 +7,12 @@ import 'boss_actor_component.dart';
 import 'boss_target_reticle.dart';
 import 'enemy_corrupted_orb.dart';
 import 'floating_combat_text.dart';
-import 'merge_tray_component.dart';
 import 'orb_projectile_25d.dart';
 
 /// First-person 2.5D combat game (logical resolution 430 x 932 portrait).
 /// All simulation lives in the pure [CombatEngine]; this class only owns the
-/// render tree, letterbox transform, screen shake and gesture plumbing.
+/// render tree, screen shake and gesture plumbing.
+/// NO merge tray here - the tray is a Flutter widget overlay for unified gestures.
 class BrimstoneCombatGame extends FlameGame {
   final CombatEngine engine;
   final void Function()? onVictory;
@@ -28,7 +26,7 @@ class BrimstoneCombatGame extends FlameGame {
 
   BrimstoneCombatGame({required this.engine, this.onVictory, this.onDefeat});
 
-  /// Letterbox-aware absolute offsets including screen shake.
+  /// Absolute offsets including screen shake.
   double get offsetX => baseOffsetX + shakeX;
   double get offsetY => baseOffsetY + shakeY;
 
@@ -43,8 +41,8 @@ class BrimstoneCombatGame extends FlameGame {
       BossTargetReticle(this),
       OrbProjectile25D(this),
       EnemyCorruptedOrb(this),
-      MergeTrayComponent(this),
       FloatingCombatText(this),
+      // MergeTrayComponent REMOVED - tray is now a Flutter widget overlay
     ]);
   }
 
@@ -57,11 +55,9 @@ class BrimstoneCombatGame extends FlameGame {
   void _recalculateView() {
     final w = canvasSize.x;
     final h = canvasSize.y;
-    viewScale = math.min(
-      w / CombatEngine.layoutWidth,
-      h / CombatEngine.layoutHeight,
-    );
-    baseOffsetX = (w - CombatEngine.layoutWidth * viewScale) / 2;
+    // Full width, no letterboxing - let Flutter widget handle responsive sizing
+    viewScale = w / CombatEngine.layoutWidth;
+    baseOffsetX = 0;
     baseOffsetY = (h - CombatEngine.layoutHeight * viewScale) / 2;
   }
 

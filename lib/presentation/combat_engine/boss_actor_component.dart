@@ -9,13 +9,14 @@ import '../../domain/combat/combat_engine.dart';
 import '../../domain/value_objects/element.dart';
 import 'brimstone_combat_game.dart';
 
-/// Boss actor that renders a full-color Wesnoth painted portrait with:
+/// Boss actor that renders a full-color Wesnoth painted portrait (240x240) with:
 /// - Rotating abyssal portal behind
 /// - Breathing animation (vertical scale 1.0 <-> 1.04)
 /// - Hit flash (white flash)
 /// - Red shake on hit
 /// - Fire/lightning halo when enraged (<45% HP)
 /// - Attack timer bar + aura rune ring
+/// NO black circle - the painted portrait IS the boss visual.
 class BossActorComponent extends PositionComponent {
   final BrimstoneCombatGame combatGame;
   double _flash = 0;
@@ -33,6 +34,7 @@ class BossActorComponent extends PositionComponent {
   Future<void> onLoad() async {
     await super.onLoad();
     final bossId = combatGame.engine.boss.id;
+    // Assets are named boss_pyroth.webp, boss_vaelor.webp, etc.
     try {
       _portraitImage = await Flame.images.load('portraits/boss_${bossId}.webp');
     } catch (_) {
@@ -106,10 +108,10 @@ class BossActorComponent extends PositionComponent {
     final bodyColor = _enraged ? _enrageColor : elementColor;
     final accent = elementAccent;
 
-    // 1. Portal rúnico giratorio detrás
+    // 1. Portal rúnico giratorio detrás (scaled to 240px portrait)
     _drawRunicPortal(canvas, cx + shakeX, cy + shakeY, e.time, bodyColor);
 
-    // 2. Painted boss portrait
+    // 2. Painted boss portrait - 240x240, no black circle, no frame
     _drawPaintedPortrait(
       canvas,
       cx + shakeX,
@@ -127,17 +129,20 @@ class BossActorComponent extends PositionComponent {
           alpha: (_flash / 0.15).clamp(0.0, 1.0),
         )
         ..blendMode = BlendMode.srcATop;
-      _drawPortraitSilhouette(canvas, cx + shakeX, cy + shakeY, totalScale, flashPaint);
+      _drawPortraitSilhouette(
+          canvas, cx + shakeX, cy + shakeY, totalScale, flashPaint);
     }
 
     // 4. Enrage halo (fire/lightning aura)
     if (_enraged) {
-      _drawEnrageHalo(canvas, cx + shakeX, cy + shakeY, totalScale, bodyColor, accent, e.time);
+      _drawEnrageHalo(canvas, cx + shakeX, cy + shakeY, totalScale, bodyColor,
+          accent, e.time);
     }
 
-    // 5. Attack timer bar
-    final frac = (1 - (e.bossAttackTimer / e.boss.attackInterval)).clamp(0.0, 1.0);
-    final barY = cy - 140;
+    // 5. Attack timer bar (above portrait)
+    final frac =
+        (1 - (e.bossAttackTimer / e.boss.attackInterval)).clamp(0.0, 1.0);
+    final barY = cy - 170; // moved up for 240px portrait
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(cx - 62, barY, 124, 7),
@@ -185,7 +190,7 @@ class BossActorComponent extends PositionComponent {
     canvas.restore();
   }
 
-  /// Portal rúnico místico giratorio detrás del retrato del jefe
+  /// Portal rúnico místico giratorio detrás del retrato del jefe (scaled for 240px portrait)
   void _drawRunicPortal(
     Canvas canvas,
     double cx,
@@ -193,7 +198,7 @@ class BossActorComponent extends PositionComponent {
     double time,
     Color color,
   ) {
-    const portalR = 110.0;
+    const portalR = 130.0; // larger for 240px portrait
     final portalCenter = Offset(cx, cy - 20);
 
     // Glow ambiental exterior
@@ -246,7 +251,7 @@ class BossActorComponent extends PositionComponent {
     }
   }
 
-  /// Draw the painted Wesnoth portrait with frame
+  /// Draw the painted Wesnoth portrait at 240x240 - NO black circle, NO frame
   void _drawPaintedPortrait(
     Canvas canvas,
     double cx,
@@ -256,22 +261,22 @@ class BossActorComponent extends PositionComponent {
     Color accent,
     double time,
   ) {
-    final portraitWidth = 180.0 * scale;
-    final portraitHeight = 220.0 * scale;
+    // Fixed 240x240 portrait size (not scaled by breathe/enrage - that's for portal)
+    const portraitSize = 240.0;
     final rect = Rect.fromLTWH(
-      cx - portraitWidth / 2,
-      cy - portraitHeight / 2,
-      portraitWidth,
-      portraitHeight,
+      cx - portraitSize / 2,
+      cy - portraitSize / 2,
+      portraitSize,
+      portraitSize,
     );
 
     canvas.save();
     canvas.clipRect(rect);
 
     if (_portraitImage != null) {
-      // Draw the painted portrait maintaining aspect ratio (cover, top-center)
-      final imageRect = Rect.fromLTWH(
-        0, 0, _portraitImage!.width.toDouble(), _portraitImage!.height.toDouble());
+      // Draw the painted portrait maintaining aspect ratio (cover, center)
+      final imageRect = Rect.fromLTWH(0, 0, _portraitImage!.width.toDouble(),
+          _portraitImage!.height.toDouble());
       final scaleX = rect.width / imageRect.width;
       final scaleY = rect.height / imageRect.height;
       final scaleFactor = math.max(scaleX, scaleY);
@@ -279,7 +284,7 @@ class BossActorComponent extends PositionComponent {
       final drawHeight = imageRect.height * scaleFactor;
       final drawRect = Rect.fromLTWH(
         rect.center.dx - drawWidth / 2,
-        rect.top, // aligned top-center
+        rect.center.dy - drawHeight / 2,
         drawWidth,
         drawHeight,
       );
@@ -294,34 +299,16 @@ class BossActorComponent extends PositionComponent {
       _drawFallbackSilhouette(canvas, rect, color, accent);
     }
 
-    // Dark bottom scrim for potential UI overlay
-    final scrimRect = Rect.fromLTWH(
-      rect.left,
-      rect.bottom - 40,
-      rect.width,
-      40,
-    );
-    canvas.drawRect(
-      scrimRect,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [Color(0x80000000), Colors.transparent],
-        ).createShader(scrimRect),
-    );
-
     canvas.restore();
-
-    // Elemental frame around portrait
-    _drawElementalFrame(canvas, rect, color, accent, time);
+    // NO elemental frame - the painted art IS the boss
   }
 
-  void _drawFallbackSilhouette(Canvas canvas, Rect rect, Color color, Color accent) {
+  void _drawFallbackSilhouette(
+      Canvas canvas, Rect rect, Color color, Color accent) {
     // Draw a dark silhouette as fallback
     final silhouettePaint = Paint()..color = const Color(0xFF0A0407);
     final center = rect.center;
-    final radius = math.min(rect.width, rect.height) * 0.35;
+    final radius = math.min(rect.width, rect.height) * 0.45;
     canvas.drawCircle(center, radius, silhouettePaint);
   }
 
@@ -332,67 +319,14 @@ class BossActorComponent extends PositionComponent {
     double scale,
     Paint paint,
   ) {
-    final portraitWidth = 180.0 * scale;
-    final portraitHeight = 220.0 * scale;
+    const portraitSize = 240.0;
     final rect = Rect.fromLTWH(
-      cx - portraitWidth / 2,
-      cy - portraitHeight / 2,
-      portraitWidth,
-      portraitHeight,
+      cx - portraitSize / 2,
+      cy - portraitSize / 2,
+      portraitSize,
+      portraitSize,
     );
     canvas.drawRect(rect, paint);
-  }
-
-  /// Elemental frame around the portrait
-  void _drawElementalFrame(
-    Canvas canvas,
-    Rect rect,
-    Color color,
-    Color accent,
-    double time,
-  ) {
-    final framePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
-
-    // Outer animated ring
-    for (int layer = 0; layer < 2; layer++) {
-      final phase = time * (1.2 + layer * 0.4) + layer * 1.8;
-      framePaint.color = Color.lerp(
-        accent,
-        color,
-        (math.sin(phase) + 1) / 2,
-      )!;
-      final r = rect.shortestSide / 2 + 8 + layer * 4;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCircle(center: rect.center, radius: r),
-          Radius.circular(12),
-        ),
-        framePaint,
-      );
-    }
-
-    // Corner ornaments
-    final cornerPaint = Paint()
-      ..style = PaintingStyle.fill
-      ..color = accent;
-    const cornerSize = 8.0;
-    const cornerRadius = 3.0;
-    for (final dx in [-1.0, 1.0]) {
-      for (final dy in [-1.0, 1.0]) {
-        final cornerRect = RRect.fromRectAndRadius(
-          Rect.fromLTWH(
-            rect.center.dx + dx * (rect.width / 2 - cornerSize / 2),
-            rect.center.dy + dy * (rect.height / 2 - cornerSize / 2),
-            cornerSize,
-            cornerSize,
-          ),
-          Radius.circular(cornerRadius),
-        );
-        canvas.drawRRect(cornerRect, cornerPaint);
-      }
-    }
   }
 
   /// Enrage halo: fire particles for Igneo, lightning for Abyssal, rock debris for Telurico, void wisps for Vacío
@@ -405,7 +339,7 @@ class BossActorComponent extends PositionComponent {
     Color accent,
     double time,
   ) {
-    final haloRadius = 130 * scale;
+    final haloRadius = 150 * scale; // larger for 240px portrait
     final particleCount = 24;
 
     for (var i = 0; i < particleCount; i++) {
@@ -429,7 +363,8 @@ class BossActorComponent extends PositionComponent {
       switch (combatGame.engine.boss.element) {
         case Element.igneous:
           // Fire ember
-          canvas.drawCircle(Offset.zero, 4, paint..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
+          canvas.drawCircle(Offset.zero, 4,
+              paint..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
           break;
         case Element.abyssal:
           // Ice shard
@@ -442,11 +377,13 @@ class BossActorComponent extends PositionComponent {
           break;
         case Element.telluric:
           // Rock debris
-          canvas.drawRect(Rect.fromCenter(center: Offset.zero, width: 6, height: 6), paint);
+          canvas.drawRect(
+              Rect.fromCenter(center: Offset.zero, width: 6, height: 6), paint);
           break;
         case Element.empty:
           // Void wisp
-          canvas.drawCircle(Offset.zero, 5, paint..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+          canvas.drawCircle(Offset.zero, 5,
+              paint..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
           break;
       }
       canvas.restore();
