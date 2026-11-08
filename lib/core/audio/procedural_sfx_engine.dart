@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
+
 /// Procedural audio engine that generates WAV PCM buffers in memory.
 /// No external audio assets required - all sounds synthesized mathematically.
 class ProceduralSfxEngine {
@@ -21,57 +23,83 @@ class ProceduralSfxEngine {
   static bool get isMuted => _muted;
 
   /// Play orb spawn: short ascending crystalline tone (440Hz -> 660Hz, 60ms).
-  static void playOrbSpawn() => _play(_orbSpawn());
+  static void playOrbSpawn() {
+    _play(_orbSpawn());
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.selectionClick);
+  }
 
   /// Play orb merge: resonant harmonic chord, base frequency rises by level (Lv2/Lv3, 140ms) + haptic.
   static void playOrbMerge(int newLevel) {
     _play(_orbMerge(newLevel));
-    if (newLevel >= 2) {
-      _hapticMedium();
-    }
+    if (!_muted) SystemSound.play(SystemSoundType.click);
+    if (newLevel >= 2) HapticFeedback.mediumImpact();
   }
 
   /// Play orb flick: whoosh frequency sweep (220Hz -> 880Hz, 110ms) + haptic selection click.
   static void playOrbFlick() {
     _play(_orbFlick());
-    _hapticSelection();
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.selectionClick);
   }
 
   /// Play normal hit: percussive impact (90Hz exponential decay).
-  static void playHitNormal() => _play(_hitNormal());
+  static void playHitNormal() {
+    _play(_hitNormal());
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.lightImpact);
+  }
 
   /// Play bullseye: double metallic bell (880Hz + 1320Hz, 220ms) + heavy haptic.
   static void playHitBullseye() {
     _play(_hitBullseye());
-    _hapticHeavy();
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play graze: very short soft click.
-  static void playHitGraze() => _play(_hitGraze());
+  static void playHitGraze() {
+    _play(_hitGraze());
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.selectionClick);
+  }
 
   /// Play elemental reaction: sub-bass explosion (55Hz) + arcane ring modulation (350ms) + intense vibration.
   static void playElementalReaction() {
     _play(_elementalReaction());
-    _hapticHeavy();
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play card skill invoke: gothic 3-note ascending fanfare (300ms).
-  static void playCardSkillInvoke() => _play(_cardSkillInvoke());
+  static void playCardSkillInvoke() {
+    _play(_cardSkillInvoke());
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
+  }
 
   /// Play counter-flick destroy: sharp metallic clang (1200Hz, 90ms).
-  static void playCounterFlickDestroy() => _play(_counterFlickDestroy());
+  static void playCounterFlickDestroy() {
+    _play(_counterFlickDestroy());
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
+  }
 
   /// Play summon reveal: mystical arpeggio sequence, more epic with more stars.
-  static void playSummonReveal(int stars) => _play(_summonReveal(stars));
+  static void playSummonReveal(int stars) {
+    _play(_summonReveal(stars));
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
+  }
 
   /// Play boss enrage: deep ominous rumble + alarm.
-  static void playBossEnrage() => _play(_bossEnrage());
+  static void playBossEnrage() {
+    _play(_bossEnrage());
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
+  }
 
   /// Play altar evolution success: ascending celestial choir chord.
-  static void playEvolutionSuccess() => _play(_evolutionSuccess());
+  static void playEvolutionSuccess() {
+    _play(_evolutionSuccess());
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
+  }
 
   /// Play altar evolution fail: dissonant descending tone.
-  static void playEvolutionFail() => _play(_evolutionFail());
+  static void playEvolutionFail() {
+    _play(_evolutionFail());
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.lightImpact);
+  }
 
   // --- Internal synthesis methods ---
 
@@ -537,15 +565,11 @@ class ProceduralSfxEngine {
 
   // --- Haptic feedback helpers ---
 
-  static void _hapticMedium() {
-    // HapticFeedback.mediumImpact();
-  }
-
-  static void _hapticHeavy() {
-    // HapticFeedback.heavyImpact();
-  }
-
-  static void _hapticSelection() {
-    // HapticFeedback.selectionClick();
+  /// Emite respuesta auditiva y táctil nativa inmediata si el audio no está silenciado.
+  static void _nativeFeedback(SystemSoundType sound, VoidCallback haptic) {
+    if (!_muted) {
+      SystemSound.play(sound);
+    }
+    haptic();
   }
 }

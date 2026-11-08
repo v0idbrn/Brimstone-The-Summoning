@@ -1,4 +1,7 @@
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 import 'package:brimstone_summoning/domain/entities/owned_card.dart';
+import 'package:brimstone_summoning/domain/meta/rune_system.dart';
 import 'package:brimstone_summoning/domain/value_objects/element.dart';
 import 'package:brimstone_summoning/domain/value_objects/rarity.dart';
 
@@ -180,6 +183,84 @@ class PlayerRepository {
         'slot': i,
         'owned_card_id': instanceIds[i],
       });
+    }
+  }
+
+  // ----------------------------------------------------------------- runes
+
+  /// Carga la runa equipada en la carta [instanceId], o null si no tiene.
+  Future<RuneInstance?> loadCardRune(int instanceId) async {
+    final db = await _db.db;
+    final rows = await db.query(
+      'owned_card_runes',
+      where: 'owned_card_id = ?',
+      whereArgs: [instanceId],
+    );
+    if (rows.isEmpty) return null;
+    final row = rows.first;
+    return RuneInstance(
+      type: RuneType.values.firstWhere(
+        (t) => t.name == row['rune_type'],
+        orElse: () => RuneType.crimsonFury,
+      ),
+      level: (row['level'] as int?) ?? 1,
+    );
+  }
+
+  /// Guarda (inserta o actualiza) la runa equipada en [instanceId].
+  Future<void> saveCardRune(int instanceId, RuneInstance rune) async {
+    final db = await _db.db;
+    await db.insert('owned_card_runes', {
+      'owned_card_id': instanceId,
+      'rune_type': rune.type.name,
+      'level': rune.level,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// Quita la runa de la carta [instanceId].
+  Future<void> removeCardRune(int instanceId) async {
+    final db = await _db.db;
+    await db.delete(
+      'owned_card_runes',
+      where: 'owned_card_id = ?',
+      whereArgs: [instanceId],
+    );
+  }
+
+  // ---------------------------------------------------------------- endless
+
+  /// Carga el récord histórico de oleada máxima del Abismo Sin Fin.
+  Future<int> loadHighestEndlessWave() async {
+    final db = await _db.db;
+    final rows = await db.query('player_profile', limit: 1);
+    if (rows.isEmpty) return 0;
+    return (rows.first['highest_endless_wave'] as int?) ?? 0;
+  }
+
+  /// Guarda el récord histórico de oleada máxima si supera el previo.
+  Future<void> saveHighestEndlessWave(int wave) async {
+    final db = await _db.db;
+    final current = await loadHighestEndlessWave();
+    if (wave <= current) return;
+    final existing = await db.query('player_profile', limit: 1);
+    if (existing.isEmpty) {
+      await db.insert('player_profile', {
+        'id': 'player_1',
+        'gold': 500,
+        'shards': 100,
+        'max_hp': 100,
+        'current_hp': 100,
+        'energy': 20,
+        'summoner_level': 1,
+        'highest_endless_wave': wave,
+      });
+    } else {
+      await db.update(
+        'player_profile',
+        {'highest_endless_wave': wave},
+        where: 'id = ?',
+        whereArgs: [existing.first['id']],
+      );
     }
   }
 

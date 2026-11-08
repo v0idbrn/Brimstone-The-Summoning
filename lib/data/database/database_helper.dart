@@ -3,7 +3,7 @@ import 'package:path_provider/path_provider.dart';
 
 class DatabaseHelper {
   static Database? _db;
-  static const int version = 3;
+  static const int version = 4;
 
   Future<Database> get db async {
     _db ??= await _initDb();
@@ -42,13 +42,16 @@ class DatabaseHelper {
       'CREATE TABLE relics(id TEXT PRIMARY KEY, name TEXT, description TEXT, effect_value REAL)',
     );
     await db.execute(
-      'CREATE TABLE player_profile(id TEXT PRIMARY KEY, gold INTEGER, shards INTEGER, max_hp INTEGER, current_hp INTEGER, energy INTEGER DEFAULT 20, summoner_level INTEGER DEFAULT 1)',
+      'CREATE TABLE player_profile(id TEXT PRIMARY KEY, gold INTEGER, shards INTEGER, max_hp INTEGER, current_hp INTEGER, energy INTEGER DEFAULT 20, summoner_level INTEGER DEFAULT 1, highest_endless_wave INTEGER DEFAULT 0)',
     );
     await db.execute(
       'CREATE TABLE owned_cards(id INTEGER PRIMARY KEY AUTOINCREMENT, card_id TEXT, level INTEGER DEFAULT 1, stars INTEGER DEFAULT 1)',
     );
     await db.execute(
       'CREATE TABLE player_squad(slot INTEGER PRIMARY KEY, owned_card_id INTEGER)',
+    );
+    await db.execute(
+      'CREATE TABLE owned_card_runes(owned_card_id INTEGER PRIMARY KEY, rune_type TEXT NOT NULL, level INTEGER DEFAULT 1)',
     );
     await db.execute(
       'CREATE TABLE bounties(id TEXT PRIMARY KEY, title TEXT, description TEXT, kind TEXT, target INTEGER, reward_shards INTEGER, reward_gold INTEGER, progress INTEGER DEFAULT 0, claimed INTEGER DEFAULT 0)',
@@ -320,6 +323,7 @@ class DatabaseHelper {
       'current_hp': 100,
       'energy': 20,
       'summoner_level': 1,
+      'highest_endless_wave': 0,
     });
   }
 }

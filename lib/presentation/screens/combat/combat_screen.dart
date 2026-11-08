@@ -6,11 +6,14 @@ import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../domain/combat/combat_engine.dart';
 import '../../../domain/combat/combat_math.dart';
 import '../../../domain/combat/combat_models.dart';
+import '../../../domain/meta/rune_system.dart';
+import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../../domain/value_objects/orb_level.dart';
 import '../../controllers/meta_controller.dart';
 import '../../combat_engine/brimstone_combat_game.dart';
 import '../../combat_engine/combat_hud_overlay.dart';
+import '../meta/how_to_play_modal.dart';
 
 /// Full combat screen: Flame game + fullscreen gesture bridge + HUD overlay.
 ///
@@ -29,11 +32,15 @@ class CombatScreen extends ConsumerStatefulWidget {
     required List<ManaCard> cards,
     required double playerMaxHp,
     CombatModifiers modifiers = const CombatModifiers(),
+    SquadSynergyBonus? synergy,
+    Map<String, RuneInstance> cardRunes = const {},
   }) => CombatEngine(
     boss: boss,
     cards: cards,
     playerMaxHp: playerMaxHp,
     modifiers: modifiers,
+    synergy: synergy,
+    cardRunes: cardRunes,
   );
 
   @override
@@ -41,17 +48,45 @@ class CombatScreen extends ConsumerStatefulWidget {
 }
 
 class _CombatScreenState extends ConsumerState<CombatScreen> {
-  late final CombatEngine engine;
+  CombatEngine? _engine;
   late final BrimstoneCombatGame game;
   int _lastPanMs = 0;
   bool _resolved = false;
+  String? _reactionBanner;
+
+  CombatEngine get engine => _engine!;
 
   @override
   void initState() {
     super.initState();
-    engine = widget.engine ?? defaultEngine();
-    // Wire combat audio events to the procedural SFX engine.
-    engine.onHit = (kind) {
+    _initEngine();
+  }
+
+  Future<void> _initEngine() async {
+    final base = widget.engine ?? defaultEngine();
+    final cards = base.cards;
+    final synergy = SquadSynergyResolver.resolve(cards);
+    // Cargar runas equipadas por carta (keyed by card id).
+    final cardRunes = <String, RuneInstance>{};
+    final repo = ref.read(playerRepositoryProvider);
+    for (final c in cards) {
+      try {
+        // Usar el id de la carta como clave de runa.
+        final rune = await repo.loadCardRune(c.hashCode);
+        if (rune != null) cardRunes[c.id] = rune;
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    _engine = CombatEngine(
+      boss: base.boss,
+      cards: cards,
+      playerMaxHp: base.playerMaxHp,
+      modifiers: base.modifiers,
+      synergy: synergy.isActive ? synergy : null,
+      cardRunes: cardRunes,
+    );
+    // Wire combat audio + bounty events to the procedural SFX engine.
+    _engine!.onHit = (kind) {
       switch (kind) {
         case HitKind.bullseye:
           ProceduralSfxEngine.playHitBullseye();
@@ -64,24 +99,31 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
           break;
       }
     };
-    engine.onReaction = (name) {
+    _engine!.onReaction = (name) {
       ProceduralSfxEngine.playElementalReaction();
       ref.read(bountyProvider.notifier).increment('reactions');
+      setState(() {
+        _reactionBanner = name;
+      });
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _reactionBanner = null);
+      });
     };
-    engine.onMerge = (level) {
+    _engine!.onMerge = (level) {
       ProceduralSfxEngine.playOrbMerge(level.index);
       if (level == OrbLevel.three) {
         ref.read(bountyProvider.notifier).increment('merge_to_three');
       }
     };
-    engine.onEnrage = () {
+    _engine!.onEnrage = () {
       ProceduralSfxEngine.playBossEnrage();
     };
     game = BrimstoneCombatGame(
-      engine: engine,
+      engine: _engine!,
       onVictory: () => _resolve(true),
       onDefeat: () => _resolve(false),
     );
+    setState(() {});
   }
 
   void _resolve(bool victory) {
@@ -139,8 +181,15 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
+    if (_engine == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0C0608),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFB16EFF)),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFF0C0608),
       body: GestureDetector(
@@ -157,6 +206,52 @@ class _CombatScreenState extends ConsumerState<CombatScreen> {
                 engine: engine,
                 onVictory: () => _resolve(true),
                 onDefeat: () => _resolve(false),
+              ),
+            ),
+            // Reaction banner.
+            if (_reactionBanner != null)
+              Positioned(
+                top: 40,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFF5A26)),
+                      ),
+                      child: Text(
+                        '¡$_reactionBanner!',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            // Help button.
+            Positioned(
+              top: 10,
+              left: 10,
+              child: IconButton(
+                icon: const Icon(Icons.help_outline, color: Color(0xFFB16EFF)),
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: const Color(0xFF14090D),
+                  builder: (_) => const HowToPlayModal(),
+                ),
+                tooltip: 'Cómo jugar',
               ),
             ),
           ],

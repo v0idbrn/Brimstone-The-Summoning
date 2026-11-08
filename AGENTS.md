@@ -109,10 +109,10 @@ lib/
 ## Mandatory Pre-Commit Gates
 
 ```bash
-flutter pub get
-flutter analyze --fatal-infos  # 0 errors, 0 warnings
-flutter test --test-randomize-ordering-seed random  # 100% pass
-dart format --set-exit-if-changed lib test  # formatted
+C:\flutter\bin\flutter.bat pub get
+C:\flutter\bin\flutter.bat analyze --fatal-infos  # 0 errors, 0 warnings
+C:\flutter\bin\flutter.bat test --test-randomize-ordering-seed random  # 100% pass
+C:\flutter\bin\dart.bat format --set-exit-if-changed lib test  # formatted
 ```
 
 ---

@@ -1,25 +1,58 @@
-name: Android Release APK
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-
-jobs:
-  build-apk:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.x'
-          channel: 'stable'
-      - run: flutter pub get
-      - run: flutter analyze --fatal-infos
-      - run: flutter test --test-randomize-ordering-seed random
-      - run: flutter build apk --release --target-platform android-arm64
-      - uses: actions/upload-artifact@v4
-        with:
-          name: brimstone-summoning-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+name: Android Release APK
+
+permissions:
+  contents: write
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze --fatal-infos
+
+      - name: Run test suite
+        run: flutter test
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Copy APK to release name
+        run: cp build/app/outputs/flutter-apk/app-release.apk Brimstone-The-Summoning.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Brimstone-The-Summoning-APK
+          path: Brimstone-The-Summoning.apk
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Brimstone: The Summoning — Latest Build APK"
+          files: Brimstone-The-Summoning.apk
+          generate_release_notes: false

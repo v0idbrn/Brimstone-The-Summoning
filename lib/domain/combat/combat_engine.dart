@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import '../services/elemental_reaction_engine.dart';
+import '../meta/squad_synergy_resolver.dart';
+import '../meta/rune_system.dart';
 import '../value_objects/element.dart';
 import '../value_objects/orb_level.dart';
 import 'combat_math.dart';
@@ -106,6 +108,13 @@ class CombatEngine {
   final BossConfig boss;
   final CombatModifiers modifiers;
   final List<ManaCard> cards;
+
+  /// Sinergia pasiva activa del escuadrón (aplica bonos globales en combate).
+  final SquadSynergyBonus? synergy;
+
+  /// Runas equipadas por carta, keyed by [ManaCard.id].
+  final Map<String, RuneInstance> cardRunes;
+
   final List<CombatTarget> targets = [];
   final math.Random random;
 
@@ -170,14 +179,19 @@ class CombatEngine {
     double? playerMaxHp,
     CombatModifiers? modifiers,
     math.Random? random,
+    this.synergy,
+    this.cardRunes = const {},
   }) : modifiers = modifiers ?? const CombatModifiers(),
-       playerMaxHp = playerMaxHp ?? 100,
+       playerMaxHp = (playerMaxHp ?? 100) * (synergy?.hpMult ?? 1.0),
        random = random ?? math.Random(),
        bossHp = boss.maxHp,
        playerHp = playerMaxHp ?? 100,
        bossAttackTimer = boss.attackInterval {
     _spawnTargetRing();
     _applyStartModifiers();
+    // Aplicar bonos de sinergia y runas al ATK de las cartas (ManaCard.attack es
+    // final, así que se lee a través de _effectiveAttack en tiempo de combate).
+    // El escudo de sinergia se aplica en _applyStartModifiers.
   }
 
   void _spawnTargetRing() {
@@ -203,10 +217,46 @@ class CombatEngine {
         c.mana = c.baseManaCost * modifiers.startManaFraction;
       }
     }
+    // Sinergia monoelemental: las cartas empiezan con 20% de maná.
+    if (synergy?.startManaFraction != null && synergy!.startManaFraction > 0) {
+      for (final c in cards) {
+        c.mana = (c.mana + c.baseManaCost * synergy!.startManaFraction).clamp(
+          0.0,
+          c.baseManaCost.toDouble(),
+        );
+      }
+    }
     if (modifiers.startHpLossFraction > 0) {
       playerHp -= playerMaxHp * modifiers.startHpLossFraction;
     }
   }
+
+  /// ATK efectivo de una carta aplicando sinergia + runa de Furia Carmesí.
+  double _effectiveAttack(ManaCard c) {
+    var atk = c.attack;
+    if (synergy?.atkMult != null && synergy!.atkMult > 1.0) {
+      atk *= synergy!.atkMult;
+    }
+    final rune = cardRunes[c.id];
+    if (rune != null) {
+      atk *= RuneSystem.atkMult(rune.type, rune.level);
+    }
+    return atk;
+  }
+
+  /// Costo de maná efectivo de una carta aplicando runa de Flujo Eterno.
+  double _effectiveManaCost(ManaCard c) {
+    final rune = cardRunes[c.id];
+    if (rune != null && rune.type == RuneType.eternalFlow) {
+      return c.baseManaCost *
+          (1.0 - RuneSystem.manaCostReduction(rune.type, rune.level));
+    }
+    return c.baseManaCost.toDouble();
+  }
+
+  /// Velocidad de generación de maná efectiva (modificadores + sinergia Trinidad Arcana).
+  double get _effectiveManaSpeedMult =>
+      modifiers.manaSpeedMult * (synergy?.manaSpeedMult ?? 1.0);
 
   String _nextId(String prefix) => '${prefix}_${_idCounter++}';
 
@@ -512,7 +562,10 @@ class CombatEngine {
     if (vulnerableRemaining > 0) mult *= 1.3;
     registerDamage(orb: orb, target: target, multiplier: mult, kind: kind);
 
-    final mana = CombatMath.hitMana(kind, orb.level) * modifiers.manaSpeedMult;
+    final mana =
+        CombatMath.hitMana(kind, orb.level) *
+        modifiers.manaSpeedMult *
+        (kind == HitKind.bullseye ? synergy?.bullseyeManaMult ?? 1.0 : 1.0);
     addManaToCards(orb.element, mana);
 
     if (CombatMath.appliesAura(kind, orb.level)) {
@@ -530,11 +583,15 @@ class CombatEngine {
   String? applyAura(Element element, {int orbLevel = 1}) {
     if (aura == null) {
       aura = element;
-      auraRemaining = ElementalReactionEngine.auraDuration;
+      auraRemaining =
+          ElementalReactionEngine.auraDuration *
+          (synergy?.auraDurationMult ?? 1.0);
       return null;
     }
     if (aura == element) {
-      auraRemaining = ElementalReactionEngine.auraDuration;
+      auraRemaining =
+          ElementalReactionEngine.auraDuration *
+          (synergy?.auraDurationMult ?? 1.0);
       return null;
     }
     final engine = ElementalReactionEngine();
@@ -548,7 +605,7 @@ class CombatEngine {
   }
 
   void _detonateReaction(ReactionResult r) {
-    final mult = r.damageMultiplier;
+    final mult = r.damageMultiplier * (synergy?.reactionDamageMult ?? 1.0);
     if (mult > 1.0) {
       final base = baseDamage * mult;
       final hitCount = r.isAoE ? targets.length : 1;
@@ -605,7 +662,7 @@ class CombatEngine {
       final gain =
           amount *
           (c.element == element ? 1.0 : 0.25) *
-          modifiers.manaSpeedMult;
+          _effectiveManaSpeedMult;
       c.mana = (c.mana + gain).clamp(0.0, c.baseManaCost.toDouble());
     }
   }
@@ -865,8 +922,9 @@ class CombatEngine {
   bool castSkill(int index) {
     if (finished || index < 0 || index >= cards.length) return false;
     final c = cards[index];
-    if (c.mana < c.baseManaCost) return false;
-    c.mana = 0;
+    final cost = _effectiveManaCost(c);
+    if (c.mana < cost) return false;
+    c.mana = (c.mana - cost).clamp(0.0, double.infinity);
     texts.add(
       FloatingText(
         id: _nextId('txt'),
@@ -876,7 +934,7 @@ class CombatEngine {
         kind: FloatingTextKind.skill,
       ),
     );
-    final atk = c.attack;
+    final atk = _effectiveAttack(c);
     final vuln = vulnerableRemaining > 0 ? 1.3 : 1.0;
     void aoeSkillDamage(double mult) => _skillDamageAll(atk * mult * vuln);
     void singleSkillDamage(double mult) =>
@@ -946,9 +1004,61 @@ class CombatEngine {
         aoeSkillDamage(3.2);
         applyAura(Element.empty);
     }
+    // Runa de Vampirismo Abisal: curar al jugador al activar la habilidad.
+    final rune = cardRunes[c.id];
+    if (rune != null && rune.type == RuneType.voidLeech) {
+      final heal = playerMaxHp * RuneSystem.healOnSkill(rune.type, rune.level);
+      playerHp = math.min(playerMaxHp, playerHp + heal);
+    }
+    // Runa de Eco Gemelo: probabilidad de disparar la habilidad dos veces sin costo.
+    if (rune != null && rune.type == RuneType.twinEcho) {
+      final chance = RuneSystem.doubleCastChance(rune.type, rune.level);
+      if (random.nextDouble() < chance) {
+        // Doble disparo: repetir el mismo skill sin consumir maná adicional.
+        // Se re-ejecuta la lógica de daño del switch sobre la misma carta.
+        _applySkillDamage(c, atk, vuln);
+      }
+    }
     trauma = (trauma + 0.5).clamp(0.0, 1.0);
     hitStopRemaining = 0.045;
     return true;
+  }
+
+  /// Re-aplica el daño de la habilidad de [c] para el Eco Gemelo (segundo disparo sin costo).
+  void _applySkillDamage(ManaCard c, double atk, double vuln) {
+    void aoeSkillDamage(double mult) => _skillDamageAll(atk * mult * vuln);
+    void singleSkillDamage(double mult) =>
+        _skillDamageSingle(atk * mult * vuln);
+    switch (c.id) {
+      case 'ignis_hound':
+        for (var i = 0; i < 3; i++) {
+          bossHp -= atk * 1.1 * vuln;
+        }
+        applyAura(Element.igneous);
+      case 'ignis_lord':
+        aoeSkillDamage(3.5);
+        applyAura(Element.igneous);
+      case 'abyss_stalker':
+        singleSkillDamage(2.4);
+        applyAura(Element.abyssal);
+      case 'abyss_leviathan':
+        aoeSkillDamage(2.8);
+        applyAura(Element.abyssal);
+      case 'terra_golem':
+        aoeSkillDamage(1.5);
+        applyAura(Element.telluric);
+      case 'terra_titan':
+        aoeSkillDamage(2.6);
+        applyAura(Element.telluric);
+      case 'void_specter':
+        playerHp = math.min(playerMaxHp, playerHp + atk * 1.8);
+        applyAura(Element.empty);
+      case 'void_malakor':
+        aoeSkillDamage(3.2);
+        applyAura(Element.empty);
+      default:
+        break;
+    }
   }
 
   void _skillDamageAll(double dmg) {

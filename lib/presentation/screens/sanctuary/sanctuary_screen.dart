@@ -2,9 +2,13 @@ import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
+import '../../../domain/meta/squad_synergy_resolver.dart';
+import '../../../domain/combat/combat_models.dart';
 import '../../controllers/meta_controller.dart';
+import '../meta/how_to_play_modal.dart';
 import '../meta/widgets.dart';
 import '../rift/rift_map_screen.dart';
+import '../endless/endless_abyss_screen.dart';
 import '../rift/rift_run_notifier.dart';
 import 'bounties_modal.dart';
 import 'codex_modal.dart';
@@ -20,6 +24,7 @@ class SanctuaryScreen extends ConsumerStatefulWidget {
 
 class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
   int _difficulty = 1;
+  int _highestEndlessWave = 0;
 
   @override
   void initState() {
@@ -28,6 +33,10 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
       await ref.read(profileProvider.notifier).load();
       await ref.read(collectionProvider.notifier).load();
       await ref.read(bountyProvider.notifier).load();
+      final wave = await ref
+          .read(playerRepositoryProvider)
+          .loadHighestEndlessWave();
+      if (mounted) setState(() => _highestEndlessWave = wave);
     });
   }
 
@@ -45,6 +54,19 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
         if (collection.owned.any((c) => c.instanceId == id))
           collection.owned.firstWhere((c) => c.instanceId == id),
     ];
+    final manaCards = squad
+        .map(
+          (c) => ManaCard(
+            id: c.catalogId,
+            name: c.name,
+            element: c.element,
+            baseManaCost: c.baseManaCost,
+            attack: c.baseAttack.toDouble(),
+            stars: c.stars,
+          ),
+        )
+        .toList();
+    final synergy = SquadSynergyResolver.resolve(manaCards);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0608),
@@ -95,6 +117,17 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
             tooltip: 'Juramentos de Azufre',
           ),
           SizedBox(width: 220, child: const CurrencyBar()),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Color(0xFFB16EFF)),
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: const Color(0xFF14090D),
+              builder: (_) => const HowToPlayModal(),
+            ),
+            tooltip: 'Cómo jugar',
+          ),
         ],
       ),
       body: ListView(
@@ -127,6 +160,51 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
                 ),
             ],
           ),
+          const SizedBox(height: 12),
+          // Banner de sinergia activa.
+          if (synergy.isActive)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A0E14),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFB16EFF), width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.auto_awesome,
+                    color: Color(0xFFB16EFF),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          synergy.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          synergy.description,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 10,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 18),
           const Text(
             'Dificultad de la Grieta',
@@ -174,6 +252,73 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
                           .grant(gold: run.gold, shards: run.shards);
                     }
                   });
+            },
+          ),
+          const SizedBox(height: 14),
+          // Insignia del récord del Abismo Sin Fin.
+          if (_highestEndlessWave > 0)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A0E14),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFC93C), width: 1.5),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.emoji_events,
+                    color: Color(0xFFFFC93C),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Abismo Sin Fin — Récord',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          'Oleada máxima alcanzada: $_highestEndlessWave',
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF802020),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            icon: const Icon(Icons.rocket_launch),
+            label: const Text(
+              'ABISMO SIN FIN (ENDLESS)',
+              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2),
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const EndlessAbyssScreen(),
+                ),
+              );
             },
           ),
           const SizedBox(height: 14),
