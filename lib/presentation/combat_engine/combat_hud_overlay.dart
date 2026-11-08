@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' hide Element;
@@ -6,33 +7,46 @@ import 'package:flutter/material.dart' hide Element;
 import '../../domain/combat/combat_engine.dart';
 import '../../domain/combat/combat_models.dart';
 import '../../domain/value_objects/element.dart';
+import 'card_procedural_artwork.dart';
 
-/// Overlay HUD on top of the 2.5D combat: player/boss health, the 4 active
-/// TCG cards with star frames and animated mana bars, and the invocation
-/// banner shown when a skill is cast. Cards fire their skill on tap.
+/// Overlay HUD on top of the 2.5D combat: structured header with boss name,
+/// HP bar with elemental aura, 4 TCG cards with CreaturePortrait artwork,
+/// metallic star borders and animated mana bars.
 class CombatHudOverlay extends StatefulWidget {
   final CombatEngine engine;
   final VoidCallback? onVictory;
   final VoidCallback? onDefeat;
+  final VoidCallback? onHelpPressed;
+  final VoidCallback? onSettingsPressed;
+  final String? bossDialog;
 
   const CombatHudOverlay({
     super.key,
     required this.engine,
     this.onVictory,
     this.onDefeat,
+    this.onHelpPressed,
+    this.onSettingsPressed,
+    this.bossDialog,
   });
 
   @override
   State<CombatHudOverlay> createState() => _CombatHudOverlayState();
 }
 
-class _CombatHudOverlayState extends State<CombatHudOverlay> {
+class _CombatHudOverlayState extends State<CombatHudOverlay>
+    with SingleTickerProviderStateMixin {
   Timer? _ticker;
   String? _banner;
+  late final AnimationController _pulseCtrl;
 
   @override
   void initState() {
     super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
     _ticker = Timer.periodic(const Duration(milliseconds: 80), (_) {
       if (widget.engine.finished) {
         widget.engine.victory
@@ -47,21 +61,30 @@ class _CombatHudOverlayState extends State<CombatHudOverlay> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _pulseCtrl.dispose();
     super.dispose();
   }
 
-  Color borderColor(int stars) => switch (stars) {
-        1 => const Color(0xFF9AA4A8),
-        2 => const Color(0xFF4FC3F7),
-        3 => const Color(0xFFB16EFF),
-        _ => const Color(0xFFFFC93C),
+  /// Border color by star tier: 1★ bronze, 2★ silver, 3★ gold, 4★ crimson-gold.
+  Color _starBorderColor(int stars) => switch (stars) {
+        1 => const Color(0xFF8B6914),
+        2 => const Color(0xFFC0C0C0),
+        3 => const Color(0xFFFFD700),
+        _ => const Color(0xFFFF6B35),
       };
 
-  Color elementColor(Element e) => switch (e) {
+  Color _elementColor(Element e) => switch (e) {
         Element.igneous => const Color(0xFFFF5A26),
         Element.abyssal => const Color(0xFF3FD8FF),
         Element.telluric => const Color(0xFFB0703B),
         Element.empty => const Color(0xFFB16EFF),
+      };
+
+  String _elementLabel(Element e) => switch (e) {
+        Element.igneous => '🔥 Íg.',
+        Element.abyssal => '❄ Ab.',
+        Element.telluric => '⛰ Tel.',
+        Element.empty => '✨ Vac.',
       };
 
   @override
@@ -72,50 +95,133 @@ class _CombatHudOverlayState extends State<CombatHudOverlay> {
     final hpLossFrac = ((e.playerHp + e.shield) - e.playerMaxHp) < 0
         ? 1.0 - hpFrac - shieldFrac
         : 0.0;
+    final bossHpFrac = (e.bossHp / e.boss.maxHp).clamp(0.0, 1.0);
+    final bossElemColor = _elementColor(e.boss.element);
 
     return Stack(
       children: [
-        // Boss bar
+        // ── STRUCTURED HEADER ──────────────────────────────────────────
         Positioned(
-          top: 6,
-          left: 16,
-          right: 16,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                e.boss.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Stack(
-                  children: [
-                    Container(
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A1116),
-                        border: Border.all(color: Colors.white24),
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.55),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Row 1: back | boss name | help + settings
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Back button placeholder (pop handled by parent)
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => Navigator.of(context).maybePop(),
+                          child: const Padding(
+                            padding: EdgeInsets.all(6),
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Color(0xFFB16EFF),
+                              size: 20,
+                            ),
+                          ),
+                        ),
                       ),
+                      // Boss name (center)
+                      Expanded(
+                        child: Text(
+                          e.boss.name,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFFFC93C),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                            shadows: [
+                              Shadow(
+                                color: Color(0xFFFF5A26),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Help + Settings
+                      _HudIconBtn(
+                        icon: Icons.help_outline,
+                        tooltip: 'Cómo jugar',
+                        color: const Color(0xFFB16EFF),
+                        onPressed: widget.onHelpPressed ?? () {},
+                      ),
+                      _HudIconBtn(
+                        icon: Icons.settings,
+                        tooltip: 'Ajustes',
+                        color: const Color(0xFFB16EFF),
+                        onPressed: widget.onSettingsPressed ?? () {},
+                      ),
+                    ],
+                  ),
+                  // Row 2: Boss HP bar 20px with text + elemental aura
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
                     ),
-                    FractionallySizedBox(
-                      widthFactor: (e.bossHp / e.boss.maxHp).clamp(0.0, 1.0),
+                    child: _BossHpBar(
+                      bossHpFrac: bossHpFrac,
+                      currentHp: e.bossHp,
+                      maxHp: e.boss.maxHp,
+                      elementColor: bossElemColor,
+                      elementLabel: _elementLabel(e.boss.element),
+                    ),
+                  ),
+                  // Fila 3: Banner compacto de diálogo del jefe
+                  if (widget.bossDialog != null &&
+                      widget.bossDialog!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 2, 8, 4),
                       child: Container(
-                        height: 14,
-                        color: Colors.redAccent,
-                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color:
+                                const Color(0xFFFFC93C).withValues(alpha: 0.8),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          widget.bossDialog!,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFFFE082),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
+
         // Player HP + shield bar
         Positioned(
           bottom: 148,
@@ -154,6 +260,7 @@ class _CombatHudOverlayState extends State<CombatHudOverlay> {
             ),
           ),
         ),
+
         // Squad cards
         Positioned(
           bottom: 218,
@@ -170,8 +277,9 @@ class _CombatHudOverlayState extends State<CombatHudOverlay> {
                       children: [
                         _CardTile(
                           card: e.cards[i],
-                          readyCardColor: elementColor(e.cards[i].element),
-                          borderColor: borderColor(e.cards[i].stars),
+                          elementColor: _elementColor(e.cards[i].element),
+                          starBorderColor: _starBorderColor(e.cards[i].stars),
+                          pulseValue: _pulseCtrl.value,
                         ),
                         if (i == 0)
                           Positioned(
@@ -204,6 +312,7 @@ class _CombatHudOverlayState extends State<CombatHudOverlay> {
             ],
           ),
         ),
+
         // Invocation banner
         if (_banner != null)
           Positioned(
@@ -250,98 +359,267 @@ class _CombatHudOverlayState extends State<CombatHudOverlay> {
   }
 }
 
-class _CardTile extends StatelessWidget {
-  final ManaCard card;
-  final Color readyCardColor;
-  final Color borderColor;
+// ── Boss HP Bar widget ────────────────────────────────────────────────────────
 
-  const _CardTile({
-    required this.card,
-    required this.readyCardColor,
-    required this.borderColor,
+class _BossHpBar extends StatelessWidget {
+  final double bossHpFrac;
+  final double currentHp;
+  final double maxHp;
+  final Color elementColor;
+  final String elementLabel;
+
+  const _BossHpBar({
+    required this.bossHpFrac,
+    required this.currentHp,
+    required this.maxHp,
+    required this.elementColor,
+    required this.elementLabel,
   });
 
   @override
   Widget build(BuildContext context) {
-    final frac = (card.mana / card.baseManaCost).clamp(0.0, 1.0);
-    final ready = card.isReady;
-    return AspectRatio(
-      aspectRatio: 0.72,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: ready ? 1.0 : 0.75,
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A0E14).withValues(alpha: 0.92),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: ready ? readyCardColor : borderColor,
-              width: ready ? 2.5 : 1.4,
+    return Container(
+      height: 20,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: const Color(0xFF3A1A20),
+          width: 1.5,
+        ),
+        color: const Color(0xFF2A0D10),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Stack(
+          children: [
+            // Crimson gradient fill
+            FractionallySizedBox(
+              widthFactor: bossHpFrac,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF8B0000), Color(0xFFDC143C)],
+                  ),
+                ),
+              ),
             ),
-            boxShadow: ready
-                ? [
-                    BoxShadow(
-                      color: readyCardColor.withValues(alpha: 0.6),
-                      blurRadius: 12,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(4),
+            // HP text + elemental aura label centred over bar
+            Center(
+              child: Directionality(
+                textDirection: ui.TextDirection.ltr,
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    for (var s = 0; s < card.stars; s++)
-                      const Icon(
-                        Icons.star,
-                        size: 10,
-                        color: Color(0xFFFFC93C),
-                      ),
-                    const Spacer(),
                     Text(
-                      '${card.mana.round()}/${card.baseManaCost}',
+                      'HP ${currentHp.round()} / ${maxHp.round()}',
                       style: const TextStyle(
-                        color: Colors.white54,
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      elementLabel,
+                      style: TextStyle(
+                        color: elementColor,
                         fontSize: 9,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Minimal icon button ───────────────────────────────────────────────────────
+
+class _HudIconBtn extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _HudIconBtn({
+    required this.icon,
+    required this.tooltip,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Icon(icon, color: color, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Card tile with CreaturePortrait ──────────────────────────────────────────
+
+class _CardTile extends StatelessWidget {
+  final ManaCard card;
+  final Color elementColor;
+  final Color starBorderColor;
+  final double pulseValue;
+
+  const _CardTile({
+    required this.card,
+    required this.elementColor,
+    required this.starBorderColor,
+    required this.pulseValue,
+  });
+
+  String _starStr() => '★' * card.stars.clamp(1, 4);
+
+  Color _glowBorderColor() {
+    if (!card.isReady) return starBorderColor;
+    return const Color(0xFFFFD700);
+  }
+
+  double _borderWidth() => card.isReady ? 2.5 : 1.4;
+
+  List<BoxShadow>? _boxShadow() {
+    if (!card.isReady) return null;
+    final glow = 0.5 + 0.5 * pulseValue;
+    return [
+      BoxShadow(
+        color: const Color(0xFFFFD700).withValues(alpha: glow * 0.7),
+        blurRadius: 14,
+        spreadRadius: 2,
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final frac = (card.mana / card.baseManaCost).clamp(0.0, 1.0);
+    return AspectRatio(
+      aspectRatio: 0.72,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: card.isReady ? 1.0 : 0.80,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A0E14).withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _glowBorderColor(),
+              width: _borderWidth(),
+            ),
+            boxShadow: _boxShadow(),
+          ),
+          child: Column(
+            children: [
+              // Stars + ATK row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 3, 4, 0),
+                child: Row(
+                  children: [
+                    Text(
+                      _starStr(),
+                      style: TextStyle(
+                        color: starBorderColor,
+                        fontSize: 8,
+                        height: 1,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'ATK${card.attack.toInt()}',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Creature portrait (procedural art)
               Expanded(
-                child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: CustomPaint(
                       size: const Size(double.infinity, double.infinity),
-                      painter: _CardArtPainter(readyCardColor, levelFrac: frac),
+                      painter: _CreaturePortraitPainter(
+                        cardId: card.id,
+                        stars: card.stars,
+                        manaFrac: frac,
+                      ),
                     ),
                   ),
                 ),
               ),
+              // Card name
               Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 3),
                 child: Text(
                   card.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 9,
+                    fontSize: 8,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              // Mana bar
+              // INVOCAR! label
+              if (card.isReady)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 1),
+                  child: Text(
+                    '¡INVOCAR!',
+                    style: TextStyle(
+                      color: Color(0xFFFFD700),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              // Gradient mana bar
               Directionality(
                 textDirection: ui.TextDirection.ltr,
-                child: LinearProgressIndicator(
-                  value: frac,
-                  minHeight: 5,
-                  backgroundColor: Colors.white12,
-                  valueColor: AlwaysStoppedAnimation(readyCardColor),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(9),
+                    bottomRight: Radius.circular(9),
+                  ),
+                  child: SizedBox(
+                    height: 5,
+                    child: LinearProgressIndicator(
+                      value: frac,
+                      backgroundColor: Colors.white12,
+                      valueColor: AlwaysStoppedAnimation(
+                        card.isReady ? const Color(0xFFFFD700) : elementColor,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -352,27 +630,33 @@ class _CardTile extends StatelessWidget {
   }
 }
 
-class _CardArtPainter extends CustomPainter {
-  final Color color;
-  final double levelFrac;
-  _CardArtPainter(this.color, {required this.levelFrac});
+// ── CreaturePortrait CustomPainter ───────────────────────────────────────────
+
+/// Wraps [CreatureProceduralArt.drawPortrait] in a [CustomPainter] so it can
+/// be embedded inside the card tile's [CustomPaint] widget.
+class _CreaturePortraitPainter extends CustomPainter {
+  final String cardId;
+  final int stars;
+  final double manaFrac;
+
+  const _CreaturePortraitPainter({
+    required this.cardId,
+    required this.stars,
+    required this.manaFrac,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final r = size.width * 0.28;
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height * 0.5),
-      r,
-      Paint()..color = color.withValues(alpha: 0.85),
-    );
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height * 0.5),
-      r * (0.35 + 0.42 * levelFrac),
-      Paint()..color = Colors.white.withValues(alpha: 0.5),
+    CreatureProceduralArt.drawPortrait(
+      canvas,
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      cardId,
+      stars: stars,
+      time: manaFrac * math.pi * 2,
     );
   }
 
   @override
-  bool shouldRepaint(covariant _CardArtPainter old) =>
-      old.levelFrac != levelFrac || old.color != color;
+  bool shouldRepaint(_CreaturePortraitPainter old) =>
+      old.cardId != cardId || old.stars != stars || old.manaFrac != manaFrac;
 }

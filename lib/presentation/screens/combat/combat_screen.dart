@@ -406,6 +406,17 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                 engine: engine,
                 onVictory: () => _resolve(true),
                 onDefeat: () => _resolve(false),
+                bossDialog: _bossDialog,
+                onHelpPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: const Color(0xFF14090D),
+                  builder: (_) => const HowToPlayModal(),
+                ),
+                onSettingsPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => const SettingsModal(),
+                ),
               ),
             ),
             // Viñeta de peligro + racha crítica.
@@ -445,37 +456,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                   ),
                 ),
               ),
-            // Boss dialogue banner (threat at start / fury on enrage).
-            if (_bossDialog != null)
-              Positioned(
-                top: 100,
-                left: 0,
-                right: 0,
-                child: IgnorePointer(
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFFFC93C)),
-                      ),
-                      child: Text(
-                        _bossDialog!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+
             if (widget.showTrainingTools || engine.trainingMode)
               Positioned(
                 top: 52,
@@ -491,38 +472,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                   onRestart: _restartTraining,
                 ),
               ),
-            Positioned(
-              top: 10,
-              left: 10,
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.help_outline,
-                      color: Color(0xFFB16EFF),
-                    ),
-                    onPressed: () => showModalBottomSheet<void>(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: const Color(0xFF14090D),
-                      builder: (_) => const HowToPlayModal(),
-                    ),
-                    tooltip: 'Cómo jugar',
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.settings,
-                      color: Color(0xFFB16EFF),
-                    ),
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      builder: (_) => const SettingsModal(),
-                    ),
-                    tooltip: 'Ajustes',
-                  ),
-                ],
-              ),
-            ),
+
             if (widget.mutators.isNotEmpty)
               Positioned(
                 bottom: 4,
