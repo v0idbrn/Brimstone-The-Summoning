@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +10,7 @@ import '../../../domain/combat/combat_engine.dart';
 import '../../../domain/combat/combat_math.dart';
 import '../../../domain/combat/combat_models.dart';
 import '../../../domain/meta/rune_system.dart';
+import '../../../domain/meta/seal_challenge_rules.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../../domain/value_objects/orb_level.dart';
@@ -14,6 +18,7 @@ import '../../controllers/meta_controller.dart';
 import '../../combat_engine/brimstone_combat_game.dart';
 import '../../combat_engine/combat_hud_overlay.dart';
 import '../meta/how_to_play_modal.dart';
+import '../sanctuary/settings_modal.dart';
 
 /// Full combat screen: Flame game + fullscreen gesture bridge + HUD overlay.
 ///
@@ -24,9 +29,21 @@ class CombatScreen extends ConsumerStatefulWidget {
   final CombatEngine? engine;
   final void Function(bool victory, double playerHp)? onCombatResolved;
 
-  const CombatScreen({super.key, this.engine, this.onCombatResolved});
+  /// Mutadores del Desafío del Sello (vacío en combate normal).
+  final List<SealMutator> mutators;
 
-  /// Builds the engine from the squad, relics and rift difficulty.
+  /// Muestra las herramientas de práctica (DPS en vivo, maná instantáneo).
+  final bool showTrainingTools;
+
+  const CombatScreen({
+    super.key,
+    this.engine,
+    this.onCombatResolved,
+    this.mutators = const [],
+    this.showTrainingTools = false,
+  });
+
+  /// Builds the engine from the squad, relics, talents and rift difficulty.
   static CombatEngine buildEngine({
     required BossConfig boss,
     required List<ManaCard> cards,
@@ -37,6 +54,10 @@ class CombatScreen extends ConsumerStatefulWidget {
     double playerDamageMult = 1.0,
     double? startHp,
     bool startManaFull = false,
+    Map<String, int> talentLevels = const {},
+    Map<String, int> summonerGear = const {},
+    List<SealMutator> mutators = const [],
+    bool trainingMode = false,
   }) =>
       CombatEngine(
         boss: boss,
@@ -48,6 +69,10 @@ class CombatScreen extends ConsumerStatefulWidget {
         playerDamageMult: playerDamageMult,
         startHp: startHp,
         startManaFull: startManaFull,
+        talentLevels: talentLevels,
+        summonerGear: summonerGear,
+        mutators: mutators,
+        trainingMode: trainingMode,
       );
 
   @override
@@ -63,6 +88,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   bool _resolved = false;
   String? _reactionBanner;
   String? _bossDialog;
+  int _session = 0;
 
   CombatEngine get engine => _engine!;
 
@@ -102,6 +128,15 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(CombatScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.engine, widget.engine)) {
+      _resolved = false;
+      _initEngine();
+    }
+  }
+
   Future<void> _initEngine() async {
     final base = widget.engine ?? defaultEngine();
     final cards = base.cards;
@@ -115,10 +150,14 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         try {
           final rune = await repo.loadCardRune(c.hashCode);
           if (rune != null) cardRunes[c.id] = rune;
-        } catch (_) {}
+        } catch (_) {
+          // Sin runas equipadas para esta carta.
+        }
       }
     }
     if (!mounted) return;
+    final mutators =
+        widget.mutators.isNotEmpty ? widget.mutators : base.mutators;
     _engine = CombatEngine(
       boss: base.boss,
       cards: cards,
@@ -127,8 +166,13 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       synergy: synergy.isActive ? synergy : null,
       cardRunes: cardRunes,
       playerDamageMult: base.playerDamageMult,
+      talentLevels: base.talents.levels,
+      summonerGear: base.gear.levels,
+      mutators: mutators,
+      trainingMode: base.trainingMode,
+      startManaFull: base.trainingMode,
     );
-    // Diálogo de amenaza del jefe al iniciar la batalla del Piso 7.
+    // Diálogo de amenaza del jefe al iniciar la batalla.
     final threat = _engine!.boss.threatDialog;
     if (threat.isNotEmpty) {
       setState(() => _bossDialog = threat);
@@ -155,6 +199,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     _engine!.onReaction = (name) {
       ProceduralSfxEngine.playElementalReaction();
       ref.read(bountyProvider.notifier).increment('reactions');
+      recordCodexReaction(ref, name);
       setState(() {
         _reactionBanner = name;
       });
@@ -174,7 +219,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       ProceduralSfxEngine.playBossEnrage();
       final fury = _engine!.boss.furyDialog;
       if (fury.isNotEmpty) {
-        setState(() => _bossDialog = '¡FURIA ABISSAL! $fury');
+        setState(() => _bossDialog = '¡FURIA ABISAL! $fury');
         Future.delayed(const Duration(seconds: 4), () {
           if (mounted) setState(() => _bossDialog = null);
         });
@@ -188,12 +233,29 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     setState(() {});
   }
 
-  void _resolve(bool victory) {
+  Future<void> _resolve(bool victory) async {
     if (_resolved) return;
     _resolved = true;
-    _showCombatSummary(victory).then((_) {
-      widget.onCombatResolved?.call(victory, engine.playerHp);
-    });
+
+    if (engine.trainingMode) {
+      await _showTrainingResult(victory);
+      return;
+    }
+
+    // Historial global de métricas (Módulo 5).
+    await ref.read(playerRepositoryProvider).recordCombatResult(
+          victory: victory,
+          damageTotal: engine.damageTotal,
+          maxHit: engine.maxHit.toInt(),
+          bullseyes: engine.bullseyes,
+          bestBullseyeStreak: engine.bestBullseyeStreak,
+          reactions: engine.reactions,
+          counterflicks: engine.counterflicks,
+          bossKilled: victory,
+        );
+    if (!mounted) return;
+    await _showCombatSummary(victory);
+    widget.onCombatResolved?.call(victory, engine.playerHp);
   }
 
   Future<void> _showCombatSummary(bool victory) => showDialog<void>(
@@ -207,8 +269,49 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
           reactions: engine.reactions,
           counterflicks: engine.counterflicks,
           mergesToThree: engine.mergesToThree,
+          bestStreak: engine.bestBullseyeStreak,
         ),
       );
+
+  Future<void> _showTrainingResult(bool victory) async {
+    final text = victory
+        ? '¡Gólem de Pruebas destruido! DPS final: '
+            '${engine.dps.toStringAsFixed(1)}'
+        : 'El Gólem de Pruebas te superó. DPS final: '
+            '${engine.dps.toStringAsFixed(1)}';
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF14090D),
+        title: const Text(
+          'ARENA DE ENTRENAMIENTO',
+          style: TextStyle(
+            color: Color(0xFF3FD8FF),
+            fontWeight: FontWeight.w900,
+            fontSize: 14,
+          ),
+        ),
+        content: Text(text, style: const TextStyle(color: Colors.white)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'SEGUIR PRACTICANDO',
+              style: TextStyle(color: Color(0xFFB16EFF)),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    _restartTraining();
+  }
+
+  void _restartTraining() {
+    _resolved = false;
+    setState(() => _session++);
+    _initEngine();
+  }
 
   (double, double) _toEngine(Offset p) => game.toEngineCoords(p.dx, p.dy);
 
@@ -277,6 +380,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         onPanEnd: _onPanEnd,
         onTapUp: _onTapUp,
         child: Stack(
+          key: ValueKey<int>(_session),
           children: [
             Positioned.fill(child: GameWidget(game: game)),
             // Particle bursts born at exact impact/merge (dx, dy) coordinates.
@@ -294,6 +398,12 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                 engine: engine,
                 onVictory: () => _resolve(true),
                 onDefeat: () => _resolve(false),
+              ),
+            ),
+            // Viñeta de peligro + racha crítica.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: _CombatDangerOverlay(engine: engine),
               ),
             ),
             // Reaction banner.
@@ -358,23 +468,230 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                   ),
                 ),
               ),
-            // Help button.
+            if (widget.showTrainingTools || engine.trainingMode)
+              Positioned(
+                top: 52,
+                left: 10,
+                right: 10,
+                child: _TrainingTools(
+                  engine: engine,
+                  onFillMana: () {
+                    engine.fillAllMana();
+                    ProceduralSfxEngine.playOrbSpawn();
+                    setState(() {});
+                  },
+                  onRestart: _restartTraining,
+                ),
+              ),
             Positioned(
               top: 10,
               left: 10,
-              child: IconButton(
-                icon: const Icon(Icons.help_outline, color: Color(0xFFB16EFF)),
-                onPressed: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: const Color(0xFF14090D),
-                  builder: (_) => const HowToPlayModal(),
-                ),
-                tooltip: 'Cómo jugar',
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.help_outline,
+                      color: Color(0xFFB16EFF),
+                    ),
+                    onPressed: () => showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: const Color(0xFF14090D),
+                      builder: (_) => const HowToPlayModal(),
+                    ),
+                    tooltip: 'Cómo jugar',
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.settings,
+                      color: Color(0xFFB16EFF),
+                    ),
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => const SettingsModal(),
+                    ),
+                    tooltip: 'Ajustes',
+                  ),
+                ],
               ),
             ),
+            if (widget.mutators.isNotEmpty)
+              Positioned(
+                bottom: 4,
+                right: 8,
+                child: Text(
+                  widget.mutators.map((m) => m.label).join(' · '),
+                  style: const TextStyle(
+                    color: Colors.white24,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Viñeta de peligro pulsante bajo el 25% de vida y banner de racha crítica.
+class _CombatDangerOverlay extends StatefulWidget {
+  final CombatEngine engine;
+
+  const _CombatDangerOverlay({required this.engine});
+
+  @override
+  State<_CombatDangerOverlay> createState() => _CombatDangerOverlayState();
+}
+
+class _CombatDangerOverlayState extends State<_CombatDangerOverlay> {
+  Timer? _ticker;
+  double _phase = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(milliseconds: 120), (_) {
+      if (!mounted) return;
+      // Sólo repintamos cuando hay algo que animar.
+      if (!widget.engine.isLowHp && widget.engine.bullseyeStreak < 3) return;
+      setState(() => _phase = (_phase + 0.12) % (math.pi * 2));
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final engine = widget.engine;
+    final low = engine.isLowHp;
+    final pulse = 0.45 + 0.35 * (math.sin(_phase) * 0.5 + 0.5);
+    final streak = engine.bullseyeStreak;
+    return Stack(
+      children: [
+        if (low)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.red.withValues(alpha: pulse),
+                  width: 10,
+                ),
+                gradient: RadialGradient(
+                  radius: 0.95,
+                  colors: [
+                    Colors.transparent,
+                    Colors.red.withValues(alpha: pulse * 0.35),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (streak >= 3)
+          Positioned(
+            top: 150,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFFC93C)),
+              ),
+              child: Text(
+                '¡RACHA CRÍTICA x$streak! +${((engine.bullseyeStreakBonus - 1) * 100).round()}%',
+                style: const TextStyle(
+                  color: Color(0xFFFFC93C),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Herramientas de la Arena de Entrenamiento: DPS en vivo, maná y reinicio.
+class _TrainingTools extends StatefulWidget {
+  final CombatEngine engine;
+  final VoidCallback onFillMana;
+  final VoidCallback onRestart;
+
+  const _TrainingTools({
+    required this.engine,
+    required this.onFillMana,
+    required this.onRestart,
+  });
+
+  @override
+  State<_TrainingTools> createState() => _TrainingToolsState();
+}
+
+class _TrainingToolsState extends State<_TrainingTools> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dps = widget.engine.dps;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF3FD8FF)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.speed, color: Color(0xFF3FD8FF), size: 16),
+          const SizedBox(width: 6),
+          Text(
+            'DPS ${dps.toStringAsFixed(1)}',
+            style: const TextStyle(
+              color: Color(0xFF3FD8FF),
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+            ),
+          ),
+          const Spacer(),
+          TextButton.icon(
+            onPressed: widget.onFillMana,
+            icon: const Icon(Icons.bolt, size: 14, color: Color(0xFFB16EFF)),
+            label: const Text(
+              'MANÁ',
+              style: TextStyle(color: Color(0xFFB16EFF), fontSize: 10),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: widget.onRestart,
+            icon: const Icon(Icons.refresh, size: 14, color: Colors.white54),
+            label: const Text(
+              'REINICIAR',
+              style: TextStyle(color: Colors.white54, fontSize: 10),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -470,6 +787,7 @@ class CombatSummaryDialog extends StatelessWidget {
   final int reactions;
   final int counterflicks;
   final int mergesToThree;
+  final int bestStreak;
 
   const CombatSummaryDialog({
     super.key,
@@ -480,6 +798,7 @@ class CombatSummaryDialog extends StatelessWidget {
     required this.reactions,
     required this.counterflicks,
     required this.mergesToThree,
+    this.bestStreak = 0,
   });
 
   @override
@@ -502,9 +821,12 @@ class CombatSummaryDialog extends StatelessWidget {
           _SummaryRow(label: 'Daño total', value: '$damageTotal'),
           _SummaryRow(label: 'Golpe máximo', value: '${maxHit.toInt()}'),
           _SummaryRow(label: 'Bullseyes conectados', value: '$bullseyes'),
+          _SummaryRow(label: 'Mejor racha crítica', value: 'x$bestStreak'),
           _SummaryRow(label: 'Reacciones detonadas', value: '$reactions'),
           _SummaryRow(
-              label: 'Esferas Nv.3 fusionadas', value: '$mergesToThree'),
+            label: 'Esferas Nv.3 fusionadas',
+            value: '$mergesToThree',
+          ),
           _SummaryRow(label: 'Counter-flicks', value: '$counterflicks'),
           const SizedBox(height: 10),
           _SummaryRow(
@@ -548,8 +870,10 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
           Text(
             value,
             style: TextStyle(

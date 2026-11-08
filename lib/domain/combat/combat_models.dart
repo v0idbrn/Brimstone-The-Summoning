@@ -73,10 +73,16 @@ class CombatOrb {
   final String id;
   final Element element;
   final OrbLevel level;
+
+  /// Esfera Prismática (reliquia Prisma del Caos): fusiona con cualquier
+  /// elemento del mismo nivel y detona cualquier aura activa.
+  final bool prismatic;
+
   const CombatOrb({
     required this.id,
     required this.element,
     required this.level,
+    this.prismatic = false,
   });
 }
 
@@ -241,6 +247,19 @@ class BossConfig {
     projectilesPerAttack: 2,
     threatDialog: 'El Bastión Tectónico no se rinde ante mortales.',
     furyDialog: '¡PETRIFICACIÓN TOTAL! Las dianas se encogen.',
+  );
+
+  /// Gólem de Pruebas Abisal: maniquí de la Arena de Entrenamiento.
+  static const BossConfig trainingGolem = BossConfig(
+    id: 'training_golem',
+    name: 'Gólem de Pruebas Abisal',
+    element: Element.telluric,
+    maxHp: 50000,
+    attackInterval: 12.0,
+    attackDamage: 4,
+    projectilesPerAttack: 1,
+    threatDialog: 'Mide tu poder, invocador. Yo no me cansaré.',
+    furyDialog: 'El Gólem recalibra su coraza. Sigue golpeando.',
   );
   static const BossConfig nyxara = BossConfig(
     id: 'nyxara',

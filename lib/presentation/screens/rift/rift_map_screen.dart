@@ -3,13 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/combat/combat_engine.dart';
 import '../../../domain/combat/combat_models.dart';
+import '../../../domain/meta/summoner_gear.dart';
 import '../../../domain/roguelite/rift_run.dart';
-import '../../../domain/services/rift_map_generator.dart';
+import '../../../domain/roguelite/abyssal_events.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
 import '../combat/combat_screen.dart';
 import 'relic_draft_modal.dart';
 import 'rift_run_notifier.dart';
+import 'abyssal_event_modal.dart';
 
 /// Vertical interactable rift map: DAG paths, persistent HP bar and the top
 /// bar with the active relic icons for this run.
@@ -244,6 +246,7 @@ class _RiftMapPainter extends CustomPainter {
         RiftNodeType.combat => const Color(0xFFB0703B),
         RiftNodeType.elite => const Color(0xFFFF5A26),
         RiftNodeType.altar => const Color(0xFF3FD8FF),
+        RiftNodeType.event => const Color(0xFFFFC93C),
         RiftNodeType.boss => const Color(0xFFB16EFF),
       };
     }
@@ -299,6 +302,7 @@ class _RiftMapPainter extends CustomPainter {
         RiftNodeType.combat => 'C',
         RiftNodeType.elite => 'E',
         RiftNodeType.altar => 'A',
+        RiftNodeType.event => '?',
         RiftNodeType.boss => 'J',
       };
       final painter = TextPainter(
@@ -323,10 +327,40 @@ class _RiftMapPainter extends CustomPainter {
       oldDelegate.run != run;
 }
 
-/// Routes a tapped node to its flow: combat → relic draft, altar → blood altar.
+/// Routes a tapped node to its flow: combat → relic draft, altar → blood altar, event → abyssal event modal.
 class RiftMapFlow {
-  /// Fires the node: combat screen or altar modal; then continues the run.
+  /// Fires the node: combat screen, event modal or blood altar; then continues
+  /// the run.
   static void enter(BuildContext context, RiftRunNode node) {
+    if (node.type == RiftNodeType.event) {
+      final container = ProviderScope.containerOf(context);
+      final run = container.read(riftRunProvider);
+      if (run == null) return;
+      container.read(riftRunProvider.notifier).enterNode(node.id);
+      final event = AbyssalEvents.byId(
+        node.eventId ?? AbyssalEvents.all.first.id,
+      );
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: const Color(0xFF14090D),
+        builder: (sheetContext) => AbyssalEventModal(
+          event: event,
+          onOptionChosen: (option) {
+            final controller = container.read(riftRunProvider.notifier);
+            controller.applyEventOption(option);
+            Navigator.of(sheetContext).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${event.title}: ${option.effectSummary}'),
+                backgroundColor: const Color(0xFFB16EFF),
+              ),
+            );
+          },
+        ),
+      );
+      return;
+    }
     if (node.type == RiftNodeType.altar) {
       final container = ProviderScope.containerOf(context);
       final run = container.read(riftRunProvider);
@@ -369,20 +403,38 @@ class RiftMapFlow {
     final run = container.read(riftRunProvider);
     if (run == null) return;
     container.read(riftRunProvider.notifier).enterNode(node.id);
+    _enterCombat(context, container, run, node);
+  }
+
+  static Future<void> _enterCombat(
+    BuildContext context,
+    ProviderContainer container,
+    RiftRun run,
+    RiftRunNode node,
+  ) async {
+    final repo = container.read(playerRepositoryProvider);
+    final talents = await repo.loadTalentLevels();
+    final gearLevels = await repo.loadGearLevels();
+    if (!context.mounted) return;
     final engine = _buildCombatEngine(
       run,
       node,
       container.read(collectionProvider),
+      talentLevels: talents,
+      gearLevels: gearLevels,
     );
+    final regen = GearLoadout(gearLevels).lifeRegenFraction;
     Navigator.of(context)
         .push(
           MaterialPageRoute<void>(
             builder: (_) => CombatScreen(
               engine: engine,
               onCombatResolved: (victory, playerHp) {
-                container
-                    .read(riftRunProvider.notifier)
-                    .resolveCombat(victory: victory, playerHp: playerHp);
+                container.read(riftRunProvider.notifier).resolveCombat(
+                      victory: victory,
+                      playerHp: playerHp,
+                      betweenFloorRegenFraction: regen,
+                    );
                 if (victory &&
                     node.type != RiftNodeType.boss &&
                     node.type != RiftNodeType.altar) {
@@ -423,18 +475,13 @@ class RiftMapFlow {
 CombatEngine _buildCombatEngine(
   RiftRun run,
   RiftRunNode node,
-  CollectionState collection,
-) {
-  final relics = CombatModifiers.fromRelics(run.relicIds);
-  final mods = CombatModifiers(
-    critRadiusMult: relics.critRadiusMult,
-    igneousLevel2Chance: relics.igneousLevel2Chance,
-    jumpToThreeChance: relics.jumpToThreeChance,
-    manaSpeedMult: relics.manaSpeedMult,
-    startManaFraction: relics.startManaFraction,
-    startHpLossFraction: relics.startHpLossFraction,
-    counterflickHealFraction: relics.counterflickHealFraction,
-    reactionMana: relics.reactionMana,
+  CollectionState collection, {
+  Map<String, int> talentLevels = const {},
+  Map<String, int> gearLevels = const {},
+}) {
+  // Conserva TODOS los flags de las 18 reliquias (prisma, aura, vampírico…).
+  final mods = CombatModifiers.fromRelics(run.relicIds).copyWith(
+    startManaFraction: run.startManaFraction > 0 ? run.startManaFraction : null,
   );
   final bossBase = RiftDifficulty.bossFor(run.difficulty);
   final scale = switch (node.type) {
@@ -459,6 +506,8 @@ CombatEngine _buildCombatEngine(
     cards: _squadCards(collection),
     playerMaxHp: run.playerMaxHp,
     modifiers: mods,
+    talentLevels: talentLevels,
+    summonerGear: gearLevels,
   );
 }
 

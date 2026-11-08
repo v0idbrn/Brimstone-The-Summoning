@@ -4,7 +4,7 @@ import 'package:brimstone_summoning/domain/services/damage_calculator.dart';
 import 'package:brimstone_summoning/domain/value_objects/orb_level.dart';
 import 'package:brimstone_summoning/domain/usecases/fuse_orbs.dart';
 import 'package:brimstone_summoning/domain/value_objects/element.dart';
-import 'package:brimstone_summoning/domain/services/rift_map_generator.dart';
+import 'package:brimstone_summoning/domain/roguelite/rift_run.dart';
 
 void main() {
   group('ElementalReactionEngine', () {
@@ -98,12 +98,38 @@ void main() {
     });
   });
 
-  group('RiftMapGenerator', () {
-    test('6 floors', () => expect(RiftMapGenerator.generate(6).length, 6));
-    test('8 floors', () => expect(RiftMapGenerator.generate(8).length, 8));
-    test(
-      'last is boss',
-      () => expect(RiftMapGenerator.generate(6).last.type, RiftNodeType.boss),
-    );
+  group('RiftGeneratorService', () {
+    test('genera el DAG de 7 pisos con nodos de encuentro', () {
+      final nodes = RiftGeneratorService().generate();
+      expect(nodes.map((n) => n.floor).toSet().length, 7);
+      expect(nodes.last.type, RiftNodeType.boss);
+      expect(
+        nodes.where((n) => n.type == RiftNodeType.event),
+        isNotEmpty,
+      );
+    });
+    test('cada nodo tiene al menos un sucesor salvo el jefe', () {
+      final nodes = RiftGeneratorService().generate();
+      for (final n in nodes.where((n) => n.type != RiftNodeType.boss)) {
+        expect(n.next, isNotEmpty, reason: 'nodo ${n.id} sin salida');
+      }
+    });
+    test('los nodos de evento referencian un evento real', () {
+      final nodes = RiftGeneratorService().generate();
+      final events = nodes.where((n) => n.type == RiftNodeType.event);
+      expect(events.every((n) => n.eventId != null), isTrue);
+    });
+    test('cada piso 2-5 ofrece exactamente un Encuentro del Abismo', () {
+      final nodes = RiftGeneratorService().generate();
+      for (final floor in [2, 3, 4, 5]) {
+        expect(
+          nodes
+              .where((n) => n.floor == floor && n.type == RiftNodeType.event)
+              .length,
+          1,
+          reason: 'piso $floor',
+        );
+      }
+    });
   });
 }

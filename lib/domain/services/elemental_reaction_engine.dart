@@ -57,4 +57,11 @@ class ReactionResult {
         damageMultiplier: 1.75,
         appliesVulnerability: true,
       );
+
+  /// Detonación forzada por una Esfera Prismática sobre cualquier aura.
+  factory ReactionResult.prismaticDetonation() => const ReactionResult(
+        name: 'Detonación Prismática',
+        damageMultiplier: 1.5,
+        isAoE: true,
+      );
 }

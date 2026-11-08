@@ -1,21 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/roguelite/abyssal_events.dart';
 import '../../../domain/roguelite/rift_run.dart';
-import '../../../domain/services/rift_map_generator.dart';
 
 /// Holds the active rift run (null = back at the sanctuary).
 class RiftRunController extends Notifier<RiftRun?> {
   @override
   RiftRun? build() => null;
 
-  void startRun(int difficulty) {
+  void startRun(int difficulty, {double playerMaxHp = 100}) {
     final nodes = RiftGeneratorService().generate();
     state = RiftRun(
       difficulty: difficulty,
       nodes: nodes,
       currentNodeId: nodes.first.id,
-      playerHp: 100,
-      playerMaxHp: 100,
+      playerHp: playerMaxHp,
+      playerMaxHp: playerMaxHp,
       relicIds: const [],
       gold: 0,
       shards: 0,
@@ -36,7 +36,11 @@ class RiftRunController extends Notifier<RiftRun?> {
 
   /// Resolves the currently fought node. Persistent HP is carried forward and
   /// the node is marked cleared so the map unlocks its successors.
-  void resolveCombat({required bool victory, required double playerHp}) {
+  void resolveCombat({
+    required bool victory,
+    required double playerHp,
+    double betweenFloorRegenFraction = 0.0,
+  }) {
     final run = state;
     if (run == null) return;
     final node = run.currentNode;
@@ -57,8 +61,13 @@ class RiftRunController extends Notifier<RiftRun?> {
       isElite,
     ).round();
     final shards = RiftDifficulty.combatRewardShards(run.difficulty, isElite);
+    final healed = betweenFloorRegenFraction > 0
+        ? (playerHp + run.playerMaxHp * betweenFloorRegenFraction)
+            .clamp(0.0, run.playerMaxHp)
+            .toDouble()
+        : playerHp;
     state = run.copyWith(
-      playerHp: playerHp,
+      playerHp: healed,
       gold: run.gold + gold,
       shards: run.shards + shards,
       clearedNodeIds: cleared,
@@ -112,6 +121,34 @@ class RiftRunController extends Notifier<RiftRun?> {
     if (run == null) return;
     state = run.copyWith(startManaFraction: 0.50);
   }
+
+  /// Resuelve un Encuentro del Abismo aplicando de verdad su opción elegida
+  /// (vida, oro, esquirlas, maná inicial y reliquias) y marca el nodo como
+  /// superado.
+  void applyEventOption(AbyssalEventOption option) {
+    final run = state;
+    if (run == null) return;
+    final outcome = applyAbyssalOption(
+      option: option,
+      playerHp: run.playerHp,
+      playerMaxHp: run.playerMaxHp,
+      gold: run.gold,
+      shards: run.shards,
+      startManaFraction: run.startManaFraction,
+      relicIds: run.relicIds,
+    );
+    state = run.copyWith(
+      playerHp: outcome.playerHp,
+      gold: outcome.gold,
+      shards: outcome.shards,
+      startManaFraction: outcome.startManaFraction,
+      relicIds: outcome.relicIds,
+      clearedNodeIds: {...run.clearedNodeIds, run.currentNodeId},
+    );
+  }
+
+  /// Compatibilidad: aplica la opción y marca el nodo actual.
+  void applyEventEffect(AbyssalEventOption option) => applyEventOption(option);
 }
 
 final riftRunProvider = NotifierProvider<RiftRunController, RiftRun?>(

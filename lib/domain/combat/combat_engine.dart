@@ -4,6 +4,9 @@ import '../services/elemental_reaction_engine.dart';
 import '../meta/squad_synergy_resolver.dart';
 import '../meta/rune_system.dart';
 import '../meta/leader_skill.dart';
+import '../meta/talent_rules.dart';
+import '../meta/summoner_gear.dart';
+import '../meta/seal_challenge_rules.dart';
 import '../value_objects/element.dart';
 import '../value_objects/orb_level.dart';
 import 'combat_math.dart';
@@ -19,6 +22,35 @@ class CombatModifiers {
   final double startHpLossFraction;
   final double counterflickHealFraction;
   final double reactionMana;
+  // Prismatic Orb (Prisma del Caos): permite fusionar cualquier elemento y detonar cualquier aura.
+  final bool prismaticOrb;
+  // Reloj de Ceniza: +2s duración de aura
+  final double auraDurationBonus;
+  // Colmillo Vampírico: +2% curación en Bullseye
+  final double bullseyeHealFraction;
+  // Sello de Sobrecarga: 100% maná inicial en Líder
+  final bool leaderStartManaFull;
+  // Esencia del Abismo: +1 nivel base a esferas
+  final int baseOrbLevelBonus;
+  // Corazón de Fénix: revive una vez
+  final bool phoenixRevive;
+  // Grimorio Antiguo: -20% maná skills, +15% efecto
+  final double skillManaCostMult;
+  final double skillEffectMult;
+  // Túnica del Vacío: -15% daño, inmunidad proyectiles 3s
+  final double damageTakenMult;
+  final bool projectileImmunityStart;
+  // Martillo del Titán: fusiones siempre Nivel 2+
+  final int minMergeLevel;
+  final double threeMergeChance;
+  // Cadenas del Sello: jefes aturdidos 2s y ataques 25% más lentos
+  final double bossStartStun;
+  final double bossAttackIntervalMult;
+  // Llama Eterna: esferas Ígneas no se gastan 20%
+  final double igneousOrbSaveChance;
+  // Sombra Perdida: +1 esquirlas/enemigo, +25% crítico Abyssal
+  final double abyssalCritMult;
+  final double shardsPerEnemyBonus;
 
   const CombatModifiers({
     this.critRadiusMult = 1.0,
@@ -29,6 +61,23 @@ class CombatModifiers {
     this.startHpLossFraction = 0.0,
     this.counterflickHealFraction = 0.0,
     this.reactionMana = 0.0,
+    this.prismaticOrb = false,
+    this.auraDurationBonus = 0.0,
+    this.bullseyeHealFraction = 0.0,
+    this.leaderStartManaFull = false,
+    this.baseOrbLevelBonus = 0,
+    this.phoenixRevive = false,
+    this.skillManaCostMult = 1.0,
+    this.skillEffectMult = 1.0,
+    this.damageTakenMult = 1.0,
+    this.projectileImmunityStart = false,
+    this.minMergeLevel = 1,
+    this.threeMergeChance = 0.0,
+    this.bossStartStun = 0.0,
+    this.bossAttackIntervalMult = 1.0,
+    this.igneousOrbSaveChance = 0.0,
+    this.abyssalCritMult = 1.0,
+    this.shardsPerEnemyBonus = 0.0,
   });
 
   /// Builds modifiers from a set of active relic ids.
@@ -37,40 +86,48 @@ class CombatModifiers {
     for (final id in relicIds) {
       switch (id) {
         case 'ojo_abismo':
-          m = CombatModifiers(
-            critRadiusMult: 1.4,
-            igneousLevel2Chance: m.igneousLevel2Chance,
-            jumpToThreeChance: m.jumpToThreeChance,
-            manaSpeedMult: m.manaSpeedMult,
-            startManaFraction: m.startManaFraction,
-            startHpLossFraction: m.startHpLossFraction,
-            counterflickHealFraction: m.counterflickHealFraction,
-          );
+          m = m.copyWith(critRadiusMult: 1.4);
         case 'ceniza_volatil':
-          m = CombatModifiers(
-            critRadiusMult: m.critRadiusMult,
-            igneousLevel2Chance: 0.35,
-            jumpToThreeChance: m.jumpToThreeChance,
-            manaSpeedMult: m.manaSpeedMult,
-            startManaFraction: m.startManaFraction,
-            startHpLossFraction: m.startHpLossFraction,
-            counterflickHealFraction: m.counterflickHealFraction,
-          );
+          m = m.copyWith(igneousLevel2Chance: 0.35);
         case 'sello_resonancia':
-          m = _with(m, reactionMana: 20.0);
+          m = m.copyWith(reactionMana: 20.0);
         case 'pacto_sangre':
-          m = _with(m, manaSpeedMult: 1.5, startHpLossFraction: 0.08);
+          m = m.copyWith(manaSpeedMult: 1.5, startHpLossFraction: 0.08);
         case 'forja_perpetua':
-          m = _with(m, jumpToThreeChance: 0.25);
+          m = m.copyWith(jumpToThreeChance: 0.25);
         case 'coraza_obsidiana':
-          m = _with(m, counterflickHealFraction: 0.04);
+          m = m.copyWith(counterflickHealFraction: 0.04);
+        // New relics
+        case 'prisma_caos':
+          m = m.copyWith(prismaticOrb: true);
+        case 'reloj_ceniza':
+          m = m.copyWith(auraDurationBonus: 2.0);
+        case 'colmillo_vampirico':
+          m = m.copyWith(bullseyeHealFraction: 0.02);
+        case 'sello_sobrecarga':
+          m = m.copyWith(leaderStartManaFull: true);
+        case 'esencia_abismo':
+          m = m.copyWith(baseOrbLevelBonus: 1);
+        case 'corazon_phoenix':
+          m = m.copyWith(phoenixRevive: true);
+        case 'grimorio_antiguo':
+          m = m.copyWith(skillManaCostMult: 0.8, skillEffectMult: 1.15);
+        case 'tunica_vacio':
+          m = m.copyWith(damageTakenMult: 0.85, projectileImmunityStart: true);
+        case 'martillo_titan':
+          m = m.copyWith(minMergeLevel: 2, threeMergeChance: 0.5);
+        case 'cadenas_sello':
+          m = m.copyWith(bossStartStun: 2.0, bossAttackIntervalMult: 0.75);
+        case 'llama_eterna':
+          m = m.copyWith(igneousOrbSaveChance: 0.20);
+        case 'sombra_perdida':
+          m = m.copyWith(abyssalCritMult: 1.25, shardsPerEnemyBonus: 1.0);
       }
     }
     return m;
   }
 
-  static CombatModifiers _with(
-    CombatModifiers base, {
+  CombatModifiers copyWith({
     double? critRadiusMult,
     double? igneousLevel2Chance,
     double? jumpToThreeChance,
@@ -79,17 +136,53 @@ class CombatModifiers {
     double? startHpLossFraction,
     double? counterflickHealFraction,
     double? reactionMana,
+    bool? prismaticOrb,
+    double? auraDurationBonus,
+    double? bullseyeHealFraction,
+    bool? leaderStartManaFull,
+    int? baseOrbLevelBonus,
+    bool? phoenixRevive,
+    double? skillManaCostMult,
+    double? skillEffectMult,
+    double? damageTakenMult,
+    bool? projectileImmunityStart,
+    int? minMergeLevel,
+    double? threeMergeChance,
+    double? bossStartStun,
+    double? bossAttackIntervalMult,
+    double? igneousOrbSaveChance,
+    double? abyssalCritMult,
+    double? shardsPerEnemyBonus,
   }) =>
       CombatModifiers(
-        critRadiusMult: critRadiusMult ?? base.critRadiusMult,
-        igneousLevel2Chance: igneousLevel2Chance ?? base.igneousLevel2Chance,
-        jumpToThreeChance: jumpToThreeChance ?? base.jumpToThreeChance,
-        manaSpeedMult: manaSpeedMult ?? base.manaSpeedMult,
-        startManaFraction: startManaFraction ?? base.startManaFraction,
-        startHpLossFraction: startHpLossFraction ?? base.startHpLossFraction,
+        critRadiusMult: critRadiusMult ?? this.critRadiusMult,
+        igneousLevel2Chance: igneousLevel2Chance ?? this.igneousLevel2Chance,
+        jumpToThreeChance: jumpToThreeChance ?? this.jumpToThreeChance,
+        manaSpeedMult: manaSpeedMult ?? this.manaSpeedMult,
+        startManaFraction: startManaFraction ?? this.startManaFraction,
+        startHpLossFraction: startHpLossFraction ?? this.startHpLossFraction,
         counterflickHealFraction:
-            counterflickHealFraction ?? base.counterflickHealFraction,
-        reactionMana: reactionMana ?? base.reactionMana,
+            counterflickHealFraction ?? this.counterflickHealFraction,
+        reactionMana: reactionMana ?? this.reactionMana,
+        prismaticOrb: prismaticOrb ?? this.prismaticOrb,
+        auraDurationBonus: auraDurationBonus ?? this.auraDurationBonus,
+        bullseyeHealFraction: bullseyeHealFraction ?? this.bullseyeHealFraction,
+        leaderStartManaFull: leaderStartManaFull ?? this.leaderStartManaFull,
+        baseOrbLevelBonus: baseOrbLevelBonus ?? this.baseOrbLevelBonus,
+        phoenixRevive: phoenixRevive ?? this.phoenixRevive,
+        skillManaCostMult: skillManaCostMult ?? this.skillManaCostMult,
+        skillEffectMult: skillEffectMult ?? this.skillEffectMult,
+        damageTakenMult: damageTakenMult ?? this.damageTakenMult,
+        projectileImmunityStart:
+            projectileImmunityStart ?? this.projectileImmunityStart,
+        minMergeLevel: minMergeLevel ?? this.minMergeLevel,
+        threeMergeChance: threeMergeChance ?? this.threeMergeChance,
+        bossStartStun: bossStartStun ?? this.bossStartStun,
+        bossAttackIntervalMult:
+            bossAttackIntervalMult ?? this.bossAttackIntervalMult,
+        igneousOrbSaveChance: igneousOrbSaveChance ?? this.igneousOrbSaveChance,
+        abyssalCritMult: abyssalCritMult ?? this.abyssalCritMult,
+        shardsPerEnemyBonus: shardsPerEnemyBonus ?? this.shardsPerEnemyBonus,
       );
 }
 
@@ -184,6 +277,25 @@ class CombatEngine {
   double spawnTimer = 0;
   int _idCounter = 0;
 
+  // Módulos 2 & 5: Talentos permanentes y equipamiento del Invocador.
+  final TalentTree _talentTree;
+  final GearLoadout _gearLoadout;
+
+  /// Mutadores activos de un Desafío del Sello (vacío en combate normal).
+  final List<SealMutator> mutators;
+
+  /// Modo práctica de la Arena de Entrenamiento: maná y vida disponibles sin
+  /// coste, sin guardar progreso.
+  final bool trainingMode;
+
+  /// Racha de Bullseyes consecutivos (se corta al fallar o raspar).
+  int bullseyeStreak = 0;
+
+  /// Mejor racha alcanzada en este combate.
+  int bestBullseyeStreak = 0;
+
+  bool _phoenixUsed = false;
+
   // Combat metrics (populated during the fight, read by CombatSummaryDialog).
   int damageTotal = 0;
   double maxHit = 0;
@@ -192,12 +304,43 @@ class CombatEngine {
   int counterflicks = 0;
   int mergesToThree = 0;
 
+  // Talent damage reduction accessor (used at construction time).
+  // Returns the combined TalentStat-based bonuses as a multiplier string list.
+  /// Total damage multiplier from talents. Returned here for convenience.
+
+  // Talent damage multiplier accessor (M4 streak bonuses etc.)
+  double get talentOrbDamageMult => _talentTree.orbDamageMult;
+
+  /// Árbol de talentos aplicado a este combate.
+  TalentTree get talents => _talentTree;
+
+  /// Equipamiento del invocador aplicado a este combate.
+  GearLoadout get gear => _gearLoadout;
+
+  /// True si el mutador [m] está activo en esta prueba.
+  bool has(SealMutator m) => mutators.contains(m);
+
+  /// Bono de daño por racha crítica: +10% por Bullseye consecutivo a partir
+  /// del tercero, con tope de +100%.
+  double get bullseyeStreakBonus {
+    if (bullseyeStreak < 3) return 1.0;
+    final bonus = 0.10 * (bullseyeStreak - 2);
+    return 1.0 + (bonus > 1.0 ? 1.0 : bonus);
+  }
+
+  /// Daño por segundo acumulado (medidor de DPS de la arena).
+  double get dps => damageTotal / (time <= 0.25 ? 0.25 : time);
+
+  /// Vida restante como fracción (para la viñeta de peligro).
+  double get hpFraction => playerMaxHp <= 0 ? 0 : playerHp / playerMaxHp;
+
+  /// True cuando el jugador está por debajo del 25% de vida.
+  bool get isLowHp => hpFraction < 0.25;
+
   /// Optional external callbacks (wired by the Flame layer).
   void Function()? onVictory;
   void Function()? onDefeat;
   void Function()? onEnrage;
-
-  /// Impact callback with exact engine (x, y) coordinates, damage and element.
   void Function(HitKind kind, int damage, double x, double y, Element element)?
       onHit;
   void Function(String)? onReaction;
@@ -217,18 +360,28 @@ class CombatEngine {
     this.playerDamageMult = 1.0,
     this.startHp,
     this.startManaFull = false,
+    Map<String, int> talentLevels = const {},
+    Map<String, int> summonerGear = const {},
+    this.mutators = const [],
+    this.trainingMode = false,
   })  : modifiers = modifiers ?? const CombatModifiers(),
-        playerMaxHp = (playerMaxHp ?? 100) * (synergy?.hpMult ?? 1.0),
+        _talentTree = TalentTree(talentLevels),
+        _gearLoadout = GearLoadout(summonerGear),
+        playerMaxHp = (playerMaxHp ?? 100) *
+            (synergy?.hpMult ?? 1.0) *
+            TalentTree(talentLevels).maxHpMult,
         random = random ?? math.Random(),
         bossHp = boss.maxHp,
-        playerHp = startHp ?? (playerMaxHp ?? 100) * (synergy?.hpMult ?? 1.0),
-        bossAttackTimer = boss.attackInterval {
+        playerHp = startHp ??
+            (playerMaxHp ?? 100) *
+                (synergy?.hpMult ?? 1.0) *
+                TalentTree(talentLevels).maxHpMult,
+        bossAttackTimer = 0 {
+    bossAttackTimer =
+        boss.attackInterval * this.modifiers.bossAttackIntervalMult;
     _spawnTargetRing();
     _spawnTargetRing();
     _applyStartModifiers();
-    // Aplicar bonos de sinergia y runas al ATK de las cartas (ManaCard.attack es
-    // final, así que se lee a través de _effectiveAttack en tiempo de combate).
-    // El escudo de sinergia se aplica en _applyStartModifiers.
   }
 
   void _spawnTargetRing() {
@@ -250,10 +403,8 @@ class CombatEngine {
 
   void _applyStartModifiers() {
     // Sinergia Sobrecarga Arcana: todas las cartas empiezan con maná completo.
-    if (startManaFull) {
-      for (final c in cards) {
-        c.mana = c.baseManaCost.toDouble();
-      }
+    if (startManaFull || trainingMode) {
+      fillAllMana();
       return;
     }
     if (modifiers.startManaFraction > 0) {
@@ -270,12 +421,31 @@ class CombatEngine {
         );
       }
     }
+    // Sello de Sobrecarga: la carta Líder arranca con el maná completo.
+    if (modifiers.leaderStartManaFull && cards.isNotEmpty) {
+      cards.first.mana = cards.first.baseManaCost.toDouble();
+    }
     if (modifiers.startHpLossFraction > 0) {
       playerHp -= playerMaxHp * modifiers.startHpLossFraction;
     }
+    // Cadenas del Sello: los jefes empiezan aturdidos.
+    if (modifiers.bossStartStun > 0) {
+      bossStunRemaining = modifiers.bossStartStun;
+    }
+    // Juicio del Emperador: Azathor en Furia desde el segundo 0.
+    if (has(SealMutator.azathorFuryStart)) {
+      enraged = true;
+    }
   }
 
-  /// ATK efectivo de una carta aplicando sinergia + runa de Furia Carmesí.
+  /// Llena el maná de todas las cartas al máximo (Arena de Entrenamiento).
+  void fillAllMana() {
+    for (final c in cards) {
+      c.mana = c.baseManaCost.toDouble();
+    }
+  }
+
+  /// ATK efectivo de una carta: sinergia + runa de Furia Carmesí + talentos.
   double _effectiveAttack(ManaCard c) {
     var atk = c.attack;
     if (synergy?.atkMult != null && synergy!.atkMult > 1.0) {
@@ -285,17 +455,17 @@ class CombatEngine {
     if (rune != null) {
       atk *= RuneSystem.atkMult(rune.type, rune.level);
     }
-    return atk;
+    return atk * _talentTree.orbDamageMult;
   }
 
-  /// Costo de maná efectivo de una carta aplicando runa de Flujo Eterno.
+  /// Costo de maná efectivo: runa de Flujo Eterno + Grimorio Antiguo.
   double _effectiveManaCost(ManaCard c) {
     final rune = cardRunes[c.id];
+    var cost = c.baseManaCost.toDouble();
     if (rune != null && rune.type == RuneType.eternalFlow) {
-      return c.baseManaCost *
-          (1.0 - RuneSystem.manaCostReduction(rune.type, rune.level));
+      cost *= (1.0 - RuneSystem.manaCostReduction(rune.type, rune.level));
     }
-    return c.baseManaCost.toDouble();
+    return cost * modifiers.skillManaCostMult;
   }
 
   /// Velocidad de generación de maná efectiva (modificadores + sinergia Trinidad Arcana).
@@ -314,19 +484,27 @@ class CombatEngine {
     if (enraged && boss.id == 'azathor' && _rotationInverted) {
       base = -base;
     }
+    // Dianas Fugaces: un 25% más rápidas.
+    if (has(SealMutator.fastSmallManaBoost)) base *= 1.25;
     return base;
   }
+
+  /// Multiplicador de radio: reliquia + Guanteletes + mutador de dianas.
+  double get _targetRadiusMult =>
+      modifiers.critRadiusMult *
+      _gearLoadout.bullseyeRadiusMult *
+      (has(SealMutator.fastSmallManaBoost) ? 0.75 : 1.0);
 
   double outerRadiusFor(CombatTarget t) {
     final enlarged =
         t.enlargedUntil > time ? (1.0 + t.enlargedRadiusBonus) : 1.0;
-    return outerRadius * modifiers.critRadiusMult * enlarged;
+    return outerRadius * _targetRadiusMult * enlarged;
   }
 
   double innerRadiusFor(CombatTarget t) {
     final enlarged =
         t.enlargedUntil > time ? (1.0 + t.enlargedRadiusBonus) : 1.0;
-    return innerRadius * modifiers.critRadiusMult * enlarged;
+    return innerRadius * _targetRadiusMult * enlarged;
   }
 
   // ------------------------------------------------------------------ input
@@ -404,13 +582,28 @@ class CombatEngine {
 
   CombatOrb? spawnOrbInSlot(int slot) {
     if (tray[slot] != null) return null;
-    final element = Element.values[random.nextInt(4)];
-    var level = OrbLevel.one;
+    // Tormenta Bipolar: sólo Ígneo y Abisal.
+    final Element element;
+    if (has(SealMutator.igneousAbyssalFast)) {
+      element = random.nextBool() ? Element.igneous : Element.abyssal;
+    } else {
+      element = Element.values[random.nextInt(4)];
+    }
+    // Esencia del Abismo: +1 nivel base.
+    final baseIndex = modifiers.baseOrbLevelBonus.clamp(0, 2);
+    var level = OrbLevel.values[baseIndex];
     if (element == Element.igneous &&
+        level == OrbLevel.one &&
         random.nextDouble() < modifiers.igneousLevel2Chance) {
       level = OrbLevel.two;
     }
-    final orb = CombatOrb(id: _nextId('orb'), element: element, level: level);
+    final prismatic = modifiers.prismaticOrb && random.nextDouble() < 0.15;
+    final orb = CombatOrb(
+      id: _nextId('orb'),
+      element: element,
+      level: level,
+      prismatic: prismatic,
+    );
     tray[slot] = orb;
     return orb;
   }
@@ -419,7 +612,10 @@ class CombatEngine {
     final orbA = tray[a];
     final orbB = tray[b];
     if (orbA == null || orbB == null || a == b) return null;
-    if (orbA.element != orbB.element || orbA.level != orbB.level) {
+    // Una esfera prismática fusiona con cualquier elemento del mismo nivel.
+    final compatible =
+        orbA.element == orbB.element || orbA.prismatic || orbB.prismatic;
+    if (!compatible || orbA.level != orbB.level) {
       swapOrbs(a, b);
       return null;
     }
@@ -427,21 +623,34 @@ class CombatEngine {
       swapOrbs(a, b);
       return null;
     }
+    final element = orbA.prismatic
+        ? (orbB.prismatic ? Element.values[random.nextInt(4)] : orbB.element)
+        : orbA.element;
     var newLevel = orbA.level == OrbLevel.one ? OrbLevel.two : OrbLevel.three;
-    if (orbA.level == OrbLevel.one &&
-        random.nextDouble() < modifiers.jumpToThreeChance) {
-      newLevel = OrbLevel.three;
+    if (orbA.level == OrbLevel.one) {
+      if (random.nextDouble() < modifiers.jumpToThreeChance) {
+        newLevel = OrbLevel.three;
+      }
+      // Martillo del Titán: Nivel 3 garantizado con 50%.
+      if (newLevel == OrbLevel.two &&
+          random.nextDouble() < modifiers.threeMergeChance) {
+        newLevel = OrbLevel.three;
+      }
+    }
+    // Martillo del Titán: ninguna fusión produce menos del nivel mínimo.
+    if (newLevel.index + 1 < modifiers.minMergeLevel) {
+      newLevel = OrbLevel.values[modifiers.minMergeLevel - 1];
     }
     tray[b] = CombatOrb(
       id: _nextId('orb'),
-      element: orbA.element,
+      element: element,
       level: newLevel,
     );
     tray[a] = null;
     trauma = (trauma + 0.25).clamp(0.0, 1.0);
     final mergeX = CombatEngine.layoutWidth / 5 * (b + 0.5);
     final mergeY = (CombatEngine.trayY + CombatEngine.layoutHeight) / 2;
-    onMerge?.call(newLevel, mergeX, mergeY, orbA.element);
+    onMerge?.call(newLevel, mergeX, mergeY, element);
     if (newLevel == OrbLevel.three) mergesToThree++;
     return newLevel;
   }
@@ -479,6 +688,7 @@ class CombatEngine {
     _tickEnemyProjectiles(scaled);
     _tickBoss(scaled);
     tickEnrage(scaled);
+    _tickMutators(scaled);
     _tickTexts(scaled);
 
     if (bossHp <= 0) {
@@ -487,10 +697,40 @@ class CombatEngine {
       slowMoRemaining = 0.30;
       onVictory?.call();
     } else if (playerHp <= 0) {
+      // Corazón de Fénix: revive una vez con 30% de vida y esferas Nivel 3.
+      if (modifiers.phoenixRevive && !_phoenixUsed) {
+        _phoenixUsed = true;
+        playerHp = playerMaxHp * 0.30;
+        for (var i = 0; i < tray.length; i++) {
+          final orb = tray[i];
+          tray[i] = CombatOrb(
+            id: _nextId('orb'),
+            element: orb?.element ?? Element.values[random.nextInt(4)],
+            level: OrbLevel.three,
+          );
+        }
+        texts.add(
+          FloatingText(
+            id: _nextId('txt'),
+            text: '¡FÉNIX RENACE!',
+            x: bossScreenX,
+            y: bossScreenY,
+            kind: FloatingTextKind.skill,
+          ),
+        );
+        return;
+      }
       finished = true;
       victory = false;
       onDefeat?.call();
     }
+  }
+
+  /// Mutadores con efecto continuo (sangrado del Pacto de Hemorragia).
+  void _tickMutators(double s) {
+    if (!has(SealMutator.bleedHeal)) return;
+    if (trainingMode) return;
+    playerHp -= playerMaxHp * 0.02 * s;
   }
 
   void _tickTimers(double s) {
@@ -513,7 +753,10 @@ class CombatEngine {
 
   void _tickSpawner(double s) {
     spawnTimer += s;
-    if (spawnTimer < spawnInterval) return;
+    final interval = has(SealMutator.igneousAbyssalFast)
+        ? spawnInterval * 0.5
+        : spawnInterval;
+    if (spawnTimer < interval) return;
     spawnTimer = 0;
     final empty = [
       for (var i = 0; i < tray.length; i++)
@@ -587,6 +830,8 @@ class CombatEngine {
       }
     }
     if (best == null || bestKind == HitKind.miss) {
+      // Fallar corta la racha crítica.
+      bullseyeStreak = 0;
       // Nyxara (Vacío) enrage: fallar un tiro drena 10 de maná al escuadrón.
       if (boss.id == 'nyxara' && enraged) {
         for (final c in cards) {
@@ -624,30 +869,67 @@ class CombatEngine {
     addManaToCards(orb.element, mana);
 
     if (CombatMath.appliesAura(kind, orb.level)) {
-      applyAura(orb.element);
+      applyAura(
+        orb.element,
+        orbLevel: orb.level.index + 1,
+        prismatic: orb.prismatic,
+      );
     }
     if (kind == HitKind.bullseye) {
       hitStopRemaining = 0.045;
       trauma = (trauma + 0.55).clamp(0.0, 1.0);
     }
+    // Llama Eterna: la esfera Ígnea sobrevive al impacto.
+    if (orb.element == Element.igneous &&
+        random.nextDouble() < modifiers.igneousOrbSaveChance) {
+      _returnOrbToTray(orb);
+    }
+  }
+
+  /// Devuelve una esfera al primer hueco libre de la bandeja.
+  void _returnOrbToTray(CombatOrb orb) {
+    for (var i = 0; i < tray.length; i++) {
+      if (tray[i] == null) {
+        tray[i] = CombatOrb(
+          id: _nextId('orb'),
+          element: orb.element,
+          level: orb.level,
+          prismatic: orb.prismatic,
+        );
+        return;
+      }
+    }
   }
 
   /// Applies an elemental imprint or detonates a reaction if one is pending.
   /// Returns the reaction name when one detonates.
-  String? applyAura(Element element, {int orbLevel = 1}) {
+  /// Duración efectiva del aura: base + Reloj de Ceniza + Yelmo + sinergia.
+  double get auraDuration =>
+      (ElementalReactionEngine.auraDuration + modifiers.auraDurationBonus) *
+      (synergy?.auraDurationMult ?? 1.0) *
+      _gearLoadout.auraDurationMult;
+
+  String? applyAura(
+    Element element, {
+    int orbLevel = 1,
+    bool prismatic = false,
+  }) {
     if (aura == null) {
       aura = element;
-      auraRemaining = ElementalReactionEngine.auraDuration *
-          (synergy?.auraDurationMult ?? 1.0);
+      auraRemaining = auraDuration;
       return null;
     }
     if (aura == element) {
-      auraRemaining = ElementalReactionEngine.auraDuration *
-          (synergy?.auraDurationMult ?? 1.0);
+      auraRemaining = auraDuration;
       return null;
     }
     final engine = ElementalReactionEngine();
-    final reaction = engine.checkReaction(aura!, element, orbLevel);
+    var reaction = engine.checkReaction(aura!, element, orbLevel);
+    // Prisma del Caos: una esfera prismática detona cualquier aura activa,
+    // incluso combinaciones sin reacción definida.
+    if (reaction == null && prismatic) {
+      reaction = ReactionResult.prismaticDetonation();
+    }
     if (reaction == null) return null;
     aura = null;
     auraRemaining = 0;
@@ -658,7 +940,11 @@ class CombatEngine {
   }
 
   void _detonateReaction(ReactionResult r, Element element) {
-    final mult = r.damageMultiplier * (synergy?.reactionDamageMult ?? 1.0);
+    // Maestría Elemental + Crisol Alquímico (+300%).
+    final mult = r.damageMultiplier *
+        (synergy?.reactionDamageMult ?? 1.0) *
+        _talentTree.reactionDamageMult *
+        (has(SealMutator.reactionBoost) ? 4.0 : 1.0);
     if (mult > 1.0) {
       final base = baseDamage * mult;
       final hitCount = r.isAoE ? targets.length : 1;
@@ -688,6 +974,8 @@ class CombatEngine {
       case 'Colapso del Sello':
         playerHp = math.min(playerMaxHp, playerHp + playerMaxHp * 0.15);
         vulnerableRemaining = 4.0;
+      case 'Detonación Prismática':
+        vulnerableRemaining = 3.0;
       case 'Erupción Magmática':
         break;
       default:
@@ -712,7 +1000,9 @@ class CombatEngine {
   }
 
   void addManaToCards(Element element, double amount) {
-    final manaMult = leaderSkill?.manaGainMult ?? 1.0;
+    final manaMult = (leaderSkill?.manaGainMult ?? 1.0) *
+        _talentTree.manaMult *
+        (has(SealMutator.fastSmallManaBoost) ? 2.0 : 1.0);
     for (final c in cards) {
       final gain = amount *
           (c.element == element ? 1.0 : 0.25) *
@@ -729,15 +1019,53 @@ class CombatEngine {
     required double multiplier,
     required HitKind kind,
   }) {
+    // Racha crítica: se actualiza antes de calcular el daño del golpe actual.
+    if (kind == HitKind.bullseye) {
+      bullseyeStreak++;
+      if (bullseyeStreak > bestBullseyeStreak) {
+        bestBullseyeStreak = bullseyeStreak;
+      }
+    } else if (kind == HitKind.normal || kind == HitKind.graze) {
+      bullseyeStreak = 0;
+    }
+
     final orbDmgMult = leaderSkill?.orbDamageMult ?? 1.0;
     final critMult =
         kind == HitKind.bullseye ? leaderSkill?.critBullseyeMult ?? 1.0 : 1.0;
-    final dmg =
-        baseDamage * multiplier * playerDamageMult * orbDmgMult * critMult;
+    final talentMult = _talentTree.orbDamageMult *
+        (kind == HitKind.bullseye ? _talentTree.bullseyeDamageMult : 1.0);
+    final streakMult = kind == HitKind.bullseye ? bullseyeStreakBonus : 1.0;
+    // Mutadores de Desafío del Sello.
+    var mutatorMult = 1.0;
+    if (has(SealMutator.bullseyeOnly) && kind != HitKind.bullseye) {
+      mutatorMult = 0.0;
+    }
+    if (has(SealMutator.lvl3Only) && orb.level != OrbLevel.three) {
+      mutatorMult = 0.0;
+    }
+    if (has(SealMutator.reactionBoost)) mutatorMult *= 0.20;
+    if (has(SealMutator.skillDisabledOrbBoost)) mutatorMult *= 2.20;
+
+    final dmg = baseDamage *
+        multiplier *
+        playerDamageMult *
+        orbDmgMult *
+        critMult *
+        talentMult *
+        streakMult *
+        mutatorMult;
     bossHp -= dmg;
     damageTotal += dmg.toInt();
     if (dmg > maxHit) maxHit = dmg;
-    if (kind == HitKind.bullseye) bullseyes++;
+    if (kind == HitKind.bullseye) {
+      bullseyes++;
+      // Colmillo Vampírico (+2%) y Pacto de Hemorragia (+5%).
+      final healFraction = modifiers.bullseyeHealFraction +
+          (has(SealMutator.bleedHeal) ? 0.05 : 0.0);
+      if (healFraction > 0) {
+        playerHp = math.min(playerMaxHp, playerHp + playerMaxHp * healFraction);
+      }
+    }
     final x = target?.xAt(time, effectiveAngularSpeed(target)) ?? bossScreenX;
     final y = target?.yAt(time, effectiveAngularSpeed(target)) ?? bossScreenY;
     texts.add(
@@ -786,7 +1114,10 @@ class CombatEngine {
     final dmg = boss.attackDamage;
     final absorbed = math.min(shield, dmg);
     shield -= absorbed;
-    final taken = (dmg - absorbed) * (leaderSkill?.damageTakenMult ?? 1.0);
+    final taken = (dmg - absorbed) *
+        (leaderSkill?.damageTakenMult ?? 1.0) *
+        _talentTree.damageTakenMult *
+        modifiers.damageTakenMult;
     playerHp -= taken;
     trauma = (trauma + 0.45).clamp(0.0, 1.0);
   }
@@ -798,7 +1129,7 @@ class CombatEngine {
     }
     bossAttackTimer -= s;
     if (bossAttackTimer > 0) return;
-    bossAttackTimer = boss.attackInterval;
+    bossAttackTimer = boss.attackInterval * modifiers.bossAttackIntervalMult;
     final count = bossProjectileCount;
     for (var i = 0; i < count; i++) {
       enemyProjectiles.add(
@@ -967,6 +1298,8 @@ class CombatEngine {
   int get bossProjectileCount {
     var base = 1 + random.nextInt(boss.projectilesPerAttack);
     if (enraged && boss.id == 'azathor') base *= 2;
+    // Lluvia Corrupta: el jefe dispara el doble.
+    if (has(SealMutator.bossDoubleProjectiles)) base *= 2;
     return base;
   }
 
@@ -1009,6 +1342,13 @@ class CombatEngine {
     if (!byCounterflick) return;
     counterflicks++;
     addManaToAllCards(counterflickMana * modifiers.manaSpeedMult);
+    // Muralla de Espejos: cada Counter-Flick refleja 12% del HP máximo.
+    if (has(SealMutator.counterflickReflect)) {
+      final reflected = boss.maxHp * 0.12;
+      bossHp -= reflected;
+      damageTotal += reflected.toInt();
+      if (reflected > maxHit) maxHit = reflected;
+    }
     if (cards.isEmpty) return;
     texts.add(
       FloatingText(
@@ -1040,6 +1380,8 @@ class CombatEngine {
   /// Consumes the mana of card [index] and executes its active skill.
   /// Returns false if the card is not ready or the fight is over.
   bool castSkill(int index) {
+    // Silencio de Cartas: las habilidades activas están selladas.
+    if (has(SealMutator.skillDisabledOrbBoost)) return false;
     if (finished || index < 0 || index >= cards.length) return false;
     final c = cards[index];
     final cost = _effectiveManaCost(c);

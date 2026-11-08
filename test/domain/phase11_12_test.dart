@@ -14,6 +14,14 @@ import 'package:brimstone_summoning/domain/combat/combat_models.dart';
 import 'package:brimstone_summoning/domain/value_objects/element.dart';
 import 'package:brimstone_summoning/domain/value_objects/orb_level.dart';
 
+/// Helper para crear un DatabaseHelper aislado por test (evita locks SQLite en paralelo).
+DatabaseHelper _freshDb() {
+  // Base en memoria por instancia: dos suites nunca comparten archivo ni
+  // conexion, asi que no puede aparecer 'database is locked'.
+  DatabaseHelper.useInMemory();
+  return DatabaseHelper();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
@@ -295,10 +303,10 @@ void main() {
   });
 
   group('Phase 12B — persistencia de capítulos y mercader', () {
-    PlayerRepository repo() => PlayerRepository(DatabaseHelper());
+    PlayerRepository repo() => PlayerRepository(_freshDb());
 
     setUp(() async {
-      final db = await DatabaseHelper().db;
+      final db = await _freshDb().db;
       await db.delete('chapters_cleared');
       await db.delete('owned_cards');
       await db.delete('player_squad');

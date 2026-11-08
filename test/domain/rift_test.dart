@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:brimstone_summoning/domain/combat/combat_engine.dart';
 import 'package:brimstone_summoning/domain/combat/combat_models.dart';
 import 'package:brimstone_summoning/domain/roguelite/rift_run.dart';
-import 'package:brimstone_summoning/domain/services/rift_map_generator.dart';
 
 void main() {
   group('RiftGeneratorService — DAG de 7 pisos', () {
@@ -28,15 +27,19 @@ void main() {
       );
     });
 
-    test('pisos 2-5 mezclan combate/élite/altar en 3 carriles', () {
+    test('pisos 2-5 mezclan combate/élite/altar y un evento opcional', () {
       final nodes = gen().generate();
       for (final floor in [2, 3, 4, 5]) {
         final floors = nodes.where((n) => n.floor == floor).toList();
-        expect(floors.length, 3);
+        expect(floors.length, 4);
         final types = floors.map((n) => n.type).toSet();
         expect(types.contains(RiftNodeType.combat), isTrue);
         expect(types.contains(RiftNodeType.elite), isTrue);
         expect(types.contains(RiftNodeType.altar), isTrue);
+        expect(
+          floors.where((n) => n.type == RiftNodeType.event).length,
+          1,
+        );
       }
     });
 

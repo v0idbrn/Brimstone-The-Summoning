@@ -15,6 +15,12 @@ import 'bounties_modal.dart';
 import 'codex_modal.dart';
 import 'backup_restore_modal.dart';
 import 'merchant_modal.dart';
+import 'settings_modal.dart';
+import 'summoner_profile_modal.dart';
+import 'talent_tree_modal.dart';
+import '../challenges/seal_challenges_screen.dart';
+import '../training/training_arena_screen.dart';
+import '../../../domain/meta/summoner_titles.dart';
 
 /// Main hub: summoner level, currencies, active squad preview, rift difficulty
 /// selector and the main play CTA.
@@ -29,21 +35,55 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
   String _selectedChapterId = 'chapter_ceniza';
   Set<String> _clearedChapters = {};
   int _highestEndlessWave = 0;
+  SummonerStats _stats = SummonerStats.empty;
+  String? _activeTitleId;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(profileProvider.notifier).load();
-      await ref.read(collectionProvider.notifier).load();
-      await ref.read(bountyProvider.notifier).load();
-      final cleared =
-          await ref.read(playerRepositoryProvider).loadClearedChapters();
-      if (mounted) setState(() => _clearedChapters = cleared.toSet());
-      final wave =
-          await ref.read(playerRepositoryProvider).loadHighestEndlessWave();
-      if (mounted) setState(() => _highestEndlessWave = wave);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMeta());
+  }
+
+  Future<void> _loadMeta() async {
+    await ref.read(profileProvider.notifier).load();
+    await ref.read(collectionProvider.notifier).load();
+    await ref.read(bountyProvider.notifier).load();
+    final repo = ref.read(playerRepositoryProvider);
+    final cleared = await repo.loadClearedChapters();
+    final wave = await repo.loadHighestEndlessWave();
+    final stats = await repo.loadStats();
+    final title = await repo.loadActiveTitle();
+    if (!mounted) return;
+    setState(() {
+      _clearedChapters = cleared.toSet();
+      _highestEndlessWave = wave;
+      _stats = stats;
+      _activeTitleId = title;
     });
+  }
+
+  /// Nombre del título equipado (o el título por defecto).
+  String _equippedTitleName() =>
+      SummonerTitles.resolve(_activeTitleId, _stats).name;
+
+  Future<void> _openTalentTree() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF14090D),
+      builder: (_) => const TalentTreeModal(),
+    );
+    if (mounted) await _loadMeta();
+  }
+
+  Future<void> _openProfile() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF14090D),
+      builder: (_) => const SummonerProfileModal(),
+    );
+    if (mounted) await _loadMeta();
   }
 
   void _toggleAudio() {
@@ -88,77 +128,167 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              ProceduralSfxEngine.isMuted ? Icons.volume_off : Icons.volume_up,
-              color: ProceduralSfxEngine.isMuted
-                  ? Colors.white38
-                  : const Color(0xFFB16EFF),
+          // Barra desplazable: el Santuario tiene 11 accesos y la app es
+          // portrait, así que los iconos nunca deben desbordar el AppBar.
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    ProceduralSfxEngine.isMuted
+                        ? Icons.volume_off
+                        : Icons.volume_up,
+                    color: ProceduralSfxEngine.isMuted
+                        ? Colors.white38
+                        : const Color(0xFFB16EFF),
+                  ),
+                  onPressed: _toggleAudio,
+                  tooltip: ProceduralSfxEngine.isMuted
+                      ? 'Audio activado'
+                      : 'Audio desactivado',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.menu_book, color: Color(0xFFB16EFF)),
+                  onPressed: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: const Color(0xFF14090D),
+                    builder: (_) => const CodexModal(),
+                  ),
+                  tooltip: 'Códice Abisal',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.backup, color: Color(0xFFB16EFF)),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const BackupRestoreModal(),
+                  ),
+                  tooltip: 'Backup / Restaurar',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon:
+                      const Icon(Icons.military_tech, color: Color(0xFFFFC93C)),
+                  onPressed: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: const Color(0xFF14090D),
+                    builder: (_) => const BountiesModal(),
+                  ),
+                  tooltip: 'Juramentos de Azufre',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.store, color: Color(0xFFB16EFF)),
+                  onPressed: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: const Color(0xFF14090D),
+                    builder: (_) => const MerchantModal(),
+                  ),
+                  tooltip: 'Mercader del Vacío',
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.settings, color: Color(0xFFB16EFF)),
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const SettingsModal(),
+                  ),
+                  tooltip: 'Ajustes',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.person, color: Color(0xFFB16EFF)),
+                  onPressed: _openProfile,
+                  tooltip: 'Perfil de Invocador',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon:
+                      const Icon(Icons.account_tree, color: Color(0xFF4FFFA3)),
+                  onPressed: _openTalentTree,
+                  tooltip: 'Árbol de Talentos y Armadura',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.gavel, color: Color(0xFFFF5A26)),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const SealChallengesScreen()),
+                  ),
+                  tooltip: 'Desafíos del Sello',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.fitness_center,
+                      color: Color(0xFF3FD8FF)),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const TrainingArenaScreen()),
+                  ),
+                  tooltip: 'Arena de Entrenamiento',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon:
+                      const Icon(Icons.help_outline, color: Color(0xFFB16EFF)),
+                  onPressed: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: const Color(0xFF14090D),
+                    builder: (_) => const HowToPlayModal(),
+                  ),
+                  tooltip: 'Cómo jugar',
+                ),
+              ],
             ),
-            onPressed: _toggleAudio,
-            tooltip: ProceduralSfxEngine.isMuted
-                ? 'Audio activado'
-                : 'Audio desactivado',
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.menu_book, color: Color(0xFFB16EFF)),
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: const Color(0xFF14090D),
-              builder: (_) => const CodexModal(),
-            ),
-            tooltip: 'Códice Abisal',
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.backup, color: Color(0xFFB16EFF)),
-            onPressed: () => showDialog<void>(
-              context: context,
-              builder: (_) => const BackupRestoreModal(),
-            ),
-            tooltip: 'Backup / Restaurar',
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.military_tech, color: Color(0xFFFFC93C)),
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: const Color(0xFF14090D),
-              builder: (_) => const BountiesModal(),
-            ),
-            tooltip: 'Juramentos de Azufre',
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.store, color: Color(0xFFB16EFF)),
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: const Color(0xFF14090D),
-              builder: (_) => const MerchantModal(),
-            ),
-            tooltip: 'Mercader del Vacío',
-          ),
-          SizedBox(width: 220, child: const CurrencyBar()),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Color(0xFFB16EFF)),
-            onPressed: () => showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: const Color(0xFF14090D),
-              builder: (_) => const HowToPlayModal(),
-            ),
-            tooltip: 'Cómo jugar',
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(14),
         children: [
+          const CurrencyBar(),
+          const SizedBox(height: 10),
+          // Perfil del Invocador: título equipado bajo el nombre.
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A0E14),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: const Color(0xFFFFC93C).withValues(alpha: 0.6),
+              ),
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  'INVOCADOR DEL AZUFRE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _equippedTitleName(),
+                  style: const TextStyle(
+                    color: Color(0xFFFFC93C),
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           const Text(
             'Escuadrón activo',
             style: TextStyle(color: Colors.white54, fontSize: 12),

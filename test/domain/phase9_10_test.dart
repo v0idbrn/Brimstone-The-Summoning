@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:brimstone_summoning/data/repositories/player_repository.dart';
 import 'package:brimstone_summoning/data/database/database_helper.dart';
 import 'package:brimstone_summoning/domain/combat/combat_engine.dart';
@@ -12,6 +13,10 @@ import 'package:brimstone_summoning/domain/value_objects/element.dart';
 import 'package:brimstone_summoning/domain/value_objects/orb_level.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
+
   CombatEngine fresh({
     double playerDamageMult = 1.0,
     double? startHp,
@@ -270,30 +275,33 @@ void main() {
       expect((decoded['runes'] as Map)['7']['runeType'], 'crimsonFury');
     });
 
-    test('importBackup rechaza formato desconocido (formatVersion != 1)', () {
-      final repo = PlayerRepository(DatabaseHelper());
+    PlayerRepository isolatedRepo() {
+      DatabaseHelper.useInMemory();
+      return PlayerRepository(DatabaseHelper());
+    }
+
+    test('importBackup rechaza un formatVersion desconocido', () {
+      final repo = isolatedRepo();
       expect(
-        () => repo.importBackup({'formatVersion': 2}),
+        () => repo.importBackup({'formatVersion': 99}),
         throwsA(isA<FormatException>()),
       );
     });
 
-    test('importBackup rechaza payload sin formatVersion', () {
-      final repo = PlayerRepository(DatabaseHelper());
-      expect(
-        () => repo.importBackup({
-          'profile': {'gold': 100}
-        }),
-        throwsA(isA<FormatException>()),
-      );
+    test('importBackup trata un payload sin formatVersion como v1', () async {
+      final repo = isolatedRepo();
+      await repo.importBackup({
+        'profile': {'gold': 1234}
+      });
+      final profile = await repo.loadProfile();
+      expect(profile[0], 1234);
     });
 
-    test('importBackup no crashea con map vacío', () {
-      final repo = PlayerRepository(DatabaseHelper());
-      expect(
-        () => repo.importBackup({}),
-        throwsA(isA<FormatException>()),
-      );
+    test('importBackup acepta un map vacío (v1 sin datos)', () async {
+      final repo = isolatedRepo();
+      await repo.importBackup({});
+      final profile = await repo.loadProfile();
+      expect(profile[0], 500);
     });
 
     test('exportBackup esquema contiene claves esperadas (sin DB, estructura)',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/roguelite/relic_catalog.dart';
 import '../../controllers/meta_controller.dart';
 import '../../combat_engine/card_procedural_artwork.dart';
 
@@ -256,7 +257,7 @@ class _SummonGallery extends StatelessWidget {
             ),
           ),
         ),
-        ..._relicLore.map(
+        ...RelicCatalog.all.map(
           (r) => ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16),
             leading: const Icon(
@@ -265,14 +266,14 @@ class _SummonGallery extends StatelessWidget {
               size: 22,
             ),
             title: Text(
-              r['name'] as String,
+              r.name,
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
               ),
             ),
             subtitle: Text(
-              r['description'] as String,
+              r.description,
               style: const TextStyle(color: Colors.white54, fontSize: 11),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -282,37 +283,6 @@ class _SummonGallery extends StatelessWidget {
       ],
     );
   }
-
-  static const _relicLore = <Map<String, String>>[
-    {
-      'name': 'Ceniza Volátil',
-      'description':
-          'Esferas Ígneas spawnean en Nivel 2 con 35% de probabilidad.',
-    },
-    {
-      'name': 'Ojo del Abismo',
-      'description': 'Radio de Bullseye crítico +40% en todas las dianas.',
-    },
-    {
-      'name': 'Sello de Resonancia',
-      'description':
-          'Detonar una Reacción devuelve 20 de maná a todas las cartas.',
-    },
-    {
-      'name': 'Pacto de Sangre',
-      'description':
-          'Maná +50% más rápido, pero inicias cada nodo perdiendo 8% HP.',
-    },
-    {
-      'name': 'Forja Perpetua',
-      'description': 'Fusionar dos esferas N1: 25% de saltar directo a N3.',
-    },
-    {
-      'name': 'Coraza de Obsidiana',
-      'description':
-          'Counter-Flick destruye proyectil: cura 4% HP y genera esfera N2.5.',
-    },
-  ];
 }
 
 /// Tab 3: boss history, weaknesses, enrage mechanics, kill counts.

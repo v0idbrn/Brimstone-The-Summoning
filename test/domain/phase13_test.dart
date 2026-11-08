@@ -36,6 +36,14 @@ const _catalog20 = [
   'void_archon',
 ];
 
+/// Helper para crear un DatabaseHelper aislado por test (evita locks SQLite en paralelo).
+DatabaseHelper _freshDb() {
+  // Base en memoria por instancia: dos suites nunca comparten archivo ni
+  // conexion, asi que no puede aparecer 'database is locked'.
+  DatabaseHelper.useInMemory();
+  return DatabaseHelper();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
@@ -77,7 +85,7 @@ void main() {
   group('Phase 13 — catálogo TCG de 20 criaturas', () {
     test('seed de base de datos contiene exactamente 20 cartas de catálogo',
         () async {
-      final db = await DatabaseHelper().db;
+      final db = await _freshDb().db;
       final rows = await db.query('cards');
       final ids = rows.map((r) => r['id'] as String).toSet();
       expect(ids.length, 20);

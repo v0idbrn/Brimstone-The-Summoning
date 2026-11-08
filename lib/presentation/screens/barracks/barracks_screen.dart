@@ -8,6 +8,7 @@ import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
 import '../meta/widgets.dart';
+import '../training/training_arena_screen.dart';
 
 /// Barracks: build the active 4-card squad, filter the collection, inspect
 /// cards and level them up with gold.
@@ -40,6 +41,15 @@ class _BarracksScreenState extends ConsumerState<BarracksScreen> {
             letterSpacing: 1.5,
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.fitness_center, color: Color(0xFF3FD8FF)),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TrainingArenaScreen()),
+            ),
+            tooltip: 'Arena de Entrenamiento (Prueba Mazo)',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -522,6 +532,8 @@ class CardInspectorModal extends ConsumerWidget {
     final cost = live.level * 100;
     final inSquad = collection.squad.contains(live.instanceId);
     final canEquip = !inSquad && collection.squad.length < 4;
+    // Debe conservar al menos 4 cartas después de la operación.
+    final canDisenchant = !inSquad && collection.owned.length > 4;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -608,6 +620,53 @@ class CardInspectorModal extends ConsumerWidget {
                 }
               }
             },
+          ),
+          const SizedBox(height: 16),
+          // ================= Desmantelar Copia =================
+          // Reglas: la carta no está en el escuadrón y el jugador conserva al
+          // menos 4 cartas tras el desmantelamiento.
+          FilledButton.tonal(
+            onPressed: canDisenchant
+                ? () async {
+                    final repo = ref.read(playerRepositoryProvider);
+                    final rewards = await repo.disenchantCopy(live.instanceId);
+                    if (rewards == null) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'No puedes desmantelar: el escuadrón debe conservar '
+                              'al menos 4 cartas.',
+                            ),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    await ref.read(profileProvider.notifier).load();
+                    await ref.read(collectionProvider.notifier).load();
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Desmantelado: +${rewards['shards']} esquirlas, '
+                            '+${rewards['gold']} oro',
+                          ),
+                          backgroundColor: const Color(0xFF4FFFA3),
+                        ),
+                      );
+                    }
+                  }
+                : null,
+            child: Text(
+              canDisenchant
+                  ? 'Desmantelar Copia (+${50 * live.stars} esquirlas '
+                      '+ ${150 * live.stars} oro)'
+                  : 'Desmantelar Copia (bloqueado)',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
           const SizedBox(height: 16),
           // ================= Forja de Runas Abisales =================

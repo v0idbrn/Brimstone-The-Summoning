@@ -1,9 +1,9 @@
-import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:brimstone_summoning/data/database/database_helper.dart';
 import 'package:brimstone_summoning/data/repositories/player_repository.dart';
 import 'package:brimstone_summoning/domain/meta/rune_system.dart';
+import 'package:brimstone_summoning/domain/meta/summoner_titles.dart';
 import 'package:brimstone_summoning/domain/entities/owned_card.dart';
 import 'package:brimstone_summoning/domain/value_objects/element.dart';
 import 'package:brimstone_summoning/domain/value_objects/rarity.dart';
@@ -42,9 +42,10 @@ const _catalogMeta = <String, _FakeMeta>{
 /// Mock DatabaseHelper that doesn't open a real database.
 class _MockDatabaseHelper extends DatabaseHelper {
   _MockDatabaseHelper() : super();
-  
+
   @override
-  Future<Database> get db async => throw UnimplementedError('Use fake repo methods');
+  Future<Database> get db async =>
+      throw UnimplementedError('Use fake repo methods');
 }
 
 /// Fake repository implementing all PlayerRepository methods without DB access.
@@ -128,19 +129,20 @@ class _FakePlayerRepository extends PlayerRepository {
   Future<int> loadHighestEndlessWave() async => 0;
 
   @override
+  Future<SummonerStats> loadStats() async => SummonerStats(
+      combatsWon: _cards.isEmpty ? 0 : 1, cardsOwned: _cards.length);
+
+  @override
+  Future<String?> loadActiveTitle() async => null;
+
+  @override
+  Future<void> saveActiveTitle(String? titleId) async {}
+
+  @override
   Future<void> saveHighestEndlessWave(int wave) async {}
 
   @override
   Future<String?> loadLastTributeDate() async => null;
-
-  @override
-  Future<void> saveLastTributeDate(String date) async {}
-
-  @override
-  Future<void> saveBountyProgress(String bountyId, int progress) async {}
-
-  @override
-  Future<Map<String, int>> loadBountyProgress() async => {};
 
   @override
   Future<List<Map<String, Object?>>> loadBounties() async => [];
@@ -150,10 +152,8 @@ class _FakePlayerRepository extends PlayerRepository {
 
   @override
   Future<bool> markChapterCleared(String chapterId,
-      {required int rewardGold, required int rewardShards}) async => false;
-
-  @override
-  Future<void> saveRune(OwnedCard card, RuneInstance rune) async {}
+          {required int rewardGold, required int rewardShards}) async =>
+      false;
 
   @override
   Future<RuneInstance?> loadCardRune(int instanceId) async => null;

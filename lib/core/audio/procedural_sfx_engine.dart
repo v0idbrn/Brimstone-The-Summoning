@@ -14,6 +14,11 @@ class ProceduralSfxEngine {
   // Mute state (persisted in SQLite)
   static bool _muted = false;
 
+  // Volúmenes y hápticas (ajustables desde SettingsModal).
+  static double _sfxVolume = 0.8;
+  static double _ambientVolume = 0.4;
+  static bool _hapticsEnabled = true;
+
   /// Toggle mute state.
   static void setMuted(bool muted) {
     _muted = muted;
@@ -21,6 +26,52 @@ class ProceduralSfxEngine {
 
   /// Current mute state.
   static bool get isMuted => _muted;
+
+  /// Volumen de efectos (0.0 - 1.0).
+  static double get sfxVolume => _sfxVolume;
+
+  /// Volumen del ambiente (0.0 - 1.0).
+  static double get ambientVolume => _ambientVolume;
+
+  /// Si las respuestas hápticas están activas.
+  static bool get hapticsEnabled => _hapticsEnabled;
+
+  static void setSfxVolume(double value) {
+    _sfxVolume = value.clamp(0.0, 1.0).toDouble();
+  }
+
+  static void setAmbientVolume(double value) {
+    _ambientVolume = value.clamp(0.0, 1.0).toDouble();
+  }
+
+  static void setHapticsEnabled(bool enabled) {
+    _hapticsEnabled = enabled;
+  }
+
+  /// Restaura los ajustes desde valores persistidos (0-100 en SQLite).
+  static void restoreSettings({
+    required int sfxVolume,
+    required int ambientVolume,
+    required bool hapticsEnabled,
+  }) {
+    setSfxVolume(sfxVolume / 100.0);
+    setAmbientVolume(ambientVolume / 100.0);
+    setHapticsEnabled(hapticsEnabled);
+  }
+
+  /// Volumen efectivo de un efecto concreto.
+  static double get effectiveSfxVolume =>
+      _muted ? 0.0 : _sfxVolume.clamp(0.0, 1.0);
+
+  /// Volumen efectivo del ambiente.
+  static double get effectiveAmbientVolume =>
+      _muted ? 0.0 : _ambientVolume.clamp(0.0, 1.0);
+
+  /// Buffer del drone del Santuario (ambiente oscuro en loop).
+  static Uint8List sanctuaryDroneBuffer() => generateSanctuaryDroneWav();
+
+  /// Buffer del pulso del jefe (ambiente de combate).
+  static Uint8List bossPulseBuffer() => generateBossPulseWav();
 
   /// Play orb spawn: short ascending crystalline tone (440Hz -> 660Hz, 60ms).
   static void playOrbSpawn() {
@@ -31,8 +82,8 @@ class ProceduralSfxEngine {
   /// Play orb merge: resonant harmonic chord, base frequency rises by level (Lv2/Lv3, 140ms) + haptic.
   static void playOrbMerge(int newLevel) {
     _play(_orbMerge(newLevel));
-    if (!_muted) SystemSound.play(SystemSoundType.click);
-    if (newLevel >= 2) HapticFeedback.mediumImpact();
+    if (!_muted && _sfxVolume > 0) SystemSound.play(SystemSoundType.click);
+    if (newLevel >= 2 && _hapticsEnabled) HapticFeedback.mediumImpact();
   }
 
   /// Play orb flick: whoosh frequency sweep (220Hz -> 880Hz, 110ms) + haptic selection click.
@@ -186,6 +237,8 @@ class ProceduralSfxEngine {
       'boss_enrage' => _bossEnrage(),
       'evolution_success' => _evolutionSuccess(),
       'evolution_fail' => _evolutionFail(),
+      'drone' => generateSanctuaryDroneWav(),
+      'boss_pulse' => generateBossPulseWav(),
       _ when name.startsWith('summon_reveal_') => _summonReveal(
           int.tryParse(name.substring('summon_reveal_'.length)) ?? 1,
         ),
@@ -195,7 +248,7 @@ class ProceduralSfxEngine {
 
   /// Play a cached or generated sound.
   static void _play(Uint8List wavData) {
-    if (_muted) return;
+    if (_muted || _sfxVolume <= 0) return;
     // In a real implementation, this would use audioplayers or just_audio
     // For now we just ensure the buffer is valid.
     // The actual playback would be triggered via a platform channel or audio plugin.
@@ -532,6 +585,42 @@ class ProceduralSfxEngine {
     return _encodeWav(result);
   }
 
+  /// Generate WAV buffer for ambient drone sound (long loop, low frequency).
+  static Uint8List generateSanctuaryDroneWav() {
+    const duration = 4.0; // 4 seconds loop
+    final samples = (_sampleRate * duration).round();
+    final result = List<double>.filled(samples, 0.0);
+
+    for (int i = 0; i < samples; i++) {
+      final t = i / _sampleRate;
+      // Slow, deep, evolving sine wave (40Hz base, with slow modulation)
+      final freq = 40.0 + 5.0 * math.sin(t * 0.2);
+      final phase = 2 * math.pi * freq * t;
+      // Slow, evolving envelope
+      final env = 0.5 + 0.3 * math.sin(t * 0.5);
+      result[i] = math.sin(phase) * env * 0.1;
+    }
+    return _encodeWav(result);
+  }
+
+  /// Generate WAV buffer for boss pulse (short, rhythmic, mid-low frequency).
+  static Uint8List generateBossPulseWav() {
+    const duration = 0.3; // 300ms
+    final samples = (_sampleRate * duration).round();
+    final result = List<double>.filled(samples, 0.0);
+
+    for (int i = 0; i < samples; i++) {
+      final t = i / _sampleRate;
+      // Rhythmic pulse: 80Hz to 150Hz sweeping
+      final freq = 80.0 + (150.0 - 80.0) * (1 - math.sin(t * 5.0) / 2);
+      final phase = 2 * math.pi * freq * t;
+      // Short, sharp envelope
+      final env = math.exp(-t * 10.0);
+      result[i] = math.sin(phase) * env * 0.3;
+    }
+    return _encodeWav(result);
+  }
+
   /// ADSR envelope helper.
   static double _adsrEnvelope(
     double progress,
@@ -559,9 +648,11 @@ class ProceduralSfxEngine {
 
   /// Emite respuesta auditiva y táctil nativa inmediata si el audio no está silenciado.
   static void _nativeFeedback(SystemSoundType sound, VoidCallback haptic) {
-    if (!_muted) {
+    if (!_muted && _sfxVolume > 0) {
       SystemSound.play(sound);
     }
-    haptic();
+    if (_hapticsEnabled) {
+      haptic();
+    }
   }
 }
