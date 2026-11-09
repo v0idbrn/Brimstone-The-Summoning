@@ -174,7 +174,7 @@ class FloatingText {
   }) : age = 0;
 }
 
-enum FloatingTextKind { normal, crit, reaction, skill }
+enum FloatingTextKind { normal, crit, reaction, skill, superEffective }
 
 /// Boss configuration handed to the combat engine.
 class BossConfig {

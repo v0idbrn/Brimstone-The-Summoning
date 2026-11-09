@@ -10,9 +10,8 @@ import 'database_platform.dart';
 /// contención del archivo. Para tests se puede usar [useInMemory] o un
 /// archivo único por suite con [setOverridePath].
 class DatabaseHelper {
-  /// Schema actual: v6 añade talentos, desafíos, equipamiento del invocador
-  /// y el historial global de métricas.
-  static const int version = 6;
+  /// Schema actual: v7 añade mazos guardados (deck_presets).
+  static const int version = 7;
 
   /// Ruta por defecto para las instancias creadas después de esta llamada.
   static String? _overridePath;
@@ -174,6 +173,19 @@ class DatabaseHelper {
     await db.execute(
       'CREATE TABLE player_stats(stat_key TEXT PRIMARY KEY, '
       'stat_value INTEGER NOT NULL DEFAULT 0)',
+    );
+    // v7: Mazos guardados (3 presets).
+    await db.execute(
+      'CREATE TABLE deck_presets(preset_index INTEGER PRIMARY KEY, '
+      'name TEXT NOT NULL, card_instance_ids TEXT NOT NULL)',
+    );
+    // v7: Pase de Batalla (Battle Pass).
+    await db.execute(
+      'CREATE TABLE battle_pass(id TEXT PRIMARY KEY, '
+      'xp INTEGER NOT NULL DEFAULT 0, '
+      'claimed_free TEXT NOT NULL DEFAULT \'\', '
+      'claimed_premium TEXT NOT NULL DEFAULT \'\', '
+      'premium_unlocked INTEGER NOT NULL DEFAULT 0)',
     );
 
     await _seedCatalog(db);

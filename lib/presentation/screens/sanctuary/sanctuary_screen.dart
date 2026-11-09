@@ -6,16 +6,16 @@ import '../../../core/performance/performance_settings.dart';
 import '../../../domain/campaign/campaign_chapters.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/combat/combat_models.dart';
-import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
 import '../../widgets/brimstone_button.dart';
 import '../../widgets/tcg_card_widget.dart';
-import '../combat/combat_screen.dart';
+import '../rift/rift_map_screen.dart';
 import '../meta/how_to_play_modal.dart';
 import '../meta/widgets.dart';
 import '../endless/endless_abyss_screen.dart';
 import 'bounties_modal.dart';
 import 'codex_modal.dart';
+import 'battle_pass_modal.dart';
 import 'backup_restore_modal.dart';
 import 'merchant_modal.dart';
 import 'settings_modal.dart';
@@ -183,6 +183,9 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
   int _highestEndlessWave = 0;
   SummonerStats _stats = SummonerStats.empty;
   String? _activeTitleId;
+  // Battle Pass progress
+  int _battlePassXp = 0;
+  int _battlePassLevel = 1;
 
   @override
   void initState() {
@@ -199,6 +202,7 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
     final wave = await repo.loadHighestEndlessWave();
     final stats = await repo.loadStats();
     final title = await repo.loadActiveTitle();
+    final bpData = await repo.loadBattlePass();
     final rawSettings = await repo.loadRawStats();
     PerformanceSettings.restoreFromStorage(
       flag: rawSettings[PerformanceSettings.lowSpecKey],
@@ -209,6 +213,8 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
       _highestEndlessWave = wave;
       _stats = stats;
       _activeTitleId = title;
+      _battlePassXp = bpData['xp'] as int? ?? 0;
+      _battlePassLevel = (_battlePassXp ~/ 200) + 1;
     });
   }
 
@@ -524,6 +530,13 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
             onCodex: _openCodex,
             onBounties: _openBounties,
             onBackup: _openBackup,
+          ),
+          const SizedBox(height: 12),
+          // Battle Pass Progress Bar
+          _battlePassProgressBar(
+            xp: _battlePassXp,
+            level: _battlePassLevel,
+            onTap: () => BattlePassModal.show(context),
           ),
           const SizedBox(height: 12),
           // Altar del Escuadrón con PWR total y TcgCardWidget
@@ -874,116 +887,158 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
     );
   }
 
+  /// Battle Pass progress bar widget.
+  Widget _battlePassProgressBar({
+    required int xp,
+    required int level,
+    required VoidCallback onTap,
+  }) {
+    const maxLevel = 20;
+    const xpPerLevel = 200;
+    final xpInLevel = xp % xpPerLevel;
+    final progress = level >= maxLevel ? 1.0 : xpInLevel / xpPerLevel;
+    final displayLevel = level.clamp(1, maxLevel);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF1A0E14),
+              const Color(0xFF0F060A),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFFB16EFF).withValues(alpha: 0.5),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB16EFF).withValues(alpha: 0.15),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.military_tech,
+                    color: Color(0xFFFFC93C), size: 18),
+                const SizedBox(width: 6),
+                const Text(
+                  'PASE DEL SELLO ABISAL',
+                  style: TextStyle(
+                    color: Color(0xFFFFC93C),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      const Color(0xFFB16EFF).withValues(alpha: 0.3),
+                      const Color(0xFF3FD8FF).withValues(alpha: 0.3),
+                    ]),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Nivel $displayLevel / $maxLevel',
+                    style: const TextStyle(
+                      color: Color(0xFFFFC93C),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Stack(
+              children: [
+                Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E0A0E),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                FractionallySizedBox(
+                  widthFactor: progress,
+                  child: Container(
+                    height: 4,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [
+                        Color(0xFFFFC93C),
+                        Color(0xFFFFD700),
+                        Color(0xFFB16EFF),
+                      ]),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    '$xpInLevel / $xpPerLevel XP',
+                    style: const TextStyle(color: Colors.white54, fontSize: 8),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    '+50 XP/enemigo  •  +150 XP/jefe',
+                    style: const TextStyle(
+                        color: Color(0xFFB16EFF),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'Toca para ver recompensas (20 niveles, Carril Gratis + Arconte)',
+              style: const TextStyle(color: Colors.white24, fontSize: 7),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _startChapter() async {
     final chapter = chapterById(_selectedChapterId);
     if (chapter == null) return;
     if (!chapterUnlocked(chapter.id, _clearedChapters.toList())) return;
 
-    final collectionState = ref.read(collectionProvider);
-    final cards = <ManaCard>[];
-    for (final id in collectionState.squad.take(4)) {
-      final owned = collectionState.owned.firstWhere(
-        (c) => c.instanceId == id,
-      );
-      cards.add(
-        ManaCard(
-          id: owned.catalogId,
-          name: owned.name,
-          element: owned.element,
-          baseManaCost: owned.baseManaCost,
-          attack: owned.baseAttack.toDouble(),
-          stars: owned.stars,
-        ),
-      );
-    }
-    if (cards.isEmpty) {
-      cards.addAll(
-        [
-          ManaCard(
-            id: 'ignis_hound',
-            name: 'Sabueso de Azufre',
-            element: Element.igneous,
-            baseManaCost: 100,
-            attack: 10,
-          ),
-          ManaCard(
-            id: 'abyss_stalker',
-            name: 'Acechador de Escarcha',
-            element: Element.abyssal,
-            baseManaCost: 95,
-            attack: 12,
-          ),
-          ManaCard(
-            id: 'terra_golem',
-            name: 'Gólem de Basalto',
-            element: Element.telluric,
-            baseManaCost: 100,
-            attack: 8,
-          ),
-          ManaCard(
-            id: 'void_specter',
-            name: 'Espectro del Sello',
-            element: Element.empty,
-            baseManaCost: 110,
-            attack: 15,
-          ),
-        ],
-      );
-    }
-    final engine = CombatScreen.buildEngine(
-      boss: chapter.boss,
-      cards: cards,
-      playerMaxHp: 100,
-    );
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => CombatScreen(
-          engine: engine,
-          onCombatResolved: (victory, playerHp) async {
-            if (!victory) return;
-            final firstWin =
-                await ref.read(playerRepositoryProvider).markChapterCleared(
-                      chapter.id,
-                      rewardGold: chapter.rewardGold,
-                      rewardShards: chapter.rewardShards,
-                    );
-            if (!mounted) return;
-            final cleared =
-                await ref.read(playerRepositoryProvider).loadClearedChapters();
-            setState(() => _clearedChapters = cleared.toSet());
-            if (!mounted) return;
-            await showDialog<void>(
-              context: context,
-              builder: (_) => AlertDialog(
-                backgroundColor: const Color(0xFF14090D),
-                title: Text(
-                  'CAPÍTULO ${chapter.number} COMPLETADO',
-                  style: const TextStyle(
-                    color: Color(0xFF4FFFA3),
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                content: Text(
-                  firstWin
-                      ? 'Primera victoria: +${chapter.rewardGold} oro, +${chapter.rewardShards} esquirlas.'
-                      : 'Capítulo ya limpiado previamente.',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
-                      'CONTINUAR',
-                      style: TextStyle(color: Color(0xFFB16EFF)),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+        builder: (_) => RiftMapScreen(chapterNumber: chapter.number),
       ),
     );
+    // Refresh chapter cleared state after returning from rift map
+    if (!mounted) return;
+    final cleared =
+        await ref.read(playerRepositoryProvider).loadClearedChapters();
+    setState(() => _clearedChapters = cleared.toSet());
   }
 }

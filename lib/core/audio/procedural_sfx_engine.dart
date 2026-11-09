@@ -140,6 +140,18 @@ class ProceduralSfxEngine {
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
+  /// Play chest open: magical chime with gold coin sound.
+  static void playChestOpen() {
+    _play(cached('evolution_success')); // Reuse evolution success sound for now
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
+  }
+
+  /// Play level up: ascending fanfare.
+  static void playLevelUp() {
+    _play(cached('card_skill_invoke'));
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
+  }
+
   /// Play altar evolution success: ascending celestial choir chord.
   static void playEvolutionSuccess() {
     _play(cached('evolution_success'));

@@ -91,11 +91,11 @@ void main() {
 
   // =========================================================== MÓDULO 0
   group('Módulo 0 — SQLite sin bloqueos', () {
-    test('el esquema actual es v6', () {
-      expect(DatabaseHelper.version, 6);
+    test('el esquema actual es v7', () {
+      expect(DatabaseHelper.version, 7);
     });
 
-    test('crea las 13 tablas del esquema v6', () async {
+    test('crea las 15 tablas del esquema v7', () async {
       final db = await freshHelper().db;
       final rows = await db.rawQuery(
         "SELECT name FROM sqlite_master WHERE type = 'table'",
@@ -115,6 +115,8 @@ void main() {
         'challenges_cleared',
         'summoner_gear',
         'player_stats',
+        'deck_presets',
+        'battle_pass',
       ]) {
         expect(names, contains(table), reason: 'falta la tabla $table');
       }

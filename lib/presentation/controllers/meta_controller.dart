@@ -158,6 +158,26 @@ class CollectionController extends Notifier<CollectionState> {
     await ref.read(playerRepositoryProvider).saveSquad(next);
   }
 
+  /// Replaces the entire squad with the given instance IDs (max 4, no duplicates).
+  Future<void> setSquad(List<int> instanceIds) async {
+    final unique = <int>[];
+    final seenCatalogIds = <String>{};
+    for (final id in instanceIds) {
+      if (unique.length >= 4) break;
+      final card = _card(id);
+      if (seenCatalogIds.contains(card.catalogId)) continue;
+      seenCatalogIds.add(card.catalogId);
+      unique.add(id);
+    }
+    state = CollectionState(owned: state.owned, squad: unique);
+    await ref.read(playerRepositoryProvider).saveSquad(unique);
+  }
+
+  /// Adds a newly obtained card to the collection.
+  void addCard(OwnedCard card) {
+    state = CollectionState(owned: [card, ...state.owned], squad: state.squad);
+  }
+
   /// +10% ATK/HP per level for 100*level gold. Returns the cost, or -1 on
   /// insufficient funds.
   Future<int> levelUp(int instanceId) async {
@@ -502,3 +522,118 @@ void recordCodexReaction(WidgetRef ref, String name) {
   // The codex list is static; detonation counts live in the DB via the repo.
   ref.read(playerRepositoryProvider).incrementCodexReaction(name);
 }
+
+// =========================================================================
+// Deck Presets (3 saved squads + auto-arm)
+// =========================================================================
+
+/// A saved deck preset with a name and 4 card instance IDs.
+class DeckPreset {
+  final int index; // 0, 1, 2
+  final String name;
+  final List<int> cardInstanceIds; // exactly 4 or fewer
+
+  const DeckPreset({required this.index, required this.name, required this.cardInstanceIds});
+
+  DeckPreset copyWith({int? index, String? name, List<int>? cardInstanceIds}) => DeckPreset(
+        index: index ?? this.index,
+        name: name ?? this.name,
+        cardInstanceIds: cardInstanceIds ?? this.cardInstanceIds,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'preset_index': index,
+        'name': name,
+        'cardInstanceIds': cardInstanceIds,
+      };
+
+  factory DeckPreset.fromJson(Map<String, dynamic> json) => DeckPreset(
+        index: json['preset_index'] as int,
+        name: json['name'] as String,
+        cardInstanceIds: (json['cardInstanceIds'] as List).cast<int>(),
+      );
+}
+
+class DeckPresetState {
+  final List<DeckPreset> presets; // max 3
+  final int activePresetIndex; // 0, 1, 2 or -1 for none
+
+  const DeckPresetState({this.presets = const [], this.activePresetIndex = -1});
+
+  DeckPresetState copyWith(
+          {List<DeckPreset>? presets, int? activePresetIndex}) =>
+      DeckPresetState(
+        presets: presets ?? this.presets,
+        activePresetIndex: activePresetIndex ?? this.activePresetIndex,
+      );
+}
+
+class DeckPresetController extends Notifier<DeckPresetState> {
+  static const int maxPresets = 3;
+
+  @override
+  DeckPresetState build() => const DeckPresetState();
+
+  Future<void> load() async {
+    final repo = ref.read(playerRepositoryProvider);
+    final data = await repo.loadDeckPresets();
+    state = DeckPresetState(
+      presets: data.map(DeckPreset.fromJson).toList(),
+      activePresetIndex: -1,
+    );
+  }
+
+  /// Saves a preset at [index] (0-2) with the current squad.
+  Future<void> savePreset(int index, List<int> squad) async {
+    if (index < 0 || index >= maxPresets) return;
+    final names = ['Mazo I: Ígneo', 'Mazo II: Abisal', 'Mazo III: Táctico'];
+    final nextPresets = [...state.presets];
+    final preset =
+        DeckPreset(index: index, name: names[index], cardInstanceIds: List.from(squad));
+    if (nextPresets.length <= index) {
+      nextPresets.add(preset);
+    } else {
+      nextPresets[index] = preset;
+    }
+    state = state.copyWith(presets: nextPresets);
+    await ref
+        .read(playerRepositoryProvider)
+        .saveDeckPresets(nextPresets.map((p) => p.toJson()).toList());
+  }
+
+  /// Loads a preset into the active squad.
+  Future<void> loadPreset(int index) async {
+    if (index < 0 || index >= state.presets.length) return;
+    final preset = state.presets[index];
+    await ref
+        .read(collectionProvider.notifier)
+        .setSquad(preset.cardInstanceIds);
+    state = state.copyWith(activePresetIndex: index);
+  }
+
+  /// Auto-arms the best deck: picks top 4 unique cards by ATK * stars.
+  Future<void> autoArmBest() async {
+    final collection = ref.read(collectionProvider);
+    final owned = [...collection.owned];
+    // Sort by effective power (attack * stars), descending
+    owned.sort(
+        (a, b) => (b.baseAttack * b.stars).compareTo(a.baseAttack * a.stars));
+    final uniqueCatalogIds = <String>{};
+    final selected = <int>[];
+    for (final card in owned) {
+      if (selected.length >= 4) break;
+      if (uniqueCatalogIds.contains(card.catalogId)) continue;
+      uniqueCatalogIds.add(card.catalogId);
+      selected.add(card.instanceId);
+    }
+    if (selected.length == 4) {
+      await ref.read(collectionProvider.notifier).setSquad(selected);
+      state = state.copyWith(activePresetIndex: -1);
+    }
+  }
+}
+
+final deckPresetProvider =
+    NotifierProvider<DeckPresetController, DeckPresetState>(
+  DeckPresetController.new,
+);

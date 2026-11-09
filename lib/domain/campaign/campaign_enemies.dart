@@ -543,7 +543,8 @@ List<CampaignEnemy> minionsForChapter(int chapterNumber) => campaignEnemies
 /// Obtiene el mini-jefe de un capítulo.
 CampaignEnemy? miniBossForChapter(int chapterNumber) {
   final matches = campaignEnemies
-      .where((e) => e.chapterNumber == chapterNumber && e.tier == EnemyTier.miniBoss)
+      .where((e) =>
+          e.chapterNumber == chapterNumber && e.tier == EnemyTier.miniBoss)
       .toList();
   return matches.isEmpty ? null : matches.first;
 }
@@ -551,7 +552,8 @@ CampaignEnemy? miniBossForChapter(int chapterNumber) {
 /// Obtiene el jefe final de un capítulo.
 CampaignEnemy? chapterBossForChapter(int chapterNumber) {
   final matches = campaignEnemies
-      .where((e) => e.chapterNumber == chapterNumber && e.tier == EnemyTier.chapterBoss)
+      .where((e) =>
+          e.chapterNumber == chapterNumber && e.tier == EnemyTier.chapterBoss)
       .toList();
   return matches.isEmpty ? null : matches.first;
 }

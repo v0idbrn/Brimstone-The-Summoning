@@ -26,9 +26,18 @@ class _BarracksScreenState extends ConsumerState<BarracksScreen> {
   int? _filterStars;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(deckPresetProvider.notifier).load();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final collection = ref.watch(collectionProvider);
     final cards = collection.owned.where(_matchesFilter).toList();
+    final deckPresets = ref.watch(deckPresetProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0608),
@@ -57,6 +66,9 @@ class _BarracksScreenState extends ConsumerState<BarracksScreen> {
         children: [
           const CurrencyBar(),
           const SizedBox(height: 4),
+          // Deck Preset Selector + Auto-Arm
+          _buildDeckPresetSelector(deckPresets, collection),
+          const SizedBox(height: 8),
           // Squad slots (tap to remove).
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -164,6 +176,65 @@ class _BarracksScreenState extends ConsumerState<BarracksScreen> {
                 onTap: () => _showInspector(context, cards[i]),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeckPresetSelector(
+      DeckPresetState presetsState, CollectionState collection) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'MAZOS GUARDADOS',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 10,
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              // Preset buttons (Mazo I, II, III)
+              for (var i = 0; i < 3; i++)
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(right: i == 2 ? 0 : 4),
+                    child: _PresetButton(
+                      index: i,
+                      name: [
+                        'Mazo I: Ígneo',
+                        'Mazo II: Abisal',
+                        'Mazo III: Táctico'
+                      ][i],
+                      isActive: presetsState.activePresetIndex == i,
+                      hasPreset: i < presetsState.presets.length,
+                      onTap: () =>
+                          ref.read(deckPresetProvider.notifier).loadPreset(i),
+                      onLongPress: () => ref
+                          .read(deckPresetProvider.notifier)
+                          .savePreset(i, collection.squad),
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              // Auto-arm button
+              _AutoArmButton(
+                onPressed: () =>
+                    ref.read(deckPresetProvider.notifier).autoArmBest(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Toca para cargar · Mantén para guardar · ⚡ Auto-armar mejor mazo',
+            style: TextStyle(color: Colors.white24, fontSize: 9),
           ),
         ],
       ),
@@ -509,6 +580,142 @@ class _RuneForgeSectionState extends ConsumerState<_RuneForgeSection> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Preset button for saved deck (tap to load, long-press to save).
+class _PresetButton extends StatelessWidget {
+  final int index;
+  final String name;
+  final bool isActive;
+  final bool hasPreset;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  const _PresetButton({
+    required this.index,
+    required this.name,
+    required this.isActive,
+    required this.hasPreset,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = [
+      const Color(0xFFFF5A26), // Ígneo
+      const Color(0xFF3FD8FF), // Abisal
+      const Color(0xFF4FFFA3), // Telúrico
+    ];
+    final color = colors[index];
+
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        decoration: BoxDecoration(
+          gradient: isActive
+              ? LinearGradient(colors: [
+                  color.withValues(alpha: 0.9),
+                  color.withValues(alpha: 0.7),
+                ])
+              : hasPreset
+                  ? LinearGradient(colors: [
+                      color.withValues(alpha: 0.3),
+                      color.withValues(alpha: 0.15),
+                    ])
+                  : LinearGradient(colors: [
+                      const Color(0xFF1A0E14),
+                      const Color(0xFF0C0608),
+                    ]),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isActive
+                ? color
+                : hasPreset
+                    ? color.withValues(alpha: 0.5)
+                    : Colors.white12,
+            width: isActive ? 2 : 1.2,
+          ),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                      color: color.withValues(alpha: 0.4),
+                      blurRadius: 8,
+                      spreadRadius: 1)
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              name.split(': ')[1],
+              style: TextStyle(
+                color: isActive
+                    ? Colors.black
+                    : (hasPreset ? color : Colors.white54),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              hasPreset ? '✓ Guardado' : 'Vacío',
+              style: TextStyle(
+                color: isActive
+                    ? Colors.black54
+                    : (hasPreset
+                        ? color.withValues(alpha: 0.7)
+                        : Colors.white24),
+                fontSize: 8,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Auto-arm button that selects the best 4 cards by ATK * stars.
+class _AutoArmButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _AutoArmButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 56,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon:
+            const Icon(Icons.auto_fix_high, size: 16, color: Color(0xFFB16EFF)),
+        label: const Text(
+          'AUTO',
+          style: TextStyle(
+            color: Color(0xFFB16EFF),
+            fontSize: 9,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          minimumSize: const Size(0, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          side: const BorderSide(color: Color(0xFFB16EFF), width: 1.5),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       ),
     );
   }

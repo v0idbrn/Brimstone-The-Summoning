@@ -1066,6 +1066,62 @@ class PlayerRepository {
     }
   }
 
+  /// Carga los 3 presets de mazos guardados.
+  Future<List<Map<String, Object?>>> loadDeckPresets() async {
+    final db = await _db.db;
+    return await db.query('deck_presets', orderBy: 'preset_index');
+  }
+
+  /// Guarda los 3 presets de mazos.
+  Future<void> saveDeckPresets(List<Map<String, Object?>> rows) async {
+    final db = await _db.db;
+    await db.delete('deck_presets');
+    for (final row in rows) {
+      await db.insert('deck_presets', row);
+    }
+  }
+
+  /// Carga el progreso del Pase de Batalla.
+  Future<Map<String, Object?>> loadBattlePass() async {
+    final db = await _db.db;
+    final rows = await db.query('battle_pass', limit: 1);
+    if (rows.isEmpty) {
+      return {
+        'xp': 0,
+        'claimedFree': [],
+        'claimedPremium': [],
+        'premiumUnlocked': 0
+      };
+    }
+    final row = rows.first;
+    return {
+      'xp': row['xp'] ?? 0,
+      'claimedFree': row['claimed_free'],
+      'claimedPremium': row['claimed_premium'],
+      'premiumUnlocked': row['premium_unlocked'] ?? 0,
+    };
+  }
+
+  /// Guarda el progreso del Pase de Batalla.
+  Future<void> saveBattlePass(Map<String, Object?> data) async {
+    final db = await _db.db;
+    await db.insert(
+      'battle_pass',
+      {
+        'id': 'season_1',
+        'xp': data['xp'] ?? 0,
+        'claimed_free': data['claimedFree'] is List
+            ? (data['claimedFree'] as List).join(',')
+            : '',
+        'claimed_premium': data['claimedPremium'] is List
+            ? (data['claimedPremium'] as List).join(',')
+            : '',
+        'premium_unlocked': data['premiumUnlocked'] == true ? 1 : 0,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
   // ---------------------------------------------------------------- codex
 
   /// Incrementa el contador de detonaciones de una reacción. Acepta tanto el

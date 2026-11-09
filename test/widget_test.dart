@@ -215,6 +215,27 @@ class _FakePlayerRepository extends PlayerRepository {
     int counterflicks = 0,
     bool bossKilled = false,
   }) async {}
+
+  @override
+  Future<Map<String, Object?>> loadBattlePass() async {
+    return {
+      'xp': 0,
+      'claimedFree': <int>[],
+      'claimedPremium': <int>[],
+      'premiumUnlocked': 0,
+    };
+  }
+
+  @override
+  Future<void> saveBattlePass(Map<String, Object?> data) async {}
+
+  @override
+  Future<List<Map<String, Object?>>> loadDeckPresets() async {
+    return const [];
+  }
+
+  @override
+  Future<void> saveDeckPresets(List<Map<String, Object?>> rows) async {}
 }
 
 Override _fakeRepoOverride() =>

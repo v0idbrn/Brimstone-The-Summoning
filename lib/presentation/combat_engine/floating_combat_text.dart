@@ -32,12 +32,14 @@ class FloatingCombatText extends PositionComponent {
         FloatingTextKind.crit => 22.0,
         FloatingTextKind.reaction => 20.0,
         FloatingTextKind.skill => 20.0,
+        FloatingTextKind.superEffective => 20.0,
         FloatingTextKind.normal => 16.0,
       };
       final color = switch (t.kind) {
         FloatingTextKind.crit => Colors.amber,
         FloatingTextKind.reaction => _reactionColor(t.element),
         FloatingTextKind.skill => const Color(0xFF3FD8FF),
+        FloatingTextKind.superEffective => const Color(0xFFFFD700),
         FloatingTextKind.normal => Colors.white,
       };
       TextPaint(

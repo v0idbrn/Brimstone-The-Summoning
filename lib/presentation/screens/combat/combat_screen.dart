@@ -95,6 +95,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   String? _reactionBanner;
   int _session = 0;
 
+  // Game speed multiplier (1.0 or 1.5x)
+  double _gameSpeed = 1.0;
+
   // Unified drag/flick state
   int? _draggedSlot;
   Offset? _dragStartGlobalPos;
@@ -315,6 +318,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       engine: _engine!,
       onVictory: () => _resolve(true),
       onDefeat: () => _resolve(false),
+      speedMultiplier: _gameSpeed,
     );
     setState(() {});
   }
@@ -845,6 +849,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   Widget _buildHeader() {
     final hpFraction = engine.bossHp / engine.boss.maxHp;
     final isEnraged = engine.enraged;
+    final weakElement = elementalWeakness(engine.boss.element);
+    final weakElementName = _elementDisplayName(weakElement);
+    final weakElementColor = _elementColor(weakElement);
 
     return Container(
       decoration: const BoxDecoration(
@@ -908,27 +915,58 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Stack(
+                    Row(
                       children: [
-                        Container(
-                            height: 6,
-                            decoration: BoxDecoration(
-                                color: const Color(0xFF1E0A0E),
-                                borderRadius: BorderRadius.circular(3))),
-                        FractionallySizedBox(
-                          widthFactor: hpFraction.clamp(0.0, 1.0),
-                          child: Container(
-                            height: 6,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                  colors: isEnraged
-                                      ? [Colors.orangeAccent, Colors.redAccent]
-                                      : [
-                                          Colors.redAccent,
-                                          const Color(0xFFCC0000)
-                                        ]),
-                              borderRadius: BorderRadius.circular(3),
+                        Stack(
+                          children: [
+                            Container(
+                                height: 6,
+                                decoration: BoxDecoration(
+                                    color: const Color(0xFF1E0A0E),
+                                    borderRadius: BorderRadius.circular(3))),
+                            FractionallySizedBox(
+                              widthFactor: hpFraction.clamp(0.0, 1.0),
+                              child: Container(
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                      colors: isEnraged
+                                          ? [
+                                              Colors.orangeAccent,
+                                              Colors.redAccent
+                                            ]
+                                          : [
+                                              Colors.redAccent,
+                                              const Color(0xFFCC0000)
+                                            ]),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(width: 8),
+                        // Elemental weakness chip
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                              weakElementColor.withValues(alpha: 0.9),
+                              weakElementColor.withValues(alpha: 0.7),
+                            ]),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.5),
+                                width: 1),
+                          ),
+                          child: Text(
+                            'Débil a: $weakElementName (+30%)',
+                            style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.3),
                           ),
                         ),
                       ],
@@ -945,6 +983,11 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         fontFeatures: [FontFeature.tabularFigures()])),
+              ),
+              // Speed toggle 1x / 1.5x
+              _SpeedToggle(
+                initialSpeed: _gameSpeed,
+                onChanged: (speed) => setState(() => _gameSpeed = speed),
               ),
               IconButton(
                   icon: const Icon(Icons.help_outline,
@@ -967,6 +1010,13 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       ),
     );
   }
+
+  String _elementDisplayName(Element e) => switch (e) {
+        Element.igneous => 'Ígneo',
+        Element.abyssal => 'Abisal',
+        Element.telluric => 'Telúrico',
+        Element.empty => 'Vacío',
+      };
 
   Widget _buildSquadCards() {
     final cards = engine.cards;
@@ -1510,6 +1560,92 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                               fontWeight: FontWeight.w900,
                               letterSpacing: 0.3))
                     ])))));
+  }
+}
+
+/// Speed toggle widget for 1x / 1.5x game speed.
+class _SpeedToggle extends StatelessWidget {
+  final double initialSpeed;
+  final void Function(double) onChanged;
+
+  const _SpeedToggle({required this.initialSpeed, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          const Color(0xFF1A0A0F),
+          const Color(0xFF0C0608),
+        ]),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+            color: const Color(0xFFB16EFF).withValues(alpha: 0.5), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _SpeedButton(
+            label: '1x',
+            selected: initialSpeed == 1.0,
+            onTap: () => onChanged(1.0),
+          ),
+          Container(
+            width: 1,
+            height: 20,
+            color: Colors.white24,
+          ),
+          _SpeedButton(
+            label: '1.5x',
+            selected: initialSpeed == 1.5,
+            onTap: () => onChanged(1.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpeedButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SpeedButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          gradient: selected
+              ? LinearGradient(colors: [
+                  const Color(0xFFB16EFF).withValues(alpha: 0.9),
+                  const Color(0xFFB16EFF).withValues(alpha: 0.7),
+                ])
+              : null,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.black : Colors.white70,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -17,6 +17,7 @@ class BrimstoneCombatGame extends FlameGame {
   final CombatEngine engine;
   final void Function()? onVictory;
   final void Function()? onDefeat;
+  final double speedMultiplier;
 
   double viewScale = 1;
   double baseOffsetX = 0;
@@ -24,7 +25,12 @@ class BrimstoneCombatGame extends FlameGame {
   double shakeX = 0;
   double shakeY = 0;
 
-  BrimstoneCombatGame({required this.engine, this.onVictory, this.onDefeat});
+  BrimstoneCombatGame({
+    required this.engine,
+    this.onVictory,
+    this.onDefeat,
+    this.speedMultiplier = 1.0,
+  });
 
   /// Absolute offsets including screen shake.
   double get offsetX => baseOffsetX + shakeX;
@@ -68,7 +74,7 @@ class BrimstoneCombatGame extends FlameGame {
   @override
   void update(double dt) {
     super.update(dt);
-    engine.tick(dt);
+    engine.tick(dt * speedMultiplier);
     final t = engine.time;
     shakeX = CombatMath.shakeOffset(engine.trauma, t, 14);
     shakeY = -CombatMath.shakeOffset(engine.trauma, t + 0.31, 10);

@@ -1068,6 +1068,9 @@ class CombatEngine {
     if (has(SealMutator.reactionBoost)) mutatorMult *= 0.20;
     if (has(SealMutator.skillDisabledOrbBoost)) mutatorMult *= 2.20;
 
+    // Elemental weakness multiplier (+30% super-effective).
+    final weaknessMult = elementalWeaknessMultiplier(orb.element, boss.element);
+
     final rawDamage = baseDamage *
         multiplier *
         playerDamageMult *
@@ -1075,7 +1078,8 @@ class CombatEngine {
         critMult *
         talentMult *
         streakMult *
-        mutatorMult;
+        mutatorMult *
+        weaknessMult;
     // Anti-cheat: NaN/infinitos/negativos se descartan; los valores inyectados
     // por encima del techo legal se recortan y quedan registrados.
     final dmg = sanityGuard.sanitize(rawDamage);
@@ -1093,20 +1097,30 @@ class CombatEngine {
     }
     final x = target?.xAt(time, effectiveAngularSpeed(target)) ?? bossScreenX;
     final y = target?.yAt(time, effectiveAngularSpeed(target)) ?? bossScreenY;
+    // Floating text: show SUPEREFICAZ when hitting elemental weakness.
+    final isSuperEffective = weaknessMult > 1.0 && kind != HitKind.miss;
     texts.add(
       FloatingText(
         id: _nextId('txt'),
         text: switch (kind) {
-          HitKind.bullseye => '¡CRÍTICO -${dmg.toInt()}!',
-          HitKind.normal => '-${dmg.toInt()}',
-          HitKind.graze => '-${dmg.toInt()}',
+          HitKind.bullseye => isSuperEffective
+              ? '¡SUPEREFICAZ -${dmg.toInt()}!'
+              : '¡CRÍTICO -${dmg.toInt()}!',
+          HitKind.normal => isSuperEffective
+              ? '¡SUPEREFICAZ -${dmg.toInt()}!'
+              : '-${dmg.toInt()}',
+          HitKind.graze => isSuperEffective
+              ? '¡SUPEREFICAZ -${dmg.toInt()}!'
+              : '-${dmg.toInt()}',
           HitKind.miss => '',
         },
         x: x,
         y: y,
-        kind: kind == HitKind.bullseye
-            ? FloatingTextKind.crit
-            : FloatingTextKind.normal,
+        kind: isSuperEffective
+            ? FloatingTextKind.superEffective
+            : (kind == HitKind.bullseye
+                ? FloatingTextKind.crit
+                : FloatingTextKind.normal),
       ),
     );
     // Nyxara (Vacío) enrage: fallar un tiro drena 10 de maná al escuadrón.

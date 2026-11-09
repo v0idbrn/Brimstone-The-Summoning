@@ -12,6 +12,7 @@ import '../../../domain/roguelite/abyssal_events.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
 import '../combat/combat_screen.dart';
+import '../combat/loot_chest_modal.dart';
 import '../story/story_scene_modal.dart';
 import 'relic_draft_modal.dart';
 import 'rift_run_notifier.dart';
@@ -89,7 +90,8 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
   @override
   Widget build(BuildContext context) {
     final run = _run!;
-    final chapter = chapterById(run.currentNodeId.toString()) ?? campaignChapters.first;
+    final chapter =
+        chapterById(run.currentNodeId.toString()) ?? campaignChapters.first;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0608),
@@ -118,7 +120,8 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
           for (final _ in run.relicIds)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 3),
-              child: Icon(Icons.auto_awesome, size: 18, color: Color(0xFFB16EFF)),
+              child:
+                  Icon(Icons.auto_awesome, size: 18, color: Color(0xFFB16EFF)),
             ),
         ],
       ),
@@ -131,9 +134,10 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
             builder: (context, constraints) {
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTapUp: (d) => _onNodeTap(context, d.localPosition, constraints.biggest),
-                onPanUpdate: (d) =>
-                    setState(() => _hoveredNodeId = _findHoveredNode(d.localPosition, constraints.biggest)),
+                onTapUp: (d) =>
+                    _onNodeTap(context, d.localPosition, constraints.biggest),
+                onPanUpdate: (d) => setState(() => _hoveredNodeId =
+                    _findHoveredNode(d.localPosition, constraints.biggest)),
                 child: CustomPaint(
                   size: constraints.biggest,
                   painter: _RiftMapPainter(
@@ -162,7 +166,8 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
     final layouts = _RiftMapPainter.computeLayouts(_run!, size);
     for (final layout in layouts) {
       if (!_run!.currentNode.next.contains(layout.node.id)) continue;
-      final rect = Rect.fromCenter(center: layout.center, width: 56, height: 56);
+      final rect =
+          Rect.fromCenter(center: layout.center, width: 56, height: 56);
       if (rect.contains(tap)) {
         _enterNode(context, layout.node);
         return;
@@ -174,7 +179,8 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
     if (_run == null) return null;
     final layouts = _RiftMapPainter.computeLayouts(_run!, size);
     for (final layout in layouts) {
-      final rect = Rect.fromCenter(center: layout.center, width: 56, height: 56);
+      final rect =
+          Rect.fromCenter(center: layout.center, width: 56, height: 56);
       if (rect.contains(pos)) return layout.node.id;
     }
     return null;
@@ -187,7 +193,8 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
 
     if (node.type == RiftNodeType.event) {
       container.read(riftRunProvider.notifier).enterNode(node.id);
-      final event = AbyssalEvents.byId(node.eventId ?? AbyssalEvents.all.first.id);
+      final event =
+          AbyssalEvents.byId(node.eventId ?? AbyssalEvents.all.first.id);
       showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
@@ -225,7 +232,9 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
                 Navigator.of(sheetContext).pop();
               },
               onSacrifice: (offerings) {
-                if (offerings.isNotEmpty) controller.sacrificeAtAltar(offerings.first);
+                if (offerings.isNotEmpty) {
+                  controller.sacrificeAtAltar(offerings.first);
+                }
                 controller.clearNode();
                 Navigator.of(sheetContext).pop();
               },
@@ -256,9 +265,13 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
     final gearLevels = await repo.loadGearLevels();
     if (!context.mounted) return;
 
-    final engine = _buildCombatEngine(run, node, container.read(collectionProvider),
+    final engine = _buildCombatEngine(
+        run, node, container.read(collectionProvider),
         talentLevels: talents, gearLevels: gearLevels);
     final regen = GearLoadout(gearLevels).lifeRegenFraction;
+
+    // Get the campaign enemy for this node to pass to loot chest
+    final campaignEnemy = enemyForFloor(widget.chapterNumber, node.floor);
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -266,14 +279,18 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
           engine: engine,
           onCombatResolved: (victory, playerHp) {
             container.read(riftRunProvider.notifier).resolveCombat(
-              victory: victory,
-              playerHp: playerHp,
-              betweenFloorRegenFraction: regen,
-            );
-            if (victory && node.type != RiftNodeType.boss && node.type != RiftNodeType.altar) {
+                  victory: victory,
+                  playerHp: playerHp,
+                  betweenFloorRegenFraction: regen,
+                );
+            if (victory &&
+                node.type != RiftNodeType.boss &&
+                node.type != RiftNodeType.altar &&
+                node.type != RiftNodeType.elite) {
               final updated = container.read(riftRunProvider);
               if (updated != null) {
-                final offerings = RelicDraftModal.buildOfferings(updated.relicIds, null);
+                final offerings =
+                    RelicDraftModal.buildOfferings(updated.relicIds, null);
                 if (offerings.isNotEmpty) {
                   showModalBottomSheet<void>(
                     context: context,
@@ -289,11 +306,11 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
                 }
               }
             }
-            // Show epilogue after boss victory
-            if (victory && node.type == RiftNodeType.boss && mounted) {
-              final scene = StoryScenes.chapterScenes[widget.chapterNumber]?['epilogue'];
+            // Show miniboss story scene on floor 4 (elite node) victory
+            if (victory && node.type == RiftNodeType.elite && mounted) {
+              final scene =
+                  StoryScenes.chapterScenes[widget.chapterNumber]?['miniboss'];
               if (scene != null) {
-                // Show epilogue immediately after combat resolves (no delay to avoid async gap)
                 StorySceneModal.show(
                   context: context,
                   title: scene.title,
@@ -302,6 +319,33 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
                   onContinue: () {},
                 );
               }
+            }
+            // Show epilogue after boss victory
+            if (victory && node.type == RiftNodeType.boss && mounted) {
+              final scene =
+                  StoryScenes.chapterScenes[widget.chapterNumber]?['epilogue'];
+              if (scene != null) {
+                StorySceneModal.show(
+                  context: context,
+                  title: scene.title,
+                  illustrationAsset: scene.illustration,
+                  dialogueLines: scene.dialogue,
+                  onContinue: () {},
+                );
+              }
+            }
+            // Show loot chest for mini-boss (elite) and chapter boss victories
+            if (victory &&
+                campaignEnemy != null &&
+                (node.type == RiftNodeType.elite ||
+                    node.type == RiftNodeType.boss) &&
+                mounted) {
+              LootChestModal.show(
+                context: context,
+                enemy: campaignEnemy,
+                isChapterBoss: node.type == RiftNodeType.boss,
+                onContinue: () {},
+              );
             }
           },
         ),
@@ -317,7 +361,8 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
     Map<String, int> gearLevels = const {},
   }) {
     final mods = CombatModifiers.fromRelics(run.relicIds).copyWith(
-      startManaFraction: run.startManaFraction > 0 ? run.startManaFraction : null,
+      startManaFraction:
+          run.startManaFraction > 0 ? run.startManaFraction : null,
     );
 
     final campaignEnemy = enemyForFloor(widget.chapterNumber, node.floor);
@@ -363,17 +408,40 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
   }
 
   List<ManaCard> _defaultSquad() => [
-    ManaCard(id: 'ignis_hound', name: 'Sabueso de Azufre', element: Element.igneous, baseManaCost: 100, attack: 10),
-    ManaCard(id: 'abyss_stalker', name: 'Acechador de Escarcha', element: Element.abyssal, baseManaCost: 95, attack: 12),
-    ManaCard(id: 'terra_golem', name: 'Gólem de Basalto', element: Element.telluric, baseManaCost: 100, attack: 8),
-    ManaCard(id: 'void_specter', name: 'Espectro del Sello', element: Element.empty, baseManaCost: 110, attack: 15),
-  ];
+        ManaCard(
+            id: 'ignis_hound',
+            name: 'Sabueso de Azufre',
+            element: Element.igneous,
+            baseManaCost: 100,
+            attack: 10),
+        ManaCard(
+            id: 'abyss_stalker',
+            name: 'Acechador de Escarcha',
+            element: Element.abyssal,
+            baseManaCost: 95,
+            attack: 12),
+        ManaCard(
+            id: 'terra_golem',
+            name: 'Gólem de Basalto',
+            element: Element.telluric,
+            baseManaCost: 100,
+            attack: 8),
+        ManaCard(
+            id: 'void_specter',
+            name: 'Espectro del Sello',
+            element: Element.empty,
+            baseManaCost: 110,
+            attack: 15),
+      ];
 
   Widget _buildNodeTooltip(int nodeId, BoxConstraints constraints) {
     final run = _run!;
     final node = run.nodes.firstWhere((n) => n.id == nodeId);
     final enemy = campaignEnemies.firstWhere(
-      (e) => e.chapterNumber == widget.chapterNumber && e.floor == node.floor && e.tier == _nodeTier(node.type),
+      (e) =>
+          e.chapterNumber == widget.chapterNumber &&
+          e.floor == node.floor &&
+          e.tier == _nodeTier(node.type),
       orElse: () => campaignEnemies.first,
     );
     final isAvailable = run.currentNode.next.contains(node.id);
@@ -392,24 +460,46 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
               color: const Color(0xFF14090D),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                  color: isAvailable ? const Color(0xFFB16EFF) : const Color(0xFF2A151A), width: 2),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 10, spreadRadius: 2)],
+                  color: isAvailable
+                      ? const Color(0xFFB16EFF)
+                      : const Color(0xFF2A151A),
+                  width: 2),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    blurRadius: 10,
+                    spreadRadius: 2)
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(enemy.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+                Text(enemy.name,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900)),
                 const SizedBox(height: 4),
-                Text('${enemy.maxHp.round()} HP  •  ${enemy.targetCount} dianas  •  Piso ${node.floor}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(
+                    '${enemy.maxHp.round()} HP  •  ${enemy.targetCount} dianas  •  Piso ${node.floor}',
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 8),
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(_nodeIcon(node.type), color: _nodeColor(node.type, isCleared, isAvailable), size: 18),
+                  Icon(_nodeIcon(node.type),
+                      color: _nodeColor(node.type, isCleared, isAvailable),
+                      size: 18),
                   const SizedBox(width: 8),
                   Text(
-                    isCleared ? 'COMPLETADO' : (isAvailable ? 'DISPONIBLE' : 'BLOQUEADO'),
+                    isCleared
+                        ? 'COMPLETADO'
+                        : (isAvailable ? 'DISPONIBLE' : 'BLOQUEADO'),
                     style: TextStyle(
-                      color: isCleared ? const Color(0xFFFFC93C) : (isAvailable ? const Color(0xFF4FFFA3) : Colors.white38),
+                      color: isCleared
+                          ? const Color(0xFFFFC93C)
+                          : (isAvailable
+                              ? const Color(0xFF4FFFA3)
+                              : Colors.white38),
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -433,12 +523,12 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
   }
 
   IconData _nodeIcon(RiftNodeType type) => switch (type) {
-    RiftNodeType.combat => Icons.sports_mma,
-    RiftNodeType.elite => Icons.star,
-    RiftNodeType.boss => Icons.emoji_events,
-    RiftNodeType.altar => Icons.local_fire_department,
-    RiftNodeType.event => Icons.help_outline,
-  };
+        RiftNodeType.combat => Icons.sports_mma,
+        RiftNodeType.elite => Icons.star,
+        RiftNodeType.boss => Icons.emoji_events,
+        RiftNodeType.altar => Icons.local_fire_department,
+        RiftNodeType.event => Icons.help_outline,
+      };
 
   Color _nodeColor(RiftNodeType type, bool cleared, bool available) {
     if (cleared) return const Color(0xFFFFC93C);
@@ -459,13 +549,18 @@ class _StatChip extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String value;
-  const _StatChip({required this.icon, required this.color, required this.value});
+  const _StatChip(
+      {required this.icon, required this.color, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(children: [Icon(icon, color: color, size: 16), const SizedBox(width: 3), Text(value, style: TextStyle(color: color, fontSize: 12))]),
+      child: Row(children: [
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 3),
+        Text(value, style: TextStyle(color: color, fontSize: 12))
+      ]),
     );
   }
 }
@@ -476,13 +571,13 @@ class _ChapterBackground extends StatelessWidget {
   const _ChapterBackground({required this.chapterNumber});
 
   Color get _color => switch (chapterNumber) {
-    1 => const Color(0xFFFF5A26), // Ígneo - lava
-    2 => const Color(0xFF3FD8FF), // Abisal - hielo
-    3 => const Color(0xFF4FFFA3), // Telúrico - esmeralda
-    4 => const Color(0xFFB16EFF), // Vacío - púrpura
-    5 => const Color(0xFFFFC93C), // Sello Roto - oro carmesí
-    _ => const Color(0xFFB16EFF),
-  };
+        1 => const Color(0xFFFF5A26), // Ígneo - lava
+        2 => const Color(0xFF3FD8FF), // Abisal - hielo
+        3 => const Color(0xFF4FFFA3), // Telúrico - esmeralda
+        4 => const Color(0xFFB16EFF), // Vacío - púrpura
+        5 => const Color(0xFFFFC93C), // Sello Roto - oro carmesí
+        _ => const Color(0xFFB16EFF),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -520,13 +615,13 @@ class _RiftMapPainter extends CustomPainter {
   });
 
   Color get _chapterColor => switch (chapterNumber) {
-    1 => const Color(0xFFFF5A26),
-    2 => const Color(0xFF3FD8FF),
-    3 => const Color(0xFF4FFFA3),
-    4 => const Color(0xFFB16EFF),
-    5 => const Color(0xFFFFC93C),
-    _ => const Color(0xFFB16EFF),
-  };
+        1 => const Color(0xFFFF5A26),
+        2 => const Color(0xFF3FD8FF),
+        3 => const Color(0xFF4FFFA3),
+        4 => const Color(0xFFB16EFF),
+        5 => const Color(0xFFFFC93C),
+        _ => const Color(0xFFB16EFF),
+      };
 
   static List<_NodeLayout> computeLayouts(RiftRun run, Size size) {
     final floors = run.nodes.map((n) => n.floor).toSet().toList()..sort();
@@ -534,7 +629,8 @@ class _RiftMapPainter extends CustomPainter {
     final rowH = (size.height - 80) / math.max(1, floors.length - 1);
     for (var rowIndex = 0; rowIndex < floors.length; rowIndex++) {
       final floor = floors[rowIndex];
-      final laneNodes = run.nodes.where((n) => n.floor == floor).toList(growable: false);
+      final laneNodes =
+          run.nodes.where((n) => n.floor == floor).toList(growable: false);
       final cy = 40 + rowIndex * rowH;
       for (var i = 0; i < laneNodes.length; i++) {
         final cx = size.width * ((i + 1) / (laneNodes.length + 1));
@@ -557,7 +653,8 @@ class _RiftMapPainter extends CustomPainter {
         final target = byId[nextId];
         if (target == null) continue;
         final isPathAvailable = available.contains(nextId);
-        final isPathCleared = cleared.contains(l.node.id) && cleared.contains(nextId);
+        final isPathCleared =
+            cleared.contains(l.node.id) && cleared.contains(nextId);
 
         final paint = Paint()
           ..style = PaintingStyle.stroke
@@ -568,9 +665,12 @@ class _RiftMapPainter extends CustomPainter {
         path.moveTo(l.center.dx, l.center.dy);
         final midX = (l.center.dx + target.center.dx) / 2;
         path.cubicTo(
-          midX, l.center.dy,
-          midX, target.center.dy,
-          target.center.dx, target.center.dy,
+          midX,
+          l.center.dy,
+          midX,
+          target.center.dy,
+          target.center.dx,
+          target.center.dy,
         );
 
         if (isPathCleared) {
@@ -594,7 +694,8 @@ class _RiftMapPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 6.0
             ..strokeCap = StrokeCap.round
-            ..color = _chapterColor.withValues(alpha: 0.15 * (0.5 + 0.5 * math.sin(pulseValue * 2 * math.pi)));
+            ..color = _chapterColor.withValues(
+                alpha: 0.15 * (0.5 + 0.5 * math.sin(pulseValue * 2 * math.pi)));
           canvas.drawPath(path, glowPaint);
         }
       }
@@ -612,7 +713,8 @@ class _RiftMapPainter extends CustomPainter {
 
       // Outer glow for available/current/hovered
       if (isAvailable || isCurrent || isHovered) {
-        final glowR = r + 8 + (isAvailable ? 4 * math.sin(pulseValue * 2 * math.pi) : 0);
+        final glowR =
+            r + 8 + (isAvailable ? 4 * math.sin(pulseValue * 2 * math.pi) : 0);
         canvas.drawCircle(
           l.center,
           glowR,
@@ -667,15 +769,20 @@ class _RiftMapPainter extends CustomPainter {
             color: Colors.white,
             fontSize: r * 0.7,
             fontWeight: FontWeight.w900,
-            shadows: [Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 2)],
+            shadows: [
+              Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 2)
+            ],
           ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, l.center - Offset(textPainter.width / 2, textPainter.height / 2));
+      textPainter.paint(canvas,
+          l.center - Offset(textPainter.width / 2, textPainter.height / 2));
 
       // Mini portrait for combat nodes
-      if (l.node.type == RiftNodeType.combat || l.node.type == RiftNodeType.elite || l.node.type == RiftNodeType.boss) {
+      if (l.node.type == RiftNodeType.combat ||
+          l.node.type == RiftNodeType.elite ||
+          l.node.type == RiftNodeType.boss) {
         final portraitRect = Rect.fromCenter(
           center: l.center + Offset(0, r + 18),
           width: 28,
@@ -700,7 +807,8 @@ class _RiftMapPainter extends CustomPainter {
           canvas.drawCircle(
             portraitRect.center,
             10,
-            Paint()..color = _elementColor(enemy.element).withValues(alpha: 0.6),
+            Paint()
+              ..color = _elementColor(enemy.element).withValues(alpha: 0.6),
           );
         }
       }
@@ -727,14 +835,16 @@ class _RiftMapPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  void _drawPulseRing(Canvas canvas, Offset center, double radius, double pulse) {
+  void _drawPulseRing(
+      Canvas canvas, Offset center, double radius, double pulse) {
     canvas.drawCircle(
       center,
       radius + 3 * math.sin(pulse * 2 * math.pi),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
-        ..color = Colors.white.withValues(alpha: 0.5 + 0.3 * math.sin(pulse * 2 * math.pi)),
+        ..color = Colors.white
+            .withValues(alpha: 0.5 + 0.3 * math.sin(pulse * 2 * math.pi)),
     );
   }
 
@@ -753,19 +863,19 @@ class _RiftMapPainter extends CustomPainter {
   }
 
   String _nodeLetter(RiftNodeType type) => switch (type) {
-    RiftNodeType.combat => '⚔',
-    RiftNodeType.elite => '★',
-    RiftNodeType.boss => '👑',
-    RiftNodeType.altar => '🩸',
-    RiftNodeType.event => '?',
-  };
+        RiftNodeType.combat => '⚔',
+        RiftNodeType.elite => '★',
+        RiftNodeType.boss => '👑',
+        RiftNodeType.altar => '🩸',
+        RiftNodeType.event => '?',
+      };
 
   Color _elementColor(Element e) => switch (e) {
-    Element.igneous => const Color(0xFFFF5A26),
-    Element.abyssal => const Color(0xFF3FD8FF),
-    Element.telluric => const Color(0xFFB0703B),
-    Element.empty => const Color(0xFFB16EFF),
-  };
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
 
   @override
   bool shouldRepaint(covariant _RiftMapPainter oldDelegate) =>
@@ -822,9 +932,13 @@ class BloodAltarModal extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text('HOGUERA / ALTAR DE CURACIÓN',
-              style: TextStyle(color: Color(0xFF3FD8FF), fontSize: 18, fontWeight: FontWeight.w900)),
+              style: TextStyle(
+                  color: Color(0xFF3FD8FF),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
-          const Text('Elige tu bendición:', style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const Text('Elige tu bendición:',
+              style: TextStyle(color: Colors.white70, fontSize: 13)),
           const SizedBox(height: 16),
           _AltarOption(
             icon: Icons.favorite,
@@ -883,7 +997,8 @@ class _AltarOption extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: disabled ? const Color(0xFF1A0A0F) : const Color(0xFF1A0A0F),
+              color:
+                  disabled ? const Color(0xFF1A0A0F) : const Color(0xFF1A0A0F),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: disabled ? Colors.white10 : color.withValues(alpha: 0.5),
@@ -911,7 +1026,8 @@ class _AltarOption extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, color: disabled ? Colors.white24 : color),
+                Icon(Icons.chevron_right,
+                    color: disabled ? Colors.white24 : color),
               ],
             ),
           ),
