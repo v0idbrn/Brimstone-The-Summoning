@@ -104,6 +104,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   // Flying projectile for visual 0.22s parabolic flight
   _FlyingOrbProjectile? _flyingProjectile;
 
+  // HellFire visual identity elements
+  late final List<_ManaOrbParticle> _manaOrbParticles;
+  int _chapterColorIndex = 0;
+
   CombatEngine get engine => _engine!;
 
   late final FixedRingBuffer<_BurstEffect> _bursts;
@@ -127,12 +131,81 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         Element.empty => const Color(0xFFE5D4FF),
       };
 
+  // HellFire: Map element to chapter color index for visual identity
+  int _elementToChapterIndex(Element e) => switch (e) {
+        Element.igneous => 0, // lava
+        Element.abyssal => 1, // ice
+        Element.telluric => 2, // emerald
+        Element.empty => 3, // purple (void) or 4 for chapter 5 crimson gold
+      };
+
+  // HellFire: Get chapter color for visual identity
+  Color _chapterColor() {
+    const chapterColors = [
+      Color(0xFFFF5A26), // Chapter 1 - Igneo (Lava)
+      Color(0xFF3FD8FF), // Chapter 2 - Abyssal (Ice)
+      Color(0xFF4FFFA3), // Chapter 3 - Telluric (Emerald)
+      Color(0xFFB16EFF), // Chapter 4 - Void (Purple)
+      Color(0xFFFFC93C), // Chapter 5 - Broken Seal (Crimson Gold)
+    ];
+    return chapterColors[_chapterColorIndex.clamp(0, chapterColors.length - 1)];
+  }
+
+  // HellFire: Spawn 3 mana orb particles from hit target to matching-element squad cards
+  void _spawnManaOrbParticles(double startX, double startY, Element element) {
+    if (engine.cards.isEmpty) return;
+
+    // Find squad cards matching the element
+    final matchingIndices = <int>[];
+    for (var i = 0; i < engine.cards.length; i++) {
+      if (engine.cards[i].element == element) {
+        matchingIndices.add(i);
+      }
+    }
+    if (matchingIndices.isEmpty) return;
+
+    // Spawn 3 particles per hit, distributed among matching cards
+    for (var i = 0; i < 3; i++) {
+      final targetIndex = matchingIndices[i % matchingIndices.length];
+
+      // Calculate card position on screen
+      final cardScreenX = _cardScreenX(targetIndex);
+      final cardScreenY = _cardScreenY();
+
+      _manaOrbParticles.add(_ManaOrbParticle(
+        startX: startX,
+        startY: startY,
+        targetX: cardScreenX,
+        targetY: cardScreenY,
+        element: element,
+        progress: 0.0,
+        duration: 0.32,
+      ));
+    }
+  }
+
+  // Helper to get card screen X position
+  double _cardScreenX(int index) {
+    final cardWidth = 112.0;
+    final spacing = 8.0;
+    final startX =
+        (MediaQuery.of(context).size.width - (4 * cardWidth + 3 * spacing)) / 2;
+    return startX + index * (cardWidth + spacing) + cardWidth / 2;
+  }
+
+  // Helper to get card screen Y position
+  double _cardScreenY() {
+    // Cards are in the bottom zone (Zone 3), roughly at screen height - 118 + 56 (center of card)
+    return MediaQuery.of(context).size.height - 118 + 56;
+  }
+
   @override
   void initState() {
     super.initState();
     _bursts = FixedRingBuffer<_BurstEffect>(
       PerformanceSettings.maxParticleBursts,
     );
+    _manaOrbParticles = [];
     _particleCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -197,6 +270,8 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       trainingMode: base.trainingMode,
       startManaFull: base.trainingMode,
     );
+    // HellFire: Set chapter color index based on boss element for visual identity
+    _chapterColorIndex = _elementToChapterIndex(_engine!.boss.element);
     _engine!.onHit = (kind, damage, x, y, element) {
       switch (kind) {
         case HitKind.bullseye:
@@ -210,6 +285,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
           break;
       }
       _addBurst(x, y, _elementColor(element));
+
+      // HellFire: Spawn 3 mana orb particles flying from hit target to matching-element squad cards
+      _spawnManaOrbParticles(x, y, element);
+
       if (mounted) setState(() {});
     };
     _engine!.onReaction = (name) {
@@ -628,6 +707,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
               child: Stack(
                 children: [
                   Positioned.fill(child: GameWidget(game: game)),
+                  // HellFire: Dimensional Rift Archway - stone pillars with elemental energy veins
+                  Positioned.fill(
+                      child:
+                          _RiftArchwayPillars(chapterColor: _chapterColor())),
                   // Particle bursts
                   if (_bursts.isNotEmpty)
                     Positioned.fill(
@@ -638,6 +721,14 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                           ringsPerBurst: PerformanceSettings.ringsPerBurst,
                           scale: PerformanceSettings.particleScale,
                         ),
+                      ),
+                    ),
+                  // HellFire: Mana Orb Particles flying to squad cards
+                  if (_manaOrbParticles.isNotEmpty)
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _ManaOrbParticlesPainter(
+                            particles: _manaOrbParticles),
                       ),
                     ),
                   // Flying projectile
@@ -913,12 +1004,16 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   Widget _buildOrbsTray() {
     return Container(
-      decoration: const BoxDecoration(
+      // HellFire: Runic Stone Base for orb tray - carved stone with metal separators
+      decoration: BoxDecoration(
         gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF14090D), Color(0xFF0C0608)]),
-        border: Border(top: BorderSide(color: Color(0xFF2A151A), width: 1)),
+            colors: [const Color(0xFF1A0A0F), const Color(0xFF0C0608)]),
+        border: Border(
+          top: BorderSide(
+              color: _chapterColor().withValues(alpha: 0.5), width: 2),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -977,7 +1072,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
               ),
             ]),
           ),
-          // Orbs tray - 5 slots, 3D rendering
+          // Orbs tray - 5 slots, 3D rendering with Runic Stone Base
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -987,24 +1082,65 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                 final orbSize = (trayHeight * 0.75).clamp(40.0, 56.0);
 
                 return Stack(children: [
-                  // Background
+                  // HellFire: Runic Stone Base background
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                         color: const Color(0xFF0A0407),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                            color: const Color(0xFF2A151A), width: 1)),
+                            color: _chapterColor().withValues(alpha: 0.6),
+                            width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _chapterColor().withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 4,
+                            offset: const Offset(0, -2),
+                          ),
+                        ],
+                        // Carved stone texture effect via gradient overlay
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            const Color(0xFF14090D),
+                            const Color(0xFF0C0608),
+                            const Color(0xFF0A0407),
+                          ],
+                        )),
                   ),
-                  // Slot dividers
+                  // Metal separators between slots (HellFire style)
                   for (var i = 1; i < 5; i++)
                     Positioned(
                         left: i * slotWidth,
-                        top: 2,
-                        bottom: 2,
+                        top: 8,
+                        bottom: 8,
                         child: Container(
-                            width: 1, color: const Color(0xFF2A151A))),
-                  // Orbs in slots (3D)
+                            width: 2,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  _chapterColor().withValues(alpha: 0.8),
+                                  _chapterColor().withValues(alpha: 0.3),
+                                  _chapterColor().withValues(alpha: 0.8),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(1),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _chapterColor().withValues(alpha: 0.4),
+                                  blurRadius: 2,
+                                  spreadRadius: 0.5,
+                                ),
+                              ],
+                            ))),
+                  // Orbs in slots (3D with orbital auras for Lv.2/3)
                   for (var i = 0; i < 5; i++)
                     _buildOrbSlot3D(i, slotWidth, orbSize, trayHeight),
                   // Dragged orb preview (follows finger globally)
@@ -1053,101 +1189,145 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     final level = orb.level.index + 1;
     final isDragging = _draggedSlot == index;
 
+    // HellFire: Orbital aura for Lv.2/3 orbs
+    final hasOrbitalAura = level >= 2;
+
     return Positioned(
       left: cx - orbSize / 2,
       top: cy - orbSize / 2,
       child: AnimatedScale(
         scale: isDragging ? 0.0 : 1.0,
         duration: const Duration(milliseconds: 50),
-        child: GestureDetector(
-          onTap: () {}, // Prevent tap from bubbling
-          child: Container(
-            width: orbSize,
-            height: orbSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                  center: Alignment(-0.35, -0.38),
-                  radius: 0.95,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.95),
-                    accent,
-                    color,
-                    Color.lerp(color, Colors.black, 0.75)!
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // HellFire: Orbital aura ring for Lv.2/3
+            if (hasOrbitalAura)
+              AnimatedBuilder(
+                animation: _mergePulseCtrl,
+                builder: (context, _) {
+                  final pulse = _mergePulseCtrl.value;
+                  final auraRadius =
+                      orbSize / 2 + 6 + 4 * math.sin(pulse * 2 * math.pi);
+                  return Container(
+                    width: auraRadius * 2,
+                    height: auraRadius * 2,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: level == 2
+                            ? const Color(0xFFFFD700).withValues(
+                                alpha:
+                                    0.4 + 0.2 * math.sin(pulse * 2 * math.pi))
+                            : const Color(0xFFFF5A26).withValues(
+                                alpha:
+                                    0.4 + 0.2 * math.sin(pulse * 2 * math.pi)),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: level == 2
+                              ? const Color(0xFFFFD700).withValues(alpha: 0.15)
+                              : const Color(0xFFFF5A26).withValues(alpha: 0.15),
+                          blurRadius: 8 + 4 * math.sin(pulse * 2 * math.pi),
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            GestureDetector(
+              onTap: () {}, // Prevent tap from bubbling
+              child: Container(
+                width: orbSize,
+                height: orbSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                      center: Alignment(-0.35, -0.38),
+                      radius: 0.95,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.95),
+                        accent,
+                        color,
+                        Color.lerp(color, Colors.black, 0.75)!
+                      ],
+                      stops: const [
+                        0.0,
+                        0.22,
+                        0.62,
+                        1.0
+                      ]),
+                  boxShadow: [
+                    BoxShadow(
+                        color: color.withValues(alpha: 0.5),
+                        blurRadius: 8,
+                        spreadRadius: 1),
+                    BoxShadow(
+                        color: color.withValues(alpha: 0.28),
+                        blurRadius: 12,
+                        spreadRadius: 2)
                   ],
-                  stops: const [
-                    0.0,
-                    0.22,
-                    0.62,
-                    1.0
-                  ]),
-              boxShadow: [
-                BoxShadow(
-                    color: color.withValues(alpha: 0.5),
-                    blurRadius: 8,
-                    spreadRadius: 1),
-                BoxShadow(
-                    color: color.withValues(alpha: 0.28),
-                    blurRadius: 12,
-                    spreadRadius: 2)
-              ],
-              border:
-                  Border.all(color: accent.withValues(alpha: 0.85), width: 1.8),
+                  border: Border.all(
+                      color: accent.withValues(alpha: 0.85), width: 1.8),
+                ),
+                child: Stack(alignment: Alignment.center, children: [
+                  // Specular highlight
+                  Positioned(
+                      left: orbSize * 0.18,
+                      top: orbSize * 0.15,
+                      child: Container(
+                          width: orbSize * 0.28,
+                          height: orbSize * 0.28,
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(colors: [
+                                Colors.white,
+                                Colors.white.withValues(alpha: 0.0)
+                              ])))),
+                  // Element icon
+                  _buildElementIcon(orb.element, orbSize * 0.42),
+                  // Level badge
+                  Positioned(
+                      bottom: -6,
+                      child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.78),
+                              borderRadius: BorderRadius.circular(3),
+                              border: Border.all(
+                                  color: level == 1
+                                      ? const Color(0xFFC0C0C0)
+                                      : level == 2
+                                          ? const Color(0xFFFFD700)
+                                          : const Color(0xFFFF5A26),
+                                  width: 0.9)),
+                          child: Text('Nv.$level',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.5)))),
+                  // Prismatic indicator
+                  if (orb.prismatic)
+                    Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(colors: [
+                                  Color(0xFFFFD700),
+                                  Color(0xFFB16EFF)
+                                ])))),
+                ]),
+              ),
             ),
-            child: Stack(alignment: Alignment.center, children: [
-              // Specular highlight
-              Positioned(
-                  left: orbSize * 0.18,
-                  top: orbSize * 0.15,
-                  child: Container(
-                      width: orbSize * 0.28,
-                      height: orbSize * 0.28,
-                      decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(colors: [
-                            Colors.white,
-                            Colors.white.withValues(alpha: 0.0)
-                          ])))),
-              // Element icon
-              _buildElementIcon(orb.element, orbSize * 0.42),
-              // Level badge
-              Positioned(
-                  bottom: -6,
-                  child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.78),
-                          borderRadius: BorderRadius.circular(3),
-                          border: Border.all(
-                              color: level == 1
-                                  ? const Color(0xFFC0C0C0)
-                                  : level == 2
-                                      ? const Color(0xFFFFD700)
-                                      : const Color(0xFFFF5A26),
-                              width: 0.9)),
-                      child: Text('Nv.$level',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5)))),
-              // Prismatic indicator
-              if (orb.prismatic)
-                Positioned(
-                    top: 2,
-                    right: 2,
-                    child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(colors: [
-                              Color(0xFFFFD700),
-                              Color(0xFFB16EFF)
-                            ])))),
-            ]),
-          ),
+          ],
         ),
       ),
     );
@@ -1676,6 +1856,336 @@ class _TrainingToolsState extends State<_TrainingTools> {
                   style: TextStyle(color: Colors.white54, fontSize: 10))),
         ]));
   }
+}
+
+// HellFire: Dimensional Rift Archway - stone pillars with elemental energy veins on arena sides
+class _RiftArchwayPillars extends StatelessWidget {
+  final Color chapterColor;
+
+  const _RiftArchwayPillars({required this.chapterColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _RiftArchwayPainter(chapterColor: chapterColor),
+      size: Size.infinite,
+    );
+  }
+}
+
+class _RiftArchwayPainter extends CustomPainter {
+  final Color chapterColor;
+
+  const _RiftArchwayPainter({required this.chapterColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pillarWidth = 48.0;
+    final pillarHeight = size.height * 0.85;
+    final pillarTopY = size.height * 0.075;
+    final leftX = 0.0;
+    final rightX = size.width - pillarWidth;
+
+    // Ember particles rising
+    final emberPaint = Paint()..style = PaintingStyle.fill;
+
+    for (var i = 0; i < 12; i++) {
+      final progress =
+          (DateTime.now().millisecondsSinceEpoch / 1000.0 * 0.5 + i * 0.3) %
+              1.0;
+      final x = leftX + pillarWidth * (0.2 + 0.6 * math.sin(i * 1.7));
+      final y = pillarTopY + pillarHeight * (0.9 - progress * 1.1);
+      final alpha = (math.sin(progress * math.pi) * 0.6 + 0.4).clamp(0.0, 1.0);
+      emberPaint.color = chapterColor.withValues(alpha: alpha * 0.7);
+      canvas.drawCircle(Offset(x, y), 2.0 + progress * 1.5, emberPaint);
+    }
+
+    for (var i = 0; i < 12; i++) {
+      final progress = (DateTime.now().millisecondsSinceEpoch / 1000.0 * 0.5 +
+              i * 0.3 +
+              0.5) %
+          1.0;
+      final x = rightX + pillarWidth * (0.2 + 0.6 * math.cos(i * 1.7));
+      final y = pillarTopY + pillarHeight * (0.9 - progress * 1.1);
+      final alpha = (math.sin(progress * math.pi) * 0.6 + 0.4).clamp(0.0, 1.0);
+      emberPaint.color = chapterColor.withValues(alpha: alpha * 0.7);
+      canvas.drawCircle(Offset(x, y), 2.0 + progress * 1.5, emberPaint);
+    }
+
+    // Left pillar
+    _drawPillar(canvas,
+        Rect.fromLTWH(leftX, pillarTopY, pillarWidth, pillarHeight), true);
+    // Right pillar
+    _drawPillar(canvas,
+        Rect.fromLTWH(rightX, pillarTopY, pillarWidth, pillarHeight), false);
+  }
+
+  void _drawPillar(Canvas canvas, Rect rect, bool isLeft) {
+    final veinColor = chapterColor;
+
+    // Pillar base - dark stone
+    final pillarPaint = Paint()..style = PaintingStyle.fill;
+    final pillarPath = Path();
+
+    // Tapered stone pillar shape
+    final topWidth = rect.width * 0.6;
+    final bottomWidth = rect.width;
+    final centerX = rect.center.dx;
+
+    pillarPath.moveTo(centerX - topWidth / 2, rect.top);
+    pillarPath.lineTo(centerX - bottomWidth / 2, rect.bottom);
+    pillarPath.lineTo(centerX + bottomWidth / 2, rect.bottom);
+    pillarPath.lineTo(centerX + topWidth / 2, rect.top);
+    pillarPath.close();
+
+    // Stone gradient
+    final stoneGradient = LinearGradient(
+      colors: [
+        const Color(0xFF14090D),
+        const Color(0xFF0C0608),
+        const Color(0xFF0A0407),
+      ],
+      stops: const [0.0, 0.5, 1.0],
+    ).createShader(rect);
+    pillarPaint.shader = stoneGradient;
+    canvas.drawPath(pillarPath, pillarPaint);
+
+    // Stone texture lines (horizontal strata)
+    final strataPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5
+      ..color = const Color(0xFF2A151A);
+    for (var i = 0; i < 12; i++) {
+      final y = rect.top + rect.height * (i / 11.0);
+      final widthAtY = bottomWidth - (bottomWidth - topWidth) * (i / 11.0);
+      canvas.drawLine(
+        Offset(centerX - widthAtY / 2, y),
+        Offset(centerX + widthAtY / 2, y),
+        strataPaint,
+      );
+    }
+
+    // Elemental energy veins (glowing cracks)
+    final veinPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final pulse =
+        (DateTime.now().millisecondsSinceEpoch / 1000.0 * 2.0) % (2 * math.pi);
+    final veinAlpha = (math.sin(pulse) * 0.3 + 0.7).clamp(0.0, 1.0);
+
+    // Main vertical vein
+    veinPaint.color = veinColor.withValues(alpha: veinAlpha);
+    final veinPath = Path();
+    veinPath.moveTo(centerX, rect.top + 10);
+    for (var i = 0; i < 8; i++) {
+      final y = rect.top + 10 + rect.height * 0.8 * (i / 7.0);
+      final x = centerX + math.sin(pulse + i * 0.5) * 3.0;
+      veinPath.lineTo(x, y);
+    }
+    canvas.drawPath(veinPath, veinPaint);
+
+    // Branch veins
+    for (var branch = 0; branch < 3; branch++) {
+      final branchY =
+          rect.top + rect.height * 0.25 + branch * rect.height * 0.2;
+      final branchPath = Path();
+      branchPath.moveTo(centerX, branchY);
+      final branchDir = isLeft ? 1.0 : -1.0;
+      for (var i = 0; i < 4; i++) {
+        final t = i / 3.0;
+        final x = centerX + branchDir * rect.width * 0.35 * t;
+        final y = branchY +
+            rect.height * 0.08 * math.sin(pulse * 2 + branch + i * 0.8);
+        branchPath.lineTo(x, y);
+      }
+      veinPaint.color = veinColor.withValues(alpha: veinAlpha * 0.6);
+      veinPaint.strokeWidth = 1.0;
+      canvas.drawPath(branchPath, veinPaint);
+    }
+
+    // Top cap - metal ring
+    final capRect = Rect.fromCenter(
+      center: Offset(centerX, rect.top),
+      width: topWidth * 1.2,
+      height: 8,
+    );
+    final capPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = LinearGradient(
+        colors: [
+          const Color(0xFF4A3A2A),
+          const Color(0xFF2A1A0A),
+          const Color(0xFF4A3A2A),
+        ],
+      ).createShader(capRect);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(capRect, const Radius.circular(4)),
+      capPaint,
+    );
+
+    // Bottom base - metal ring
+    final baseRect = Rect.fromCenter(
+      center: Offset(centerX, rect.bottom),
+      width: bottomWidth * 1.15,
+      height: 10,
+    );
+    final basePaint = Paint()
+      ..style = PaintingStyle.fill
+      ..shader = LinearGradient(
+        colors: [
+          const Color(0xFF3A2A1A),
+          const Color(0xFF1A0A00),
+          const Color(0xFF3A2A1A),
+        ],
+      ).createShader(baseRect);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(baseRect, const Radius.circular(5)),
+      basePaint,
+    );
+
+    // Outer glow
+    final glowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..color = veinColor.withValues(alpha: veinAlpha * 0.2);
+    canvas.drawPath(pillarPath, glowPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RiftArchwayPainter oldDelegate) =>
+      oldDelegate.chapterColor != chapterColor;
+}
+
+// HellFire: Mana Orb Particles flying from hit target to matching-element squad cards
+class _ManaOrbParticle {
+  final double startX;
+  final double startY;
+  final double targetX;
+  final double targetY;
+  final Element element;
+  final double duration;
+  double progress;
+
+  _ManaOrbParticle({
+    required this.startX,
+    required this.startY,
+    required this.targetX,
+    required this.targetY,
+    required this.element,
+    required this.duration,
+    this.progress = 0.0,
+  });
+}
+
+class _ManaOrbParticlesPainter extends CustomPainter {
+  final List<_ManaOrbParticle> particles;
+
+  const _ManaOrbParticlesPainter({required this.particles});
+
+  Color _elementColor(Element e) => switch (e) {
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
+
+  Color _elementAccent(Element e) => switch (e) {
+        Element.igneous => const Color(0xFFFFD980),
+        Element.abyssal => const Color(0xFF80E8FF),
+        Element.telluric => const Color(0xFFF0D0A0),
+        Element.empty => const Color(0xFFE5D4FF),
+      };
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final p in particles) {
+      final t = p.progress.clamp(0.0, 1.0);
+
+      // Curved flight path (parabolic with slight curve)
+      final midX = (p.startX + p.targetX) / 2 + math.sin(t * math.pi) * 30;
+      final midY = (p.startY + p.targetY) / 2 - 50; // Arc upward
+
+      final x = _lerp3(p.startX, midX, p.targetX, t);
+      final y = _lerp3(p.startY, midY, p.targetY, t);
+
+      // Particle size grows then shrinks
+      final sizeProgress = math.sin(t * math.pi);
+      final radius = 4.0 + sizeProgress * 6.0;
+
+      // Fade in/out
+      final alpha = (1.0 - (t - 0.5).abs() * 2.0).clamp(0.0, 1.0);
+
+      final color = _elementColor(p.element);
+      final accent = _elementAccent(p.element);
+
+      // Outer glow
+      canvas.drawCircle(
+        Offset(x, y),
+        radius * 1.5,
+        Paint()
+          ..color = color.withValues(alpha: alpha * 0.3)
+          ..style = PaintingStyle.fill,
+      );
+
+      // Core orb with radial gradient
+      canvas.drawCircle(
+        Offset(x, y),
+        radius,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              Colors.white.withValues(alpha: alpha),
+              accent.withValues(alpha: alpha),
+              color.withValues(alpha: alpha),
+            ],
+          ).createShader(Rect.fromCircle(center: Offset(x, y), radius: radius))
+          ..style = PaintingStyle.fill,
+      );
+
+      // Specular highlight
+      canvas.drawCircle(
+        Offset(x - radius * 0.25, y - radius * 0.25),
+        radius * 0.3,
+        Paint()
+          ..color = Colors.white.withValues(alpha: alpha * 0.8)
+          ..style = PaintingStyle.fill,
+      );
+
+      // Trail particles
+      for (var i = 1; i <= 3; i++) {
+        final trailT = (t - i * 0.08).clamp(0.0, 1.0);
+        if (trailT > 0) {
+          final trailMidX =
+              (p.startX + p.targetX) / 2 + math.sin(trailT * math.pi) * 30;
+          final trailMidY = (p.startY + p.targetY) / 2 - 50;
+          final trailX = _lerp3(p.startX, trailMidX, p.targetX, trailT);
+          final trailY = _lerp3(p.startY, trailMidY, p.targetY, trailT);
+          final trailAlpha = alpha * (1.0 - i * 0.25);
+          final trailRadius = radius * (1.0 - i * 0.2);
+
+          canvas.drawCircle(
+            Offset(trailX, trailY),
+            trailRadius,
+            Paint()
+              ..color = color.withValues(alpha: trailAlpha * 0.5)
+              ..style = PaintingStyle.fill,
+          );
+        }
+      }
+    }
+  }
+
+  double _lerp3(double a, double b, double c, double t) {
+    final ab = a + (b - a) * t;
+    final bc = b + (c - b) * t;
+    return ab + (bc - ab) * t;
+  }
+
+  @override
+  bool shouldRepaint(covariant _ManaOrbParticlesPainter oldDelegate) =>
+      oldDelegate.particles != particles;
 }
 
 CombatEngine defaultEngine() => CombatEngine(

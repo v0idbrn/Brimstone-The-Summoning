@@ -36,7 +36,7 @@ class BossActorComponent extends PositionComponent {
     final bossId = combatGame.engine.boss.id;
     // Assets are named boss_pyroth.webp, boss_vaelor.webp, etc.
     try {
-      _portraitImage = await Flame.images.load('portraits/boss_${bossId}.webp');
+      _portraitImage = await Flame.images.load('portraits/boss_$bossId.webp');
     } catch (_) {
       // Image not found, will use fallback
     }

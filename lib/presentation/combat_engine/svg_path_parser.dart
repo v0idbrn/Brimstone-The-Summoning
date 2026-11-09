@@ -459,15 +459,15 @@ class SvgPathParser {
       final halfAngle = (theta1 - theta0) / 2;
       final k = 4.0 / 3.0 * math.tan(halfAngle / 2);
 
-      final cp0x_u = rx * (math.cos(theta0) - k * math.sin(theta0));
-      final cp0y_u = ry * (math.sin(theta0) + k * math.cos(theta0));
-      final cp1x_u = rx * (math.cos(theta1) + k * math.sin(theta1));
-      final cp1y_u = ry * (math.sin(theta1) - k * math.cos(theta1));
+      final cp0xU = rx * (math.cos(theta0) - k * math.sin(theta0));
+      final cp0yU = ry * (math.sin(theta0) + k * math.cos(theta0));
+      final cp1xU = rx * (math.cos(theta1) + k * math.sin(theta1));
+      final cp1yU = ry * (math.sin(theta1) - k * math.cos(theta1));
 
-      final cp0x = cx + cp0x_u * cosPhi - cp0y_u * sinPhi;
-      final cp0y = cy + cp0x_u * sinPhi + cp0y_u * cosPhi;
-      final cp1x = cx + cp1x_u * cosPhi - cp1y_u * sinPhi;
-      final cp1y = cy + cp1x_u * sinPhi + cp1y_u * cosPhi;
+      final cp0x = cx + cp0xU * cosPhi - cp0yU * sinPhi;
+      final cp0y = cy + cp0xU * sinPhi + cp0yU * cosPhi;
+      final cp1x = cx + cp1xU * cosPhi - cp1yU * sinPhi;
+      final cp1y = cy + cp1xU * sinPhi + cp1yU * cosPhi;
 
       path.cubicTo(cp0x, cp0y, cp1x, cp1y, p1x, p1y);
     }
