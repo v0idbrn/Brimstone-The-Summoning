@@ -238,6 +238,20 @@ class _FakePlayerRepository extends PlayerRepository {
 
   @override
   Future<void> saveDeckPresets(List<Map<String, Object?>> rows) async {}
+
+  @override
+  Future<Map<String, Object?>> loadGachaState() async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    return {
+      'pityCounter': 0,
+      'activeBanner': 'general',
+      'lastFreeSummonDate': today,
+      'dailySummonsToday': 0,
+    };
+  }
+
+  @override
+  Future<void> setActiveBanner(String bannerId) async {}
 }
 
 Override _fakeRepoOverride() =>
@@ -271,7 +285,7 @@ void main() {
     testWidgets('AltarEvolutionScreen renders title', (tester) async {
       await tester.pumpWidget(_screen(const AltarEvolutionScreen()));
       await tester.pumpAndSettle();
-      expect(find.text('ALTAR DE EVOLUCIÓN'), findsOneWidget);
+      expect(find.text('ALTAR TRIPLE'), findsOneWidget);
     });
 
     // SummonPortal uses pump (300ms) instead of pumpAndSettle because of the

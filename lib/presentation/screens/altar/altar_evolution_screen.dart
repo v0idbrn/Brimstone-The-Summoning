@@ -1,7 +1,4 @@
-import 'dart:math' as math;
-
-import 'package:collection/collection.dart';
-import 'package:flutter/material.dart' hide Element;
+﻿import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
@@ -38,9 +35,9 @@ IconData _iconFromName(String name) {
 }
 
 /// Altar Triple: 3 Ritual Tabs (Block 5)
-/// Tab 1 - Evolución (Batch Evolve): Evolve duplicates in bulk
+/// Tab 1 - EvoluciÃ³n (Batch Evolve): Evolve duplicates in bulk
 /// Tab 2 - Alquimia de Runas (Rune Synthesis): Forge specific runes or upgrade to Level 5 (Mythic)
-/// Tab 3 - Creación de Almas (Soul Crafting): Forge any of the 20 catalog cards with shards
+/// Tab 3 - CreaciÃ³n de Almas (Soul Crafting): Forge any of the 20 catalog cards with shards
 class AltarEvolutionScreen extends ConsumerStatefulWidget {
   const AltarEvolutionScreen({super.key});
 
@@ -52,7 +49,6 @@ class AltarEvolutionScreen extends ConsumerStatefulWidget {
 class _AltarEvolutionScreenState extends ConsumerState<AltarEvolutionScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -60,7 +56,7 @@ class _AltarEvolutionScreenState extends ConsumerState<AltarEvolutionScreen>
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
-        setState(() => _selectedTab = _tabController.index);
+        setState(() {});
       }
     });
   }
@@ -107,7 +103,7 @@ class _AltarEvolutionScreenState extends ConsumerState<AltarEvolutionScreen>
           unselectedLabelStyle: const TextStyle(
               fontWeight: FontWeight.w700, fontSize: 11, letterSpacing: 0.5),
           tabs: const [
-            Tab(icon: Icon(Icons.auto_fix_high, size: 18), text: 'EVOLUCIÓN'),
+            Tab(icon: Icon(Icons.auto_fix_high, size: 18), text: 'EVOLUCIÃ“N'),
             Tab(icon: Icon(Icons.science, size: 18), text: 'ALQUIMIA'),
             Tab(
                 icon: Icon(Icons.auto_awesome, size: 18),
@@ -181,7 +177,7 @@ class _BatchEvolveTab extends ConsumerWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'EVOLUCIÓN EN LOTE',
+                        'EVOLUCIÃ“N EN LOTE',
                         style: const TextStyle(
                           color: Color(0xFFFFC93C),
                           fontWeight: FontWeight.w900,
@@ -230,8 +226,8 @@ class _BatchEvolveTab extends ConsumerWidget {
                     const Spacer(),
                     Text(
                       profile.gold >= totalCost
-                          ? '✓ FONDOS SUFICIENTES'
-                          : '✗ ORO INSUFICIENTE',
+                          ? 'âœ“ FONDOS SUFICIENTES'
+                          : 'âœ— ORO INSUFICIENTE',
                       style: TextStyle(
                         color: profile.gold >= totalCost
                             ? const Color(0xFF4FFFA3)
@@ -258,7 +254,7 @@ class _BatchEvolveTab extends ConsumerWidget {
             height: 56,
             icon: Icons.auto_fix_high,
             label:
-                '⚡ EVOLUCIONAR DUPLICADOS EN LOTE (${evolvableGroups.fold<int>(0, (s, g) => s + g.count)} cartas)',
+                'âš¡ EVOLUCIONAR DUPLICADOS EN LOTE (${evolvableGroups.fold<int>(0, (s, g) => s + g.count)} cartas)',
             onPressed: profile.gold >= totalCost && totalCost > 0
                 ? () => _batchEvolve(context, ref, evolvableGroups, totalCost)
                 : null,
@@ -311,11 +307,11 @@ class _BatchEvolveTab extends ConsumerWidget {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF1A0E14),
-        title: const Text('CONFIRMAR EVOLUCIÓN EN LOTE',
+        title: const Text('CONFIRMAR EVOLUCIÃ“N EN LOTE',
             style: TextStyle(
                 color: Color(0xFFFFC93C), fontWeight: FontWeight.w900)),
         content: Text(
-            'Se evolucionarán ${groups.fold<int>(0, (s, g) => s + g.count)} cartas por $totalCost oro. ¿Continuar?',
+            'Se evolucionarÃ¡n ${groups.fold<int>(0, (s, g) => s + g.count)} cartas por $totalCost oro. Â¿Continuar?',
             style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
@@ -347,7 +343,7 @@ class _BatchEvolveTab extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content:
-                  Text('¡$evolvedCount cartas evolucionadas exitosamente!'),
+                  Text('Â¡$evolvedCount cartas evolucionadas exitosamente!'),
               backgroundColor: const Color(0xFF4FFFA3)),
         );
       } else {
@@ -404,11 +400,11 @@ class _EvolvableGroupTile extends StatelessWidget {
                           fontWeight: FontWeight.w900,
                           fontSize: 12)),
                   Text(
-                      '${card.stars}★ → ${card.stars + 1}★  •  ATK ${card.baseAttack} → ${(card.baseAttack * 1.35).round()}',
+                      '${card.stars}â˜… â†’ ${card.stars + 1}â˜…  â€¢  ATK ${card.baseAttack} â†’ ${(card.baseAttack * 1.35).round()}',
                       style:
                           const TextStyle(color: Colors.white70, fontSize: 10)),
                   Text(
-                      '${group.count} evolución(es)  •  ${group.totalCost} oro',
+                      '${group.count} evoluciÃ³n(es)  â€¢  ${group.totalCost} oro',
                       style: const TextStyle(
                           color: Color(0xFFFFC93C),
                           fontWeight: FontWeight.w700,
@@ -439,7 +435,7 @@ class _EvolveDetailSheet extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('DETALLE DE EVOLUCIÓN',
+            Text('DETALLE DE EVOLUCIÃ“N',
                 style: const TextStyle(
                     color: Color(0xFFD4AF37),
                     fontWeight: FontWeight.w900,
@@ -447,11 +443,11 @@ class _EvolveDetailSheet extends StatelessWidget {
             const SizedBox(height: 16),
             TcgCardWidget.fromOwnedCard(card: card, raised: true),
             const SizedBox(height: 12),
-            Text('${group.count} evolución(es) disponibles',
+            Text('${group.count} evoluciÃ³n(es) disponibles',
                 style: const TextStyle(
                     color: Color(0xFFFFC93C), fontWeight: FontWeight.w900)),
             Text(
-                'Costo por evolución: ${EvolutionRules.costFor(card.stars)} oro',
+                'Costo por evoluciÃ³n: ${EvolutionRules.costFor(card.stars)} oro',
                 style: const TextStyle(color: Colors.white70)),
             Text('Costo total: ${group.totalCost} oro',
                 style: const TextStyle(
@@ -535,7 +531,7 @@ class _RuneSynthesisTab extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Forja una Runa específica o sube una equipada a Nivel 5 (Mítica) usando Esquirlas.',
+                  'Forja una Runa especÃ­fica o sube una equipada a Nivel 5 (MÃ­tica) usando Esquirlas.',
                   style: TextStyle(color: Colors.white70, fontSize: 11),
                 ),
                 const SizedBox(height: 12),
@@ -582,7 +578,7 @@ class _RuneSynthesisTab extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           // Upgrade equipped rune to Level 5 section
-          const Text('MEJORAR RUNA EQUIPADA A NIVEL 5 (MÍTICA)',
+          const Text('MEJORAR RUNA EQUIPADA A NIVEL 5 (MÃTICA)',
               style: TextStyle(
                   color: Color(0xFFB16EFF),
                   fontWeight: FontWeight.w900,
@@ -616,7 +612,7 @@ class _RuneSynthesisTab extends ConsumerWidget {
             Text(RuneSystem.description(rune, 1),
                 style: const TextStyle(color: Colors.white70, fontSize: 11)),
             const SizedBox(height: 12),
-            Text(canAfford ? '¿Forjar esta runa?' : 'Esquirlas insuficientes',
+            Text(canAfford ? 'Â¿Forjar esta runa?' : 'Esquirlas insuficientes',
                 style: TextStyle(
                     color:
                         canAfford ? const Color(0xFF4FFFA3) : Colors.redAccent,
@@ -636,7 +632,7 @@ class _RuneSynthesisTab extends ConsumerWidget {
                       ProceduralSfxEngine.playOrbMerge(2);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text('¡Runa ${rune.name} forjada!'),
+                            content: Text('Â¡Runa ${rune.name} forjada!'),
                             backgroundColor: const Color(0xFF4FFFA3)),
                       );
                     }
@@ -806,7 +802,7 @@ class _UpgradeEquippedRuneSection extends ConsumerWidget {
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF1A0E14),
         title: Text(
-            'MEJORAR ${rune.type.name.toUpperCase()} Nv.${rune.level} → Nv.${rune.level + 1}',
+            'MEJORAR ${rune.type.name.toUpperCase()} Nv.${rune.level} â†’ Nv.${rune.level + 1}',
             style: const TextStyle(
                 color: Color(0xFFB16EFF), fontWeight: FontWeight.w900)),
         content: Column(
@@ -817,7 +813,7 @@ class _UpgradeEquippedRuneSection extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
                 canAfford
-                    ? '¿Mejorar a Nivel ${rune.level + 1}?'
+                    ? 'Â¿Mejorar a Nivel ${rune.level + 1}?'
                     : 'Esquirlas insuficientes',
                 style: TextStyle(
                     color:
@@ -841,7 +837,7 @@ class _UpgradeEquippedRuneSection extends ConsumerWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                             content: Text(
-                                '¡Runa mejorada a Nivel ${rune.level + 1}!'),
+                                'Â¡Runa mejorada a Nivel ${rune.level + 1}!'),
                             backgroundColor: const Color(0xFF4FFFA3)),
                       );
                     }
@@ -906,7 +902,7 @@ class _EquippedRuneUpgradeTile extends StatelessWidget {
                       Icon(rune.type.icon, color: rarityColor, size: 18),
                       const SizedBox(width: 6),
                       Text(
-                          '${rune.type.name.toUpperCase()}  Nv.${rune.level}${isMax ? ' (MÁX.)' : ''}',
+                          '${rune.type.name.toUpperCase()}  Nv.${rune.level}${isMax ? ' (MÃX.)' : ''}',
                           style: TextStyle(
                               color: rarityColor,
                               fontWeight: FontWeight.w900,
@@ -934,7 +930,7 @@ class _EquippedRuneUpgradeTile extends StatelessWidget {
             ],
             if (isMax)
               const Chip(
-                label: Text('MÍTICA',
+                label: Text('MÃTICA',
                     style: TextStyle(
                         color: Colors.black,
                         fontWeight: FontWeight.w900,
@@ -988,7 +984,7 @@ class _SoulCraftingTab extends ConsumerWidget {
                         color: Color(0xFFFFD700), size: 24),
                     const SizedBox(width: 10),
                     const Text(
-                      'CREACIÓN DE ALMAS',
+                      'CREACIÃ“N DE ALMAS',
                       style: TextStyle(
                         color: Color(0xFFFFD700),
                         fontWeight: FontWeight.w900,
@@ -1000,7 +996,7 @@ class _SoulCraftingTab extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Forja directamente cualquier carta del catálogo pagando Esquirlas.',
+                  'Forja directamente cualquier carta del catÃ¡logo pagando Esquirlas.',
                   style: TextStyle(color: Colors.white70, fontSize: 11),
                 ),
                 const SizedBox(height: 12),
@@ -1064,7 +1060,7 @@ class _SoulCraftingTab extends ConsumerWidget {
       },
       {
         'id': 'terra_golem',
-        'name': 'Gólem de Basalto',
+        'name': 'GÃ³lem de Basalto',
         'element': Element.telluric,
         'rarity': Rarity.common,
         'cost': 120
@@ -1086,14 +1082,14 @@ class _SoulCraftingTab extends ConsumerWidget {
       },
       {
         'id': 'terra_warden',
-        'name': 'Guardián Tectónico',
+        'name': 'GuardiÃ¡n TectÃ³nico',
         'element': Element.telluric,
         'rarity': Rarity.rare,
         'cost': 240
       },
       {
         'id': 'void_reaper',
-        'name': 'Segador del Vacío',
+        'name': 'Segador del VacÃ­o',
         'element': Element.empty,
         'rarity': Rarity.rare,
         'cost': 240
@@ -1108,21 +1104,21 @@ class _SoulCraftingTab extends ConsumerWidget {
       // Epic (450 shards)
       {
         'id': 'ignis_lord',
-        'name': 'Señor de la Llama',
+        'name': 'SeÃ±or de la Llama',
         'element': Element.igneous,
         'rarity': Rarity.epic,
         'cost': 450
       },
       {
         'id': 'terra_titan',
-        'name': 'Titán de Piedra',
+        'name': 'TitÃ¡n de Piedra',
         'element': Element.telluric,
         'rarity': Rarity.epic,
         'cost': 450
       },
       {
         'id': 'ignis_seraph',
-        'name': 'Serafín de Fuego',
+        'name': 'SerafÃ­n de Fuego',
         'element': Element.igneous,
         'rarity': Rarity.epic,
         'cost': 450
@@ -1136,14 +1132,14 @@ class _SoulCraftingTab extends ConsumerWidget {
       },
       {
         'id': 'terra_hydra',
-        'name': 'Hidra Telúrica',
+        'name': 'Hidra TelÃºrica',
         'element': Element.telluric,
         'rarity': Rarity.epic,
         'cost': 450
       },
       {
         'id': 'void_oracle',
-        'name': 'Oráculo del Vacío',
+        'name': 'OrÃ¡culo del VacÃ­o',
         'element': Element.empty,
         'rarity': Rarity.epic,
         'cost': 450
@@ -1151,21 +1147,21 @@ class _SoulCraftingTab extends ConsumerWidget {
       // Legendary (900 shards)
       {
         'id': 'ignis_colossus',
-        'name': 'Vulcanor, Rey del Cráter',
+        'name': 'Vulcanor, Rey del CrÃ¡ter',
         'element': Element.igneous,
         'rarity': Rarity.legendary,
         'cost': 900
       },
       {
         'id': 'abyss_leviathan',
-        'name': 'Leviatán del Foso',
+        'name': 'LeviatÃ¡n del Foso',
         'element': Element.abyssal,
         'rarity': Rarity.legendary,
         'cost': 900
       },
       {
         'id': 'terra_behemoth',
-        'name': 'Behemoth Monolítico',
+        'name': 'Behemoth MonolÃ­tico',
         'element': Element.telluric,
         'rarity': Rarity.legendary,
         'cost': 900
@@ -1179,7 +1175,7 @@ class _SoulCraftingTab extends ConsumerWidget {
       },
       {
         'id': 'void_archon',
-        'name': 'Xal\'atoh, Arconte del Vacío',
+        'name': 'Xal\'atoh, Arconte del VacÃ­o',
         'element': Element.empty,
         'rarity': Rarity.legendary,
         'cost': 900
@@ -1205,14 +1201,14 @@ class _SoulCraftingTab extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-                '${entry['element']}  •  ${entry['rarity'].toString().split('.').last.toUpperCase()}',
+                '${entry['element']}  â€¢  ${entry['rarity'].toString().split('.').last.toUpperCase()}',
                 style: const TextStyle(color: Colors.white70, fontSize: 11)),
             const SizedBox(height: 8),
             Text('Costo: $cost esquirlas',
                 style: const TextStyle(
                     color: Colors.white, fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
-            Text(canAfford ? '¿Forjar esta carta?' : 'Esquirlas insuficientes',
+            Text(canAfford ? 'Â¿Forjar esta carta?' : 'Esquirlas insuficientes',
                 style: TextStyle(
                     color:
                         canAfford ? const Color(0xFF4FFFA3) : Colors.redAccent,
@@ -1242,7 +1238,7 @@ class _SoulCraftingTab extends ConsumerWidget {
                       ProceduralSfxEngine.playSummonReveal(1);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text('¡${entry['name']} forjada!'),
+                            content: Text('Â¡${entry['name']} forjada!'),
                             backgroundColor: const Color(0xFF4FFFA3)),
                       );
                     }
@@ -1277,7 +1273,6 @@ class _SoulCraftTile extends StatelessWidget {
     final rarity = entry['rarity'] as Rarity;
     final cost = entry['cost'] as int;
     final canAfford = shards >= cost;
-    final elementColor = _elementColor(element);
     final rarityColor = _rarityColor(rarity);
 
     return GestureDetector(
@@ -1367,7 +1362,7 @@ class _SoulCraftTile extends StatelessWidget {
                     color: const Color(0xFF4FFFA3),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text('POSEÍDA',
+                  child: const Text('POSEÃDA',
                       style: TextStyle(
                           color: Colors.black,
                           fontWeight: FontWeight.w900,
@@ -1390,13 +1385,6 @@ class _SoulCraftTile extends StatelessWidget {
       ),
     );
   }
-
-  Color _elementColor(Element e) => switch (e) {
-        Element.igneous => const Color(0xFFFF5A26),
-        Element.abyssal => const Color(0xFF00FFFF),
-        Element.telluric => const Color(0xFF8B5A2B),
-        Element.empty => const Color(0xFFB16EFF),
-      };
 
   Color _rarityColor(Rarity r) => switch (r) {
         Rarity.common => Colors.white70,

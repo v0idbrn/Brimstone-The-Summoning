@@ -7,7 +7,6 @@ import '../../data/repositories/player_repository.dart';
 import '../../domain/entities/owned_card.dart';
 import '../../domain/meta/meta_rules.dart';
 import '../../domain/meta/rune_system.dart';
-import '../../domain/value_objects/rarity.dart';
 
 final playerRepositoryProvider = Provider<PlayerRepository>((ref) {
   return PlayerRepository(DatabaseHelper());
@@ -319,38 +318,6 @@ class CollectionController extends Notifier<CollectionState> {
     await repo.upgradeCardRune(cardInstanceId);
     return true;
   }
-
-  /// DEPRECATED: Now using SummonService.catalogFor() in domain/meta/meta_rules.dart
-  String _catalogFor(Rarity r) => switch (r) {
-        Rarity.mythic => ['void_malakor', 'abyss_leviathan'],
-        Rarity.legendary => [
-            'abyss_leviathan',
-            'void_malakor',
-            'ignis_colossus',
-            'abyss_wraith',
-            'terra_behemoth',
-            'void_archon',
-          ],
-        Rarity.epic => [
-            'ignis_lord',
-            'terra_titan',
-            'void_specter',
-            'ignis_seraph',
-            'abyss_kraken',
-            'terra_hydra',
-            'void_oracle',
-          ],
-        Rarity.rare => [
-            'void_specter',
-            'terra_golem',
-            'ignis_drake',
-            'abyss_siren',
-            'terra_warden',
-            'void_reaper',
-          ],
-        Rarity.common => ['ignis_hound', 'abyss_stalker', 'terra_golem'],
-      }
-          .first;
 }
 
 // =========================================================================

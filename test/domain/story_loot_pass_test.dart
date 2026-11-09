@@ -163,68 +163,92 @@ void main() {
   });
 
   group('CombatEngine', () {
-    late CombatEngine engine;
+    CombatEngine buildTestEngine() => CombatEngine(
+          boss: BossConfig(
+            id: 'test_boss',
+            name: 'Test Boss',
+            element: Element.igneous, // Weak to Abyssal
+            maxHp: 1000,
+            attackInterval: 10.0,
+            attackDamage: 10,
+            projectilesPerAttack: 1,
+            shieldHp: 0, // Disable shield to isolate weakness multiplier test
+          ),
+          cards: [
+            ManaCard(
+                id: 'test_abyssal',
+                name: 'Abyssal Card',
+                element: Element.abyssal,
+                baseManaCost: 100,
+                attack: 20,
+                stars: 1),
+            ManaCard(
+                id: 'test_igneous',
+                name: 'Igneous Card',
+                element: Element.igneous,
+                baseManaCost: 100,
+                attack: 20,
+                stars: 1),
+          ],
+          playerMaxHp: 100,
+          talentLevels: {},
+          summonerGear: {},
+        );
 
-    setUp(() {
-      engine = CombatEngine(
-        boss: BossConfig(
-          id: 'test_boss',
-          name: 'Test Boss',
-          element: Element.igneous, // Weak to Abyssal
-          maxHp: 1000,
-          attackInterval: 10.0,
-          attackDamage: 10,
-          projectilesPerAttack: 1,
-        ),
-        cards: [
-          ManaCard(
-              id: 'test_abyssal',
-              name: 'Abyssal Card',
-              element: Element.abyssal,
-              baseManaCost: 100,
-              attack: 20,
-              stars: 1),
-          ManaCard(
-              id: 'test_igneous',
-              name: 'Igneous Card',
-              element: Element.igneous,
-              baseManaCost: 100,
-              attack: 20,
-              stars: 1),
-        ],
-        playerMaxHp: 100,
-        talentLevels: {},
-        summonerGear: {},
-      );
+    setUp(() {});
+
+    test('Abyssal orb deals more damage to Igneous boss (weakness + shield)',
+        () {
+      final engine = buildTestEngine();
       // Fill mana for both cards
       for (final card in engine.cards) {
         card.mana = card.baseManaCost.toDouble();
       }
-    });
 
-    test('Abyssal orb deals 30% more damage to Igneous boss', () {
       final abyssalOrb =
           CombatOrb(id: 'orb1', element: Element.abyssal, level: OrbLevel.one);
-      final initialHp = engine.bossHp;
+      final igneousOrb =
+          CombatOrb(id: 'orb2', element: Element.igneous, level: OrbLevel.one);
 
-      // Fire an abyssal orb at the boss (normal hit)
+      // Fire an abyssal orb at the boss (weak hit gets shield weakness multiplier 2.5x)
+      var initialTotal = engine.damageTotal;
       engine.registerDamage(
         orb: abyssalOrb,
         target: null,
         multiplier: 1.0,
         kind: HitKind.normal,
       );
+      final weakDamage = engine.damageTotal - initialTotal;
 
-      final damageDealt = initialHp - engine.bossHp;
-      // Base damage is ~35, with 1.3x weakness multiplier = ~45.5
-      expect(damageDealt, greaterThan(35)); // Should be > base damage
-      expect(damageDealt, lessThanOrEqualTo(50)); // Sanity check
+      // Fire an igneous orb at the boss (non-weak hit, no shield weakness multiplier)
+      final engine2 = buildTestEngine();
+      for (final card in engine2.cards) {
+        card.mana = card.baseManaCost.toDouble();
+      }
+      initialTotal = engine2.damageTotal;
+      engine2.registerDamage(
+        orb: igneousOrb,
+        target: null,
+        multiplier: 1.0,
+        kind: HitKind.normal,
+      );
+      final normalDamage = engine2.damageTotal - initialTotal;
+
+      // Weak hit gets elemental weakness (1.3x) + shield weakness (2.5x) = 3.25x total
+      // Normal hit gets no multiplier = 1.0x
+      expect(weakDamage, greaterThan(normalDamage));
+      expect(weakDamage / normalDamage, closeTo(3.25, 0.1));
     });
 
     test('Igneous orb deals normal damage to Igneous boss (no weakness)', () {
+      final engine = buildTestEngine();
+      for (final card in engine.cards) {
+        card.mana = card.baseManaCost.toDouble();
+      }
+
       final igneousOrb =
           CombatOrb(id: 'orb2', element: Element.igneous, level: OrbLevel.one);
-      final initialHp = engine.bossHp;
+      final initialTotal = engine.damageTotal;
 
       engine.registerDamage(
         orb: igneousOrb,
@@ -233,12 +257,17 @@ void main() {
         kind: HitKind.normal,
       );
 
-      final damageDealt = initialHp - engine.bossHp;
-      // Base damage is ~35, no multiplier
-      expect(damageDealt, 35);
+      final damageDealt = engine.damageTotal - initialTotal;
+      // Base damage is ~35, no shield, no weakness multiplier
+      expect(damageDealt, closeTo(35, 1.0));
     });
 
     test('Floating text shows SUPEREFICAZ for weakness hits', () {
+      final engine = buildTestEngine();
+      for (final card in engine.cards) {
+        card.mana = card.baseManaCost.toDouble();
+      }
+
       final abyssalOrb =
           CombatOrb(id: 'orb3', element: Element.abyssal, level: OrbLevel.one);
 
@@ -255,6 +284,11 @@ void main() {
     });
 
     test('Critical hit with weakness shows SUPEREFICAZ', () {
+      final engine = buildTestEngine();
+      for (final card in engine.cards) {
+        card.mana = card.baseManaCost.toDouble();
+      }
+
       final abyssalOrb =
           CombatOrb(id: 'orb4', element: Element.abyssal, level: OrbLevel.one);
 

@@ -5,17 +5,12 @@ import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
-import '../../../core/performance/performance_settings.dart';
-import '../../../data/repositories/player_repository.dart';
-import '../../../domain/campaign/campaign_enemies.dart';
 import '../../../domain/combat/combat_engine.dart';
 import '../../../domain/combat/combat_models.dart';
 import '../../../domain/value_objects/element.dart';
-import '../../combat_engine/brimstone_combat_game.dart';
 import '../../controllers/meta_controller.dart';
 import '../../screens/combat/combat_screen.dart';
 import '../../widgets/brimstone_button.dart';
-import '../sanctuary/sanctuary_screen.dart';
 
 /// Pantalla de Cacería de Titanes (World Boss Raids) - Block 2.
 ///

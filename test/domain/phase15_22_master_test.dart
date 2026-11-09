@@ -74,14 +74,14 @@ CombatTarget buildTarget({double angularSpeed = 1.0}) => CombatTarget(
     );
 
 double hitDamage(CombatEngine engine, HitKind kind, OrbLevel level) {
-  final before = engine.bossHp;
+  final beforeTotal = engine.damageTotal;
   engine.registerDamage(
     orb: CombatOrb(id: 'o', element: Element.igneous, level: level),
     target: buildTarget(),
     multiplier: 1.0,
     kind: kind,
   );
-  return before - engine.bossHp;
+  return (engine.damageTotal - beforeTotal).toDouble();
 }
 
 void main() {
@@ -91,8 +91,8 @@ void main() {
 
   // =========================================================== MÓDULO 0
   group('Módulo 0 — SQLite sin bloqueos', () {
-    test('el esquema actual es v7', () {
-      expect(DatabaseHelper.version, 7);
+    test('el esquema actual es v8', () {
+      expect(DatabaseHelper.version, 8);
     });
 
     test('crea las 15 tablas del esquema v7', () async {

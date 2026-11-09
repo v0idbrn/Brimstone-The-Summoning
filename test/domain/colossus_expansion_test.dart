@@ -337,45 +337,27 @@ void main() {
 
     test('5 Elemental Banners with 60% featured element rate', () {
       const banners = [
-        ('general', null),
-        ('igneous', Element.igneous),
-        ('abyssal', Element.abyssal),
-        ('telluric', Element.telluric),
-        ('void', Element.empty),
+        ('igneous', 'ignis_'),
+        ('abyssal', 'abyss_'),
+        ('telluric', 'terra_'),
+        ('void', 'void_'),
       ];
 
-      for (final (id, element) in banners) {
-        if (element != null) {
-          // 60% chance for featured element
-          final service = SummonService();
-          final cards = [
-            'ignis_hound',
-            'abyss_stalker',
-            'terra_golem',
-            'void_specter'
-          ];
-          int featuredCount = 0;
-          final random = math.Random(42);
-          for (int i = 0; i < 1000; i++) {
-            final card =
-                service.catalogFor(Rarity.common, banner: id, random: random);
-            if (card.startsWith('ignis_') && element == Element.igneous) {
-              featuredCount++;
-            }
-            if (card.startsWith('abyss_') && element == Element.abyssal) {
-              featuredCount++;
-            }
-            if (card.startsWith('terra_') && element == Element.telluric) {
-              featuredCount++;
-            }
-            if (card.startsWith('void_') && element == Element.empty) {
-              featuredCount++;
-            }
+      for (final (id, prefix) in banners) {
+        // 60% chance for featured element - use Rarity.rare which has all 4 elements
+        final service = SummonService();
+        int featuredCount = 0;
+        final random = math.Random(42);
+        for (int i = 0; i < 1000; i++) {
+          final card =
+              service.catalogFor(Rarity.rare, banner: id, random: random);
+          if (card.startsWith(prefix)) {
+            featuredCount++;
           }
-          // Should be around 60%
-          expect(featuredCount, greaterThan(500));
-          expect(featuredCount, lessThan(700));
         }
+        // Should be around 60%
+        expect(featuredCount, greaterThan(500));
+        expect(featuredCount, lessThan(700));
       }
     });
 
@@ -523,7 +505,7 @@ void main() {
         (20, 1000, 0.25),
       ];
 
-      for (final (count, shards, bonus) in rewards) {
+      for (final (_, shards, bonus) in rewards) {
         expect(shards, greaterThan(0));
         expect(bonus, greaterThan(0));
         expect(bonus, lessThanOrEqualTo(0.25));
@@ -531,11 +513,7 @@ void main() {
     });
 
     test('Global bonus stacks additively: 5 milestones = 25%', () {
-      const maxBonus = 0.05 + 0.10 + 0.15 + 0.20 + 0.25;
-      // Actually each milestone gives its own bonus, total = 25%
-      // At 20/20, player has all 5 milestones = 0.05+0.10+0.15+0.20+0.25 = 0.75? No, each milestone gives a bonus, so total = sum
-      // Wait, the spec says "+5% ATK/HP global per milestone completed"
-      // So 5 milestones = 25% total
+      // Each milestone gives +5% ATK/HP global, 5 milestones = 25% total
       expect(0.05 * 5, equals(0.25));
     });
   });

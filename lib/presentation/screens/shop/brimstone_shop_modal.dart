@@ -1,14 +1,8 @@
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/audio/procedural_sfx_engine.dart';
-import '../../../data/repositories/player_repository.dart';
-import '../../../domain/entities/owned_card.dart';
-import '../../../domain/value_objects/element.dart';
-import '../../../domain/value_objects/rarity.dart';
 import '../../controllers/meta_controller.dart';
 import '../../widgets/brimstone_button.dart';
-import '../../widgets/tcg_card_widget.dart';
 
 /// Emporio del Azufre (Brimstone Shop) - Block 7
 /// - Ofertas Relámpago Diarias (3 ofertas con descuento)
@@ -24,8 +18,6 @@ class BrimstoneShopModal extends ConsumerStatefulWidget {
 class _BrimstoneShopModalState extends ConsumerState<BrimstoneShopModal>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  String? _promoCodeInput;
-  final bool _promoCodeValid = false;
 
   @override
   void initState() {
@@ -303,7 +295,6 @@ class _FlashOffersTab extends ConsumerWidget {
       BuildContext context, WidgetRef ref, _FlashOffer offer) async {
     final profileState = ref.read(profileProvider);
     final profileCtrl = ref.read(profileProvider.notifier);
-    final repo = ref.read(playerRepositoryProvider);
 
     // Try shards first, then gold
     if (profileState.shards >= offer.discountedShards) {
@@ -675,7 +666,6 @@ class _FounderPacksTab extends ConsumerWidget {
       BuildContext context, WidgetRef ref, _FounderPack pack) async {
     final profileState = ref.read(profileProvider);
     final profileCtrl = ref.read(profileProvider.notifier);
-    final repo = ref.read(playerRepositoryProvider);
 
     // Try shards first, then gold
     if (profileState.shards >= pack.costShards) {

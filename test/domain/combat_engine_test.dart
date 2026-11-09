@@ -139,19 +139,25 @@ void main() {
   });
 
   group('CombatEngine — flick y llegada de proyectiles', () {
-    CombatEngine make() => CombatEngine(
-          boss: BossConfig.pyroth,
-          cards: [
-            ManaCard(
-              id: 'ignis_hound',
-              name: 'Sabueso de Azufre',
-              element: Element.igneous,
-              baseManaCost: 100,
-              attack: 10,
-            ),
-          ],
-          random: math.Random(7),
-        );
+    CombatEngine make() {
+      final e = CombatEngine(
+        boss: BossConfig.pyroth,
+        cards: [
+          ManaCard(
+            id: 'ignis_hound',
+            name: 'Sabueso de Azufre',
+            element: Element.igneous,
+            baseManaCost: 100,
+            attack: 10,
+          ),
+        ],
+        random: math.Random(7),
+      );
+      // Pre-break shield so projectile damage goes to HP directly
+      e.bossShieldHp = 0;
+      e.bossShieldBroken = true;
+      return e;
+    }
 
     test('flick downward do not launch, swap behavior only', () {
       final e = make();

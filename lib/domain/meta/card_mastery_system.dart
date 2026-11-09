@@ -1,6 +1,5 @@
 import '../entities/owned_card.dart';
 import '../value_objects/element.dart';
-import '../value_objects/rarity.dart';
 
 /// Constants for the Card Mastery System (Block 1).
 class CardMasteryConstants {

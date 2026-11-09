@@ -60,11 +60,17 @@ void main() {
     },
   );
 
-  CombatEngine fresh({required List<ManaCard> cards}) => CombatEngine(
-        boss: BossConfig.pyroth,
-        cards: cards,
-        random: math.Random(42),
-      );
+  CombatEngine fresh({required List<ManaCard> cards}) {
+    final e = CombatEngine(
+      boss: BossConfig.pyroth,
+      cards: cards,
+      random: math.Random(42),
+    );
+    // Pre-break shield so damage goes to HP directly
+    e.bossShieldHp = 0;
+    e.bossShieldBroken = true;
+    return e;
+  }
 
   ManaCard card({
     required String id,

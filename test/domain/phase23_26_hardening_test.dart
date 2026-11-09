@@ -290,11 +290,11 @@ void main() {
 
   // =============================================================== FASE 24
   group('Fase 24 — Base local lista para web', () {
-    test('el esquema sigue siendo v7 y abre en memoria', () async {
+    test('el esquema sigue siendo v8 y abre en memoria', () async {
       final helper = DatabaseHelper();
       DatabaseHelper.useInMemory();
       final repo = PlayerRepository(DatabaseHelper());
-      expect(DatabaseHelper.version, 7);
+      expect(DatabaseHelper.version, 8);
       expect(await repo.loadProfile(), isNotEmpty);
       await helper.close();
     });
@@ -556,10 +556,14 @@ void main() {
 
     test('el motor integra el guardián en registerDamage', () {
       final e = engine();
-      final before = e.sanityGuard.clamps;
-      final damage = strike(e, multiplier: 1e9);
-      expect(damage, closeTo(e.maxAllowedSingleHit.toDouble(), 1e-6));
-      expect(e.sanityGuard.clamps, before + 1);
+      final beforeClamps = e.sanityGuard.clamps;
+      final beforeTotal = e.damageTotal;
+      strike(e, multiplier: 1e9);
+      // Damage goes to shield first (boss has 25% shield by default),
+      // so bossHp doesn't change. Check that sanity guard clamped.
+      expect(e.sanityGuard.clamps, beforeClamps + 1);
+      // Total damage dealt includes shield absorption.
+      expect(e.damageTotal, beforeTotal + e.maxAllowedSingleHit);
     });
 
     test('un multiplicador NaN no hace daño ni rompe el combate', () {

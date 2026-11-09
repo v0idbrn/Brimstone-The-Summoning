@@ -680,7 +680,6 @@ class PlayerRepository {
 
   /// Mejora la runa equipada en la carta al siguiente nivel.
   Future<void> upgradeCardRune(int instanceId) async {
-    final db = await _db.db;
     final rune = await loadCardRune(instanceId);
     if (rune == null) return;
     if (rune.level >= 5) return;
