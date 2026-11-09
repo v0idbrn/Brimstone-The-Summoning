@@ -181,6 +181,10 @@ void main() {
     test('void_specter cura 1.8x ATK y sube nivel a 2 esferas', () {
       final e = deck();
       e.playerHp = 80;
+      // Clear prefilled tray first
+      for (var i = 0; i < e.tray.length; i++) {
+        e.tray[i] = null;
+      }
       e.tray[0] = const CombatOrb(
         id: 'o1',
         element: Element.igneous,

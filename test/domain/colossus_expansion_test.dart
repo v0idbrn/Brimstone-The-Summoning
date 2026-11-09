@@ -296,6 +296,10 @@ void main() {
 
     test('Auto-Battle: merges same element/level orbs', () {
       engine.autoBattleEnabled = true;
+      // Clear prefilled tray first
+      for (var i = 0; i < engine.tray.length; i++) {
+        engine.tray[i] = null;
+      }
       // Put two Igneous Level 1 orbs in tray
       engine.tray[0] =
           CombatOrb(id: 'orb1', element: Element.igneous, level: OrbLevel.one);
@@ -311,6 +315,10 @@ void main() {
 
     test('Auto-Battle: fires highest level orb at weak element target', () {
       engine.autoBattleEnabled = true;
+      // Clear prefilled tray first
+      for (var i = 0; i < engine.tray.length; i++) {
+        engine.tray[i] = null;
+      }
       // Put orbs of different levels
       engine.tray[0] =
           CombatOrb(id: 'orb1', element: Element.igneous, level: OrbLevel.one);

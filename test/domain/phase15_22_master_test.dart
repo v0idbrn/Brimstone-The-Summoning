@@ -553,6 +553,10 @@ void main() {
 
     test('sin la reliquia nunca aparecen esferas prismáticas', () {
       final engine = buildEngine(seed: 5);
+      // Clear prefilled tray
+      for (var i = 0; i < engine.tray.length; i++) {
+        engine.tray[i] = null;
+      }
       for (var i = 0; i < 200; i++) {
         expect(engine.spawnOrbInSlot(0)!.prismatic, isFalse);
         engine.tray[0] = null;
@@ -563,6 +567,10 @@ void main() {
       final engine = buildEngine(
         modifiers: CombatModifiers.fromRelics(['esencia_abismo']),
       );
+      // Clear prefilled tray
+      for (var i = 0; i < engine.tray.length; i++) {
+        engine.tray[i] = null;
+      }
       for (var i = 0; i < 60; i++) {
         final orb = engine.spawnOrbInSlot(0)!;
         expect(orb.level.index, greaterThanOrEqualTo(1));
@@ -983,6 +991,10 @@ void main() {
       final engine = buildEngine(
         mutators: [SealMutator.igneousAbyssalFast],
       );
+      // Clear prefilled tray
+      for (var i = 0; i < engine.tray.length; i++) {
+        engine.tray[i] = null;
+      }
       for (var i = 0; i < 80; i++) {
         final orb = engine.spawnOrbInSlot(0)!;
         expect(

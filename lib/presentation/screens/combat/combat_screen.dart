@@ -318,6 +318,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     _engine!.onEnrage = () {
       ProceduralSfxEngine.playBossEnrage();
     };
+    _engine!.onTrayChanged = () {
+      if (mounted) setState(() {});
+    };
     // Block 3: Sync auto-battle state.
     _engine!.autoBattleEnabled = _autoBattleEnabled;
     game = BrimstoneCombatGame(
@@ -741,7 +744,8 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
             Expanded(
               child: Stack(
                 children: [
-                  Positioned.fill(child: GameWidget(game: game)),
+                  Positioned.fill(
+                      child: ClipRect(child: GameWidget(game: game))),
                   // HellFire: Dimensional Rift Archway - stone pillars with elemental energy veins
                   Positioned.fill(
                       child:

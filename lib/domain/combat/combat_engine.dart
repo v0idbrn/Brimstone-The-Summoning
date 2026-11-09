@@ -194,9 +194,9 @@ class CombatEngine {
   static const double layoutWidth = 430.0;
   static const double layoutHeight = 932.0;
   static const double bossScreenX = layoutWidth * 0.50;
-  static const double bossScreenY = layoutHeight * 0.32;
+  static const double bossScreenY = layoutHeight * 0.48;
   static const double trayY = layoutHeight * 0.84;
-  static const double spawnInterval = 1.2;
+  static const double spawnInterval = 0.85;
   static const double baseDamage = 35.0;
   static const double outerRadius = 46.0;
   static const double innerRadius = 20.0;
@@ -386,6 +386,10 @@ class CombatEngine {
   /// level and element.
   void Function(OrbLevel level, double x, double y, Element element)? onMerge;
 
+  /// Called whenever the tray content changes (orb added/removed/merged) so
+  /// the Flutter layer can rebuild the tray widget.
+  void Function()? onTrayChanged;
+
   CombatEngine({
     required this.boss,
     required this.cards,
@@ -422,6 +426,7 @@ class CombatEngine {
     _spawnTargetRing();
     _spawnTargetRing();
     _applyStartModifiers();
+    fillTray();
   }
 
   void _spawnTargetRing() {
@@ -431,8 +436,8 @@ class CombatEngine {
         CombatTarget(
           id: 'target_$i',
           trajectory: TargetTrajectory.values[i % 3],
-          cx: bossScreenX + 85.0 - (i % 2 == 0 ? 60.0 : 10.0),
-          cy: bossScreenY - 30.0 - i * 18.0,
+          cx: bossScreenX,
+          cy: bossScreenY,
           amplitude: 70.0 + i * 14.0,
           baseAngularSpeed: 1.4 + i * 0.35,
           phase: i * 1.6,
@@ -483,6 +488,17 @@ class CombatEngine {
     for (final c in cards) {
       c.mana = c.baseManaCost.toDouble();
     }
+  }
+
+  /// Llena las 5 ranuras de la bandeja con esferas Nivel 1 (o nivel base según reliquias).
+  /// Se llama al iniciar el combate y cada 0.85s para rellenar huecos.
+  void fillTray() {
+    for (var i = 0; i < tray.length; i++) {
+      if (tray[i] == null) {
+        spawnOrbInSlot(i);
+      }
+    }
+    onTrayChanged?.call();
   }
 
   /// ATK efectivo de una carta: sinergia + runa de Furia Carmesí + talentos.
@@ -645,6 +661,7 @@ class CombatEngine {
       prismatic: prismatic,
     );
     tray[slot] = orb;
+    onTrayChanged?.call();
     return orb;
   }
 
@@ -687,6 +704,7 @@ class CombatEngine {
       level: newLevel,
     );
     tray[a] = null;
+    onTrayChanged?.call();
     trauma = (trauma + 0.25).clamp(0.0, 1.0);
     final mergeX = CombatEngine.layoutWidth / 5 * (b + 0.5);
     final mergeY = (CombatEngine.trayY + CombatEngine.layoutHeight) / 2;
@@ -699,6 +717,7 @@ class CombatEngine {
     final tmp = tray[a];
     tray[a] = tray[b];
     tray[b] = tmp;
+    onTrayChanged?.call();
   }
 
   // ------------------------------------------------------------- main tick
@@ -924,7 +943,10 @@ class CombatEngine {
         if (tray[i] == null) i,
     ];
     if (empty.isEmpty) return;
-    spawnOrbInSlot(empty[random.nextInt(empty.length)]);
+    // Fill all empty slots (if all 5 are empty, this fills all 5)
+    for (final slot in empty) {
+      spawnOrbInSlot(slot);
+    }
   }
 
   void _tickProjectiles(double s) {
@@ -977,7 +999,7 @@ class CombatEngine {
       final ty = t.yAt(time, effectiveAngularSpeed(t));
       final d = math.sqrt(
         (p.targetX - tx) * (p.targetX - tx) +
-            (bossScreenY - ty) * (bossScreenY - ty),
+            (p.targetY - ty) * (p.targetY - ty),
       );
       final kind = CombatMath.classifyHit(
         d,
@@ -1057,6 +1079,7 @@ class CombatEngine {
           level: orb.level,
           prismatic: orb.prismatic,
         );
+        onTrayChanged?.call();
         return;
       }
     }

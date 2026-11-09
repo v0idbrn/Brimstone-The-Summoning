@@ -76,8 +76,19 @@ void main() {
           random: math.Random(42),
         );
 
+    test('tray starts with 5 Level-1 orbs prefilled', () {
+      final e = fresh();
+      expect(e.tray.length, 5);
+      expect(e.tray.where((o) => o != null).length, 5);
+      for (final orb in e.tray) {
+        expect(orb!.level, OrbLevel.one);
+      }
+    });
+
     test('spawn orb into empty slot only', () {
       final e = fresh();
+      // Tray is prefilled, so find an empty slot by clearing one first
+      e.tray[0] = null;
       final orb = e.spawnOrbInSlot(0);
       expect(orb, isNotNull);
       expect(e.spawnOrbInSlot(0), isNull);
@@ -196,19 +207,22 @@ void main() {
         element: Element.igneous,
         level: OrbLevel.one,
       );
+      final flightDuration = CombatMath.flightMin;
+      // Aim at where the target WILL be at arrival time (lead targeting).
+      final arriveTime = flightDuration;
+      final targetX = t.xAt(arriveTime, t.baseAngularSpeed);
+      final targetY = t.yAt(arriveTime, t.baseAngularSpeed);
       final proj = OrbProjectile(
         id: 'p1',
         element: orb.element,
         level: orb.level,
         startX: 0,
         startY: CombatEngine.trayY,
-        targetX: 0,
-        targetY: CombatEngine.bossScreenY,
-        flightDuration: CombatMath.flightMin,
+        targetX: targetX,
+        targetY: targetY,
+        flightDuration: flightDuration,
       );
       e.projectiles.add(proj);
-      // Aim directly at a target center.
-      proj.targetX = t.xAt(0, t.baseAngularSpeed);
       while (e.bossHp == hpBefore) {
         e.tick(1 / 60);
         if (e.finished) break;
