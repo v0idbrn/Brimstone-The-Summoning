@@ -93,6 +93,8 @@ class ManaCard {
   final double attack;
   final int stars;
   double mana;
+  final int skillLevel; // 1-5
+  final int masteryRank; // 1-10
 
   ManaCard({
     required this.id,
@@ -102,9 +104,20 @@ class ManaCard {
     required this.attack,
     this.stars = 1,
     this.mana = 0,
+    this.skillLevel = 1,
+    this.masteryRank = 1,
   });
 
   bool get isReady => mana >= baseManaCost;
+
+  /// Skill effect multiplier: +15% per skill level above 1.
+  double get skillEffectMult => 1.0 + (skillLevel - 1) * 0.15;
+
+  /// Skill mana cost reduction: -4 per skill level above 1.
+  int get skillManaCostReduction => (skillLevel - 1) * 4;
+
+  /// Whether the skill is awakened (Skill Level 5 or Mastery Rank 5+).
+  bool get isAwakened => skillLevel >= 5 || masteryRank >= 5;
 }
 
 /// The player's own projectile in flight (tray -> boss plane).
@@ -185,6 +198,9 @@ class BossConfig {
   final double attackInterval;
   final double attackDamage;
   final int projectilesPerAttack;
+
+  /// Barrera Arcana (Escudo Elemental) - 25% de maxHp para Jefes/Titanes (Block 3).
+  final double shieldHp;
   const BossConfig({
     required this.id,
     required this.name,
@@ -193,6 +209,7 @@ class BossConfig {
     this.attackInterval = 6.0,
     this.attackDamage = 10.0,
     this.projectilesPerAttack = 2,
+    this.shieldHp = 0.0,
     this.threatDialog = '',
     this.furyDialog = '',
   });
@@ -222,6 +239,7 @@ class BossConfig {
     attackInterval: 5.0,
     attackDamage: 12,
     projectilesPerAttack: 3,
+    shieldHp: 150, // 25% of maxHp
     threatDialog: 'La sombra se alza sobre el campo de batalla.',
     furyDialog: '¡ESCARCHA ABSOLUTA! El hielo me pertenece.',
   );
@@ -236,6 +254,7 @@ class BossConfig {
     attackInterval: 6.0,
     attackDamage: 14,
     projectilesPerAttack: 2,
+    shieldHp: 138, // 25% of maxHp
     threatDialog: 'La Forja de Ceniza arde bajo mi mando.',
     furyDialog: '¡QUÉMENSE HASTA EL HUESO! El fuego no perdona.',
   );
@@ -247,6 +266,7 @@ class BossConfig {
     attackInterval: 5.0,
     attackDamage: 16,
     projectilesPerAttack: 3,
+    shieldHp: 175, // 25% of maxHp
     threatDialog: 'El frío eterno aguarda en la Fosa de Escarcha.',
     furyDialog: '¡ESCARCHA ABSOLUTA! El hielo me pertenece.',
   );
@@ -258,6 +278,7 @@ class BossConfig {
     attackInterval: 5.5,
     attackDamage: 18,
     projectilesPerAttack: 2,
+    shieldHp: 213, // 25% of maxHp
     threatDialog: 'El Bastión Tectónico no se rinde ante mortales.',
     furyDialog: '¡PETRIFICACIÓN TOTAL! Las dianas se encogen.',
   );
@@ -269,6 +290,7 @@ class BossConfig {
     attackInterval: 5.0,
     attackDamage: 20,
     projectilesPerAttack: 2,
+    shieldHp: 250, // 25% of maxHp
     threatDialog: 'Sueños rotos bajo el Velo de las Pesadillas.',
     furyDialog: '¡TELEPORTACIÓN ABISAL! Fallar drena tu maná.',
   );
@@ -280,6 +302,7 @@ class BossConfig {
     attackInterval: 4.5,
     attackDamage: 22,
     projectilesPerAttack: 3,
+    shieldHp: 300, // 25% of maxHp
     threatDialog: 'El Trono del Sello Roto espera a su cadáver, invocador.',
     furyDialog: '¡EL SELLO ESTÁ ROTO! Cambio de elemento ahora.',
   );

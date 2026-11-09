@@ -10,17 +10,20 @@ import 'package:brimstone_summoning/domain/value_objects/orb_level.dart';
 void main() {
   group('Elemental Weakness Wheel', () {
     test('Abyssal beats Igneous (+30%)', () {
-      expect(elementalWeaknessMultiplier(Element.abyssal, Element.igneous), 1.30);
+      expect(
+          elementalWeaknessMultiplier(Element.abyssal, Element.igneous), 1.30);
       expect(elementalWeakness(Element.igneous), Element.abyssal);
     });
 
     test('Igneous beats Telluric (+30%)', () {
-      expect(elementalWeaknessMultiplier(Element.igneous, Element.telluric), 1.30);
+      expect(
+          elementalWeaknessMultiplier(Element.igneous, Element.telluric), 1.30);
       expect(elementalWeakness(Element.telluric), Element.igneous);
     });
 
     test('Telluric beats Void (+30%)', () {
-      expect(elementalWeaknessMultiplier(Element.telluric, Element.empty), 1.30);
+      expect(
+          elementalWeaknessMultiplier(Element.telluric, Element.empty), 1.30);
       expect(elementalWeakness(Element.empty), Element.telluric);
     });
 
@@ -30,9 +33,12 @@ void main() {
     });
 
     test('Neutral elements deal 1.0x damage', () {
-      expect(elementalWeaknessMultiplier(Element.igneous, Element.igneous), 1.0);
-      expect(elementalWeaknessMultiplier(Element.abyssal, Element.telluric), 1.0);
-      expect(elementalWeaknessMultiplier(Element.telluric, Element.abyssal), 1.0);
+      expect(
+          elementalWeaknessMultiplier(Element.igneous, Element.igneous), 1.0);
+      expect(
+          elementalWeaknessMultiplier(Element.abyssal, Element.telluric), 1.0);
+      expect(
+          elementalWeaknessMultiplier(Element.telluric, Element.abyssal), 1.0);
       expect(elementalWeaknessMultiplier(Element.empty, Element.igneous), 1.0);
     });
   });
@@ -42,18 +48,27 @@ void main() {
       expect(campaignEnemies.length, 30);
     });
 
-    test('Each chapter has 6 enemies (4 minions, 1 miniBoss, 1 chapterBoss)', () {
+    test('Each chapter has 6 enemies (4 minions, 1 miniBoss, 1 chapterBoss)',
+        () {
       for (var chapter = 1; chapter <= 5; chapter++) {
         final chapterEnemies = enemiesForChapter(chapter);
-        expect(chapterEnemies.length, 6, reason: 'Chapter $chapter should have 6 enemies');
+        expect(chapterEnemies.length, 6,
+            reason: 'Chapter $chapter should have 6 enemies');
 
-        final minions = chapterEnemies.where((e) => e.tier == EnemyTier.minion).toList();
-        final miniBosses = chapterEnemies.where((e) => e.tier == EnemyTier.miniBoss).toList();
-        final chapterBosses = chapterEnemies.where((e) => e.tier == EnemyTier.chapterBoss).toList();
+        final minions =
+            chapterEnemies.where((e) => e.tier == EnemyTier.minion).toList();
+        final miniBosses =
+            chapterEnemies.where((e) => e.tier == EnemyTier.miniBoss).toList();
+        final chapterBosses = chapterEnemies
+            .where((e) => e.tier == EnemyTier.chapterBoss)
+            .toList();
 
-        expect(minions.length, 4, reason: 'Chapter $chapter should have 4 minions');
-        expect(miniBosses.length, 1, reason: 'Chapter $chapter should have 1 miniBoss');
-        expect(chapterBosses.length, 1, reason: 'Chapter $chapter should have 1 chapterBoss');
+        expect(minions.length, 4,
+            reason: 'Chapter $chapter should have 4 minions');
+        expect(miniBosses.length, 1,
+            reason: 'Chapter $chapter should have 1 miniBoss');
+        expect(chapterBosses.length, 1,
+            reason: 'Chapter $chapter should have 1 chapterBoss');
       }
     });
 
@@ -61,28 +76,34 @@ void main() {
       for (var chapter = 1; chapter <= 5; chapter++) {
         // Floor 1
         final floor1 = enemyForFloor(chapter, 1);
-        expect(floor1?.tier, EnemyTier.minion, reason: 'Chapter $chapter floor 1 should be minion');
+        expect(floor1?.tier, EnemyTier.minion,
+            reason: 'Chapter $chapter floor 1 should be minion');
         expect(floor1?.floor, 1);
 
         // Floor 2
         final floor2 = enemyForFloor(chapter, 2);
-        expect(floor2?.tier, EnemyTier.minion, reason: 'Chapter $chapter floor 2 should be minion');
+        expect(floor2?.tier, EnemyTier.minion,
+            reason: 'Chapter $chapter floor 2 should be minion');
 
         // Floor 3
         final floor3 = enemyForFloor(chapter, 3);
-        expect(floor3?.tier, EnemyTier.minion, reason: 'Chapter $chapter floor 3 should be minion');
+        expect(floor3?.tier, EnemyTier.minion,
+            reason: 'Chapter $chapter floor 3 should be minion');
 
         // Floor 4 = miniBoss
         final floor4 = enemyForFloor(chapter, 4);
-        expect(floor4?.tier, EnemyTier.miniBoss, reason: 'Chapter $chapter floor 4 should be miniBoss');
+        expect(floor4?.tier, EnemyTier.miniBoss,
+            reason: 'Chapter $chapter floor 4 should be miniBoss');
 
         // Floor 5 = minion
         final floor5 = enemyForFloor(chapter, 5);
-        expect(floor5?.tier, EnemyTier.minion, reason: 'Chapter $chapter floor 5 should be minion');
+        expect(floor5?.tier, EnemyTier.minion,
+            reason: 'Chapter $chapter floor 5 should be minion');
 
         // Floor 7 = chapterBoss
         final floor7 = enemyForFloor(chapter, 7);
-        expect(floor7?.tier, EnemyTier.chapterBoss, reason: 'Chapter $chapter floor 7 should be chapterBoss');
+        expect(floor7?.tier, EnemyTier.chapterBoss,
+            reason: 'Chapter $chapter floor 7 should be chapterBoss');
       }
     });
 
@@ -96,21 +117,24 @@ void main() {
     test('Chapter 1 enemies are Igneous', () {
       final ch1 = enemiesForChapter(1);
       for (final e in ch1) {
-        expect(e.element, Element.igneous, reason: '${e.name} should be Igneous');
+        expect(e.element, Element.igneous,
+            reason: '${e.name} should be Igneous');
       }
     });
 
     test('Chapter 2 enemies are Abyssal', () {
       final ch2 = enemiesForChapter(2);
       for (final e in ch2) {
-        expect(e.element, Element.abyssal, reason: '${e.name} should be Abyssal');
+        expect(e.element, Element.abyssal,
+            reason: '${e.name} should be Abyssal');
       }
     });
 
     test('Chapter 3 enemies are Telluric', () {
       final ch3 = enemiesForChapter(3);
       for (final e in ch3) {
-        expect(e.element, Element.telluric, reason: '${e.name} should be Telluric');
+        expect(e.element, Element.telluric,
+            reason: '${e.name} should be Telluric');
       }
     });
 
@@ -153,8 +177,20 @@ void main() {
           projectilesPerAttack: 1,
         ),
         cards: [
-          ManaCard(id: 'test_abyssal', name: 'Abyssal Card', element: Element.abyssal, baseManaCost: 100, attack: 20, stars: 1),
-          ManaCard(id: 'test_igneous', name: 'Igneous Card', element: Element.igneous, baseManaCost: 100, attack: 20, stars: 1),
+          ManaCard(
+              id: 'test_abyssal',
+              name: 'Abyssal Card',
+              element: Element.abyssal,
+              baseManaCost: 100,
+              attack: 20,
+              stars: 1),
+          ManaCard(
+              id: 'test_igneous',
+              name: 'Igneous Card',
+              element: Element.igneous,
+              baseManaCost: 100,
+              attack: 20,
+              stars: 1),
         ],
         playerMaxHp: 100,
         talentLevels: {},
@@ -167,7 +203,8 @@ void main() {
     });
 
     test('Abyssal orb deals 30% more damage to Igneous boss', () {
-      final abyssalOrb = CombatOrb(id: 'orb1', element: Element.abyssal, level: OrbLevel.one);
+      final abyssalOrb =
+          CombatOrb(id: 'orb1', element: Element.abyssal, level: OrbLevel.one);
       final initialHp = engine.bossHp;
 
       // Fire an abyssal orb at the boss (normal hit)
@@ -185,7 +222,8 @@ void main() {
     });
 
     test('Igneous orb deals normal damage to Igneous boss (no weakness)', () {
-      final igneousOrb = CombatOrb(id: 'orb2', element: Element.igneous, level: OrbLevel.one);
+      final igneousOrb =
+          CombatOrb(id: 'orb2', element: Element.igneous, level: OrbLevel.one);
       final initialHp = engine.bossHp;
 
       engine.registerDamage(
@@ -201,7 +239,8 @@ void main() {
     });
 
     test('Floating text shows SUPEREFICAZ for weakness hits', () {
-      final abyssalOrb = CombatOrb(id: 'orb3', element: Element.abyssal, level: OrbLevel.one);
+      final abyssalOrb =
+          CombatOrb(id: 'orb3', element: Element.abyssal, level: OrbLevel.one);
 
       engine.registerDamage(
         orb: abyssalOrb,
@@ -216,7 +255,8 @@ void main() {
     });
 
     test('Critical hit with weakness shows SUPEREFICAZ', () {
-      final abyssalOrb = CombatOrb(id: 'orb4', element: Element.abyssal, level: OrbLevel.one);
+      final abyssalOrb =
+          CombatOrb(id: 'orb4', element: Element.abyssal, level: OrbLevel.one);
 
       engine.registerDamage(
         orb: abyssalOrb,
@@ -244,7 +284,8 @@ void main() {
       expect((3800 ~/ xpPerLevel) + 1, 20);
       // Capped at maxLevel
       expect((5000 ~/ xpPerLevel) + 1, 26); // Uncapped would be 26
-      expect(((5000 ~/ xpPerLevel) + 1).clamp(1, maxLevel), maxLevel); // Capped = 20
+      expect(((5000 ~/ xpPerLevel) + 1).clamp(1, maxLevel),
+          maxLevel); // Capped = 20
     });
 
     test('XP per enemy: 50 for minions, 150 for bosses', () {
@@ -289,7 +330,11 @@ void main() {
         _MockCard(id: 2, catalogId: 'b', attack: 20, stars: 2), // 40
         _MockCard(id: 3, catalogId: 'c', attack: 15, stars: 3), // 45
         _MockCard(id: 4, catalogId: 'd', attack: 30, stars: 1), // 30
-        _MockCard(id: 5, catalogId: 'a', attack: 25, stars: 2), // 50 (duplicate catalogId)
+        _MockCard(
+            id: 5,
+            catalogId: 'a',
+            attack: 25,
+            stars: 2), // 50 (duplicate catalogId)
         _MockCard(id: 6, catalogId: 'e', attack: 12, stars: 4), // 48
       ];
 
@@ -334,8 +379,10 @@ void main() {
     test('Chapter unlock requires previous chapter cleared', () {
       final cleared = <String>['chapter_ceniza'];
       expect(chapterUnlocked('chapter_ceniza', cleared), true);
-      expect(chapterUnlocked('chapter_fosa', cleared), true); // Chapter 2 unlocked after 1
-      expect(chapterUnlocked('chapter_bastion', cleared), false); // Chapter 3 locked
+      expect(chapterUnlocked('chapter_fosa', cleared),
+          true); // Chapter 2 unlocked after 1
+      expect(chapterUnlocked('chapter_bastion', cleared),
+          false); // Chapter 3 locked
     });
 
     test('Chapter 1 unlocked by default', () {
@@ -386,5 +433,9 @@ class _MockCard {
   final int attack;
   final int stars;
 
-  _MockCard({required this.id, required this.catalogId, required this.attack, required this.stars});
+  _MockCard(
+      {required this.id,
+      required this.catalogId,
+      required this.attack,
+      required this.stars});
 }

@@ -6,6 +6,7 @@ import '../../data/database/database_helper.dart';
 import '../../data/repositories/player_repository.dart';
 import '../../domain/entities/owned_card.dart';
 import '../../domain/meta/meta_rules.dart';
+import '../../domain/meta/rune_system.dart';
 import '../../domain/value_objects/rarity.dart';
 
 final playerRepositoryProvider = Provider<PlayerRepository>((ref) {
@@ -20,6 +21,21 @@ final collectionProvider =
     NotifierProvider<CollectionController, CollectionState>(
   CollectionController.new,
 );
+
+/// Provider for all cards' equipped runes (Block 5: Rune Synthesis).
+final cardRunesMapProvider =
+    FutureProvider<Map<int, RuneInstance>>((ref) async {
+  final repo = ref.read(playerRepositoryProvider);
+  final collection = await repo.loadCollection();
+  final runes = <int, RuneInstance>{};
+  for (final card in collection) {
+    final rune = await repo.loadCardRune(card.instanceId);
+    if (rune != null) {
+      runes[card.instanceId] = rune;
+    }
+  }
+  return runes;
+});
 
 /// Summoner profile currencies.
 class ProfileState {
@@ -243,7 +259,9 @@ class CollectionController extends Notifier<CollectionState> {
 
   /// Portal gacha. Pacto Menor: 100 shards (fallback 500 gold) for 1 card.
   /// Gran Ritual: 450 shards for 5 cards, at least one epic-or-better.
-  Future<List<OwnedCard>?> summon({required bool grandRitual}) async {
+  /// Banner parameter for elemental banners (Block 4).
+  Future<List<OwnedCard>?> summon(
+      {required bool grandRitual, String banner = 'general'}) async {
     final profile = ref.read(profileProvider.notifier);
     if (grandRitual) {
       if (!await profile.spend(shards: 450)) return null;
@@ -255,15 +273,20 @@ class CollectionController extends Notifier<CollectionState> {
     }
     final repo = ref.read(playerRepositoryProvider);
     final summoned = <OwnedCard>[];
+    final service = SummonService();
     if (grandRitual) {
-      final rarities = SummonService().rollGrandRitual(_random, 5);
+      final rarities = service.rollGrandRitual(_random, 5);
       for (final rarity in rarities) {
-        summoned.add(await repo.insertSummonedCard(_catalogFor(rarity)));
+        summoned.add(
+          await repo.insertSummonedCard(
+              service.catalogFor(rarity, banner: banner, random: _random)),
+        );
       }
     } else {
       summoned.add(
         await repo.insertSummonedCard(
-          _catalogFor(SummonService().rollRarity(_random)),
+          service.catalogFor(SummonService().rollRarity(_random),
+              banner: banner, random: _random),
         ),
       );
     }
@@ -273,39 +296,62 @@ class CollectionController extends Notifier<CollectionState> {
     );
     return summoned;
   }
-}
 
-/// Picks a concrete card id matching the rolled rarity.
-String _catalogFor(Rarity r) => switch (r) {
-      Rarity.mythic => ['void_malakor', 'abyss_leviathan'],
-      Rarity.legendary => [
-          'abyss_leviathan',
-          'void_malakor',
-          'ignis_colossus',
-          'abyss_wraith',
-          'terra_behemoth',
-          'void_archon',
-        ],
-      Rarity.epic => [
-          'ignis_lord',
-          'terra_titan',
-          'void_specter',
-          'ignis_seraph',
-          'abyss_kraken',
-          'terra_hydra',
-          'void_oracle',
-        ],
-      Rarity.rare => [
-          'void_specter',
-          'terra_golem',
-          'ignis_drake',
-          'abyss_siren',
-          'terra_warden',
-          'void_reaper',
-        ],
-      Rarity.common => ['ignis_hound', 'abyss_stalker', 'terra_golem'],
-    }
-        .first;
+  /// Forge a new rune (Block 5: Alquimia de Runas).
+  Future<bool> forgeRune(RuneType runeType) async {
+    final profile = ref.read(profileProvider.notifier);
+    final cost = RuneSystem.forgeCost(runeType);
+    if (!await profile.spend(shards: cost)) return false;
+    final repo = ref.read(playerRepositoryProvider);
+    await repo.addRuneToProfile(runeType);
+    return true;
+  }
+
+  /// Upgrade an equipped rune to the next level (Block 5: Alquimia de Runas).
+  Future<bool> upgradeRune(int cardInstanceId) async {
+    final profile = ref.read(profileProvider.notifier);
+    final repo = ref.read(playerRepositoryProvider);
+    final rune = await repo.loadCardRune(cardInstanceId);
+    if (rune == null) return false;
+    if (rune.level >= 5) return false;
+    final cost = RuneSystem.upgradeCost(rune);
+    if (!await profile.spend(shards: cost)) return false;
+    await repo.upgradeCardRune(cardInstanceId);
+    return true;
+  }
+
+  /// DEPRECATED: Now using SummonService.catalogFor() in domain/meta/meta_rules.dart
+  String _catalogFor(Rarity r) => switch (r) {
+        Rarity.mythic => ['void_malakor', 'abyss_leviathan'],
+        Rarity.legendary => [
+            'abyss_leviathan',
+            'void_malakor',
+            'ignis_colossus',
+            'abyss_wraith',
+            'terra_behemoth',
+            'void_archon',
+          ],
+        Rarity.epic => [
+            'ignis_lord',
+            'terra_titan',
+            'void_specter',
+            'ignis_seraph',
+            'abyss_kraken',
+            'terra_hydra',
+            'void_oracle',
+          ],
+        Rarity.rare => [
+            'void_specter',
+            'terra_golem',
+            'ignis_drake',
+            'abyss_siren',
+            'terra_warden',
+            'void_reaper',
+          ],
+        Rarity.common => ['ignis_hound', 'abyss_stalker', 'terra_golem'],
+      }
+          .first;
+}
 
 // =========================================================================
 // Bounties (Juramentos de Azufre)
@@ -533,9 +579,11 @@ class DeckPreset {
   final String name;
   final List<int> cardInstanceIds; // exactly 4 or fewer
 
-  const DeckPreset({required this.index, required this.name, required this.cardInstanceIds});
+  const DeckPreset(
+      {required this.index, required this.name, required this.cardInstanceIds});
 
-  DeckPreset copyWith({int? index, String? name, List<int>? cardInstanceIds}) => DeckPreset(
+  DeckPreset copyWith({int? index, String? name, List<int>? cardInstanceIds}) =>
+      DeckPreset(
         index: index ?? this.index,
         name: name ?? this.name,
         cardInstanceIds: cardInstanceIds ?? this.cardInstanceIds,
@@ -588,8 +636,8 @@ class DeckPresetController extends Notifier<DeckPresetState> {
     if (index < 0 || index >= maxPresets) return;
     final names = ['Mazo I: Ígneo', 'Mazo II: Abisal', 'Mazo III: Táctico'];
     final nextPresets = [...state.presets];
-    final preset =
-        DeckPreset(index: index, name: names[index], cardInstanceIds: List.from(squad));
+    final preset = DeckPreset(
+        index: index, name: names[index], cardInstanceIds: List.from(squad));
     if (nextPresets.length <= index) {
       nextPresets.add(preset);
     } else {

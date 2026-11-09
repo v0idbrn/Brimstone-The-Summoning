@@ -18,10 +18,26 @@ class RuneInstance {
 class RuneSystem {
   static const int maxLevel = 5;
 
-  /// Costo en oro para forjar/subir la runa al siguiente nivel.
-  static int forgeCost(int currentLevel) => 100 * currentLevel;
+  /// Costo en esquirlas para forjar una runa nueva (Nivel 1).
+  /// Base cost varies by type.
+  static int forgeCost(RuneType type) => switch (type) {
+        RuneType.crimsonFury => 200,
+        RuneType.eternalFlow => 200,
+        RuneType.voidLeech => 250,
+        RuneType.twinEcho => 300,
+      };
 
-  /// Costo en esquirlas para forjar/subir la runa al siguiente nivel.
+  /// Costo en esquirlas para subir la runa al siguiente nivel.
+  static int upgradeCost(RuneInstance rune) {
+    if (rune.level >= maxLevel) return 0;
+    final baseCost = forgeCost(rune.type);
+    return baseCost * rune.level; // Increases each level
+  }
+
+  /// Costo en oro para forjar/subir la runa al siguiente nivel (legacy).
+  static int goldCost(int currentLevel) => 100 * currentLevel;
+
+  /// Costo en esquirlas para forjar/subir la runa al siguiente nivel (legacy).
   static int shardCost(int currentLevel) => 25 * currentLevel;
 
   /// Multiplicador de ATK de la carta equipada (crimson_fury): +12% por nivel.
@@ -69,4 +85,24 @@ class RuneSystem {
         RuneType.twinEcho =>
           '${(0.08 * level * 100).round()}% probabilidad de doble disparo de habilidad sin costo.',
       };
+
+  /// Color value (ARGB int) asociado a cada tipo de runa.
+  static int runeColorValue(RuneType type) => switch (type) {
+        RuneType.crimsonFury => 0xFFD32F2F,
+        RuneType.eternalFlow => 0xFF00BCD4,
+        RuneType.voidLeech => 0xFF7B1FA2,
+        RuneType.twinEcho => 0xFFFFC107,
+      };
+
+  /// Icon name asociado a cada tipo de runa.
+  static String runeIconName(RuneType type) => switch (type) {
+        RuneType.crimsonFury => 'local_fire_department',
+        RuneType.eternalFlow => 'waves',
+        RuneType.voidLeech => 'bloodtype',
+        RuneType.twinEcho => 'compare_arrows',
+      };
+
+  /// Descripción de efecto de cada tipo de runa (alias for description).
+  static String runeDescription(RuneType type, [int level = 1]) =>
+      description(type, level);
 }

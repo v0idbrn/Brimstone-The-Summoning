@@ -75,6 +75,10 @@ class BrimstoneCombatGame extends FlameGame {
   void update(double dt) {
     super.update(dt);
     engine.tick(dt * speedMultiplier);
+    // Block 3: Auto-Battle AI tick (every 0.75s adjusted by speed).
+    if (engine.autoBattleEnabled) {
+      engine.tickAutoBattle(speedMultiplier);
+    }
     final t = engine.time;
     shakeX = CombatMath.shakeOffset(engine.trauma, t, 14);
     shakeY = -CombatMath.shakeOffset(engine.trauma, t + 0.31, 10);

@@ -725,6 +725,147 @@ extension FirstOrNullWhere on Iterable<OwnedCard> {
   OwnedCard? firstOrNullWhere() => isEmpty ? null : first;
 }
 
+/// Skill Level Upgrade Section (Block 1: Maestría de Criaturas).
+class _SkillUpgradeSection extends ConsumerWidget {
+  final OwnedCard card;
+
+  const _SkillUpgradeSection({required this.card});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final canUpgrade = card.skillLevel < 5;
+    final goldCost = 200 * card.skillLevel;
+    final shardsCost = 40 * card.skillLevel;
+    final isAwakened = card.skillLevel >= 5 || card.masteryRank >= 5;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A0E14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isAwakened
+              ? const Color(0xFFFFD700)
+              : canUpgrade
+                  ? const Color(0xFFB16EFF)
+                  : Colors.white24,
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isAwakened ? Icons.star : Icons.bolt,
+                size: 16,
+                color: isAwakened
+                    ? const Color(0xFFFFD700)
+                    : const Color(0xFFB16EFF),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  isAwakened
+                      ? '★ DESPERTAR ABISAL ACTIVO ★'
+                      : 'MEJORAR HABILIDAD (Nv.${card.skillLevel} → Nv.${card.skillLevel + 1})',
+                  style: TextStyle(
+                    color: isAwakened ? const Color(0xFFFFD700) : Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              if (isAwakened)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [
+                      Color(0xFFFFD700),
+                      Color(0xFFFF5A26),
+                    ]),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'AWAKENED',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isAwakened
+                ? 'Al invocarse en combate: genera 1 esfera Nv.2 de ${_elementDisplayName(card.element)} + 5% HP escudo/curación.'
+                : 'Efecto: +15% daño/efecto habilidad  •  Costo maná: -4  •  Costo: $goldCost oro + $shardsCost esquirlas',
+            style: const TextStyle(
+                color: Colors.white70, fontSize: 10, height: 1.3),
+          ),
+          const SizedBox(height: 8),
+          if (canUpgrade)
+            BrimstoneButton(
+              label:
+                  'MEJORAR HABILIDAD — $goldCost ORO + $shardsCost ESQUIRLAS',
+              icon: Icons.upgrade,
+              onPressed: () async {
+                final repo = ref.read(playerRepositoryProvider);
+                final profile = await repo.loadProfile();
+                if (profile[0] < goldCost || profile[1] < shardsCost) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Oro o esquirlas insuficientes')),
+                    );
+                  }
+                  return;
+                }
+                await repo.spend(gold: goldCost, shards: shardsCost);
+                await repo.updateOwnedCard(
+                  card.copyWith(skillLevel: card.skillLevel + 1),
+                );
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isAwakened || card.skillLevel + 1 >= 5
+                            ? '¡DESPERTAR ABISAL DESBLOQUEADO!'
+                            : 'Habilidad mejorada a Nivel ${card.skillLevel + 1}',
+                      ),
+                      backgroundColor: const Color(0xFF4FFFA3),
+                    ),
+                  );
+                }
+              },
+            )
+          else if (!isAwakened)
+            const Center(
+              child: Text(
+                'Nivel máximo de habilidad alcanzado',
+                style: TextStyle(color: Colors.white38, fontSize: 10),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _elementDisplayName(Element e) => switch (e) {
+        Element.igneous => 'Ígneo',
+        Element.abyssal => 'Abisal',
+        Element.telluric => 'Telúrico',
+        Element.empty => 'Vacío',
+      };
+}
+
 /// Card detail: effective stats, level-up cost, rune forge, dismantle and equip action.
 class CardInspectorModal extends ConsumerWidget {
   final OwnedCard card;
@@ -914,6 +1055,10 @@ class CardInspectorModal extends ConsumerWidget {
                 }
               },
             ),
+            const SizedBox(height: 10),
+
+            // Skill Level Upgrade (Block 1: Maestría de Criaturas)
+            _SkillUpgradeSection(card: live),
             const SizedBox(height: 10),
 
             // Desmantelar Copia

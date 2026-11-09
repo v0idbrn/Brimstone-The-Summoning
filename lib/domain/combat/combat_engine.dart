@@ -235,6 +235,17 @@ class CombatEngine {
   double playerHp;
   double shield = 0;
 
+  // Block 3: Boss Shield Break mechanics.
+  double bossShieldHp = 0.0;
+  bool bossShieldBroken = false;
+  double bossBreakTimer = 0.0; // 5s break duration
+  static const double bossBreakDuration = 5.0;
+  static const double bossBreakDamageMult = 1.5;
+  static const double bossBreakCritMult = 1.5; // +50% crit damage
+  static const double bossShieldFraction = 0.25; // 25% of maxHp
+  static const double shieldWeaknessMult =
+      2.5; // 2.5x damage to shield with weak element/reaction
+
   // Boss enrage (phase 2 at <45% HP).
   bool enraged = false;
   double _enrageTimer = 0;
@@ -288,6 +299,10 @@ class CombatEngine {
   bool victory = false;
   double spawnTimer = 0;
   int _idCounter = 0;
+
+  // Block 3: Auto-Battle AI state.
+  bool autoBattleEnabled = false;
+  static const double autoBattleTickInterval = 0.75;
 
   // Módulos 2 & 5: Talentos permanentes y equipamiento del Invocador.
   final TalentTree _talentTree;
@@ -394,6 +409,9 @@ class CombatEngine {
             TalentTree(talentLevels).maxHpMult,
         random = random ?? math.Random(),
         bossHp = boss.maxHp,
+        bossShieldHp = boss.shieldHp > 0
+            ? boss.shieldHp
+            : (boss.maxHp * bossShieldFraction).roundToDouble(),
         playerHp = startHp ??
             (playerMaxHp ?? 100) *
                 (synergy?.hpMult ?? 1.0) *
@@ -713,6 +731,14 @@ class CombatEngine {
     _tickMutators(scaled);
     _tickTexts(scaled);
 
+    // Block 3: Tick boss shield break timer.
+    if (bossShieldBroken) {
+      bossBreakTimer = math.max(0, bossBreakTimer - scaled);
+      if (bossBreakTimer <= 0) {
+        bossShieldBroken = false;
+      }
+    }
+
     if (bossHp <= 0) {
       finished = true;
       victory = true;
@@ -746,6 +772,119 @@ class CombatEngine {
       victory = false;
       onDefeat?.call();
     }
+  }
+
+  /// Block 3: Auto-Battle AI tick.
+  /// Called every 0.75s (adjusted by speedMultiplier) when autoBattleEnabled is true.
+  /// Priority: 1) Cast skill if any card has mana >= cost.
+  ///          2) Merge two orbs of same element and level (< 3).
+  ///          3) Fire highest level orb at active target (prioritize weak element).
+  void tickAutoBattle(double speedMultiplier) {
+    if (!autoBattleEnabled || finished) return;
+
+    // 1) Try to cast a skill if any card has enough mana.
+    for (var i = 0; i < cards.length; i++) {
+      final c = cards[i];
+      final effectiveCost =
+          (c.baseManaCost - c.skillManaCostReduction).clamp(0, c.baseManaCost);
+      if (c.mana >= effectiveCost) {
+        castSkill(i);
+        return;
+      }
+    }
+
+    // 2) Try to merge two orbs of same element and level (< 3).
+    for (var i = 0; i < tray.length; i++) {
+      final orb1 = tray[i];
+      if (orb1 == null || orb1.level == OrbLevel.three) continue;
+      for (var j = i + 1; j < tray.length; j++) {
+        final orb2 = tray[j];
+        if (orb2 == null ||
+            orb2.level != orb1.level ||
+            orb2.element != orb1.element) {
+          continue;
+        }
+        // Merge them.
+        _mergeOrbs(i, j);
+        return;
+      }
+    }
+
+    // 3) Fire the highest level orb at a target.
+    // Prioritize weak element orbs.
+    var bestOrbIndex = -1;
+    var bestOrbLevel = -1;
+    var bestIsWeak = false;
+
+    for (var i = 0; i < tray.length; i++) {
+      final orb = tray[i];
+      if (orb == null) continue;
+      final isWeak =
+          elementalWeaknessMultiplier(orb.element, boss.element) > 1.0;
+      final levelValue = orb.level.index;
+      if (bestOrbIndex == -1 ||
+          (isWeak && !bestIsWeak) ||
+          (isWeak == bestIsWeak && levelValue > bestOrbLevel)) {
+        bestOrbIndex = i;
+        bestOrbLevel = levelValue;
+        bestIsWeak = isWeak;
+      }
+    }
+
+    if (bestOrbIndex != -1 && targets.isNotEmpty) {
+      // Find best target (prefer non-frozen, or first available).
+      var targetIndex = 0;
+      for (var i = 0; i < targets.length; i++) {
+        if (!targets[i].frozen) {
+          targetIndex = i;
+          break;
+        }
+      }
+      _fireOrbAtTarget(bestOrbIndex, targets[targetIndex]);
+    }
+  }
+
+  /// Merges orbs at slot i and j (i < j).
+  void _mergeOrbs(int i, int j) {
+    final orb1 = tray[i]!;
+    final orb2 = tray[j]!;
+    final newLevel = OrbLevel
+        .values[(orb1.level.index + 1).clamp(0, OrbLevel.values.length - 1)];
+    tray[i] = CombatOrb(
+      id: _nextId('orb'),
+      element: orb1.element,
+      level: newLevel,
+      prismatic: orb1.prismatic || orb2.prismatic,
+    );
+    tray[j] = null;
+    mergesToThree++;
+    onMerge?.call(newLevel, _trayX(i), trayY, orb1.element);
+  }
+
+  /// Fires orb at slot index towards the given target.
+  void _fireOrbAtTarget(int slotIndex, CombatTarget target) {
+    final orb = tray[slotIndex];
+    if (orb == null) return;
+    tray[slotIndex] = null;
+    final startX = _trayX(slotIndex);
+    projectiles.add(
+      OrbProjectile(
+        id: _nextId('proj'),
+        element: orb.element,
+        level: orb.level,
+        startX: startX,
+        startY: trayY,
+        targetX: target.xAt(time, effectiveAngularSpeed(target)),
+        targetY: target.yAt(time, effectiveAngularSpeed(target)),
+        flightDuration: 0.85,
+      ),
+    );
+  }
+
+  /// Returns the X coordinate of a tray slot center.
+  double _trayX(int slot) {
+    final slotW = layoutWidth / 5;
+    return slotW * (slot + 0.5);
   }
 
   /// Mutadores con efecto continuo (sangrado del Pacto de Hemorragia).
@@ -1071,6 +1210,16 @@ class CombatEngine {
     // Elemental weakness multiplier (+30% super-effective).
     final weaknessMult = elementalWeaknessMultiplier(orb.element, boss.element);
 
+    // Block 3: Check if hitting shield with weak element or reaction.
+    final isWeakHit =
+        weaknessMult > 1.0 || (aura != null && aura != orb.element);
+    final shieldDamageMult =
+        (bossShieldHp > 0 && isWeakHit) ? shieldWeaknessMult : 1.0;
+
+    // Block 3: Break state damage multiplier (+50% damage, +50% crit).
+    final breakMult = bossShieldBroken ? bossBreakDamageMult : 1.0;
+    final breakCritMult = bossShieldBroken ? bossBreakCritMult : 1.0;
+
     final rawDamage = baseDamage *
         multiplier *
         playerDamageMult *
@@ -1079,11 +1228,24 @@ class CombatEngine {
         talentMult *
         streakMult *
         mutatorMult *
-        weaknessMult;
+        weaknessMult *
+        breakMult *
+        shieldDamageMult *
+        breakCritMult;
     // Anti-cheat: NaN/infinitos/negativos se descartan; los valores inyectados
     // por encima del techo legal se recortan y quedan registrados.
     final dmg = sanityGuard.sanitize(rawDamage);
-    bossHp -= dmg;
+
+    // Block 3: Apply damage to shield first, then to HP.
+    if (bossShieldHp > 0 && !bossShieldBroken) {
+      final shieldDmg = math.min(bossShieldHp, dmg);
+      bossShieldHp -= shieldDmg;
+      if (bossShieldHp <= 0) {
+        _triggerShieldBreak();
+      }
+    } else {
+      bossHp -= dmg;
+    }
     damageTotal += dmg.toInt();
     if (dmg > maxHit) maxHit = dmg;
     if (kind == HitKind.bullseye) {
@@ -1123,6 +1285,19 @@ class CombatEngine {
                 : FloatingTextKind.normal),
       ),
     );
+    // Block 3: Show shield break banner.
+    if (bossShieldHp <= 0 && !bossShieldBroken && boss.shieldHp > 0) {
+      texts.add(
+        FloatingText(
+          id: _nextId('txt'),
+          text: '¡RUPTURA DE SELLO! DAÑO CRÍTICO +50%',
+          x: bossScreenX,
+          y: bossScreenY - 180,
+          kind: FloatingTextKind.skill,
+          element: orb.element,
+        ),
+      );
+    }
     // Nyxara (Vacío) enrage: fallar un tiro drena 10 de maná al escuadrón.
     if (boss.id == 'nyxara' && kind == HitKind.miss) {
       for (final c in cards) {
@@ -1131,6 +1306,21 @@ class CombatEngine {
     }
     trauma = (trauma + 0.25).clamp(0.0, 1.0);
     onHit?.call(kind, dmg.toInt(), x, y, orb.element);
+  }
+
+  /// Block 3: Triggers the Shield Break state when boss shield is depleted.
+  void _triggerShieldBreak() {
+    if (bossShieldBroken) return;
+    bossShieldBroken = true;
+    bossBreakTimer = bossBreakDuration;
+    // Stun boss: stop attacks for 5s.
+    bossStunRemaining = bossBreakDuration;
+    // Enlarge targets by 35% and freeze them.
+    for (final t in targets) {
+      t.enlargedUntil = bossBreakDuration;
+      t.frozen = true;
+      t.frozenRemaining = bossBreakDuration;
+    }
   }
 
   // New reaction mana from relic Sello de Resonancia (kept out of const ctor).

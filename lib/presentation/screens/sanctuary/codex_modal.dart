@@ -1,11 +1,20 @@
-import 'package:flutter/material.dart' hide Element;
+﻿import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/roguelite/relic_catalog.dart';
 import '../../controllers/meta_controller.dart';
 import '../../combat_engine/card_procedural_artwork.dart';
+import '../../widgets/brimstone_button.dart';
 
-/// Abyssal Codex modal: 3 tabs — reaction grimoire, summon/relic gallery,
+/// Helper to calculate global bonus from milestones.
+int _getGlobalBonus(List<_Milestone> milestones, int uniqueCreatures) {
+  final reached = milestones.where((m) => m.count <= uniqueCreatures).toList();
+  if (reached.isEmpty) return 0;
+  final totalBonus = reached.fold<double>(0, (sum, m) => sum + m.globalBonus);
+  return (totalBonus * 100).toInt();
+}
+
+/// Abyssal Codex modal: 3 tabs â€” reaction grimoire, summon/relic gallery,
 /// boss annals. Reaction detonation counts come from the codex DB table.
 class CodexModal extends ConsumerStatefulWidget {
   const CodexModal({super.key});
@@ -21,7 +30,7 @@ class _CodexModalState extends ConsumerState<CodexModal>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
+    _tab = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -33,6 +42,7 @@ class _CodexModalState extends ConsumerState<CodexModal>
   @override
   Widget build(BuildContext context) {
     final reactions = ref.watch(codexReactionsProvider);
+    final collection = ref.watch(collectionProvider);
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.92,
@@ -66,7 +76,7 @@ class _CodexModalState extends ConsumerState<CodexModal>
               child: Row(
                 children: [
                   const Text(
-                    'CÓDICE ABISAL',
+                    'CÃ“DICE ABISAL',
                     style: TextStyle(
                       color: Color(0xFFB16EFF),
                       fontWeight: FontWeight.w900,
@@ -87,10 +97,12 @@ class _CodexModalState extends ConsumerState<CodexModal>
               labelColor: const Color(0xFFB16EFF),
               unselectedLabelColor: Colors.white54,
               indicatorColor: const Color(0xFFB16EFF),
+              isScrollable: true,
               tabs: const [
                 Tab(text: 'GRIMORIO'),
-                Tab(text: 'GALERÍA'),
+                Tab(text: 'GALERÃA'),
                 Tab(text: 'ANNALES'),
+                Tab(text: 'HITOS'),
               ],
             ),
             Expanded(
@@ -100,6 +112,7 @@ class _CodexModalState extends ConsumerState<CodexModal>
                   _ReactionGrimoire(reactions: reactions),
                   _SummonGallery(),
                   _BossAnnals(),
+                  _CollectionMilestones(collection: collection),
                 ],
               ),
             ),
@@ -180,11 +193,323 @@ class _ReactionGrimoire extends ConsumerWidget {
               onPressed: () {
                 ref.read(playerRepositoryProvider).incrementCodexReaction(r.id);
               },
-              tooltip: 'Simular detonación',
+              tooltip: 'Simular detonaciÃ³n',
             ),
           ),
         );
       },
+    );
+  }
+}
+
+/// Milestone data class for Collection Milestones.
+class _Milestone {
+  final int count;
+  final int shards;
+  final double globalBonus;
+  final bool claimed;
+
+  const _Milestone({
+    required this.count,
+    required this.shards,
+    required this.globalBonus,
+    required this.claimed,
+  });
+}
+
+/// Milestone tile widget for Collection Milestones.
+class _MilestoneTile extends StatelessWidget {
+  final _Milestone milestone;
+  final int currentCount;
+  final VoidCallback onClaim;
+
+  const _MilestoneTile({
+    required this.milestone,
+    required this.currentCount,
+    required this.onClaim,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final reached = currentCount >= milestone.count;
+    final canClaim = reached && !milestone.claimed;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+            colors: canClaim
+                ? [
+                    const Color(0xFFFFD700).withValues(alpha: 0.2),
+                    const Color(0xFFFF5A26).withValues(alpha: 0.1),
+                  ]
+                : reached
+                    ? [
+                        const Color(0xFF4FFFA3).withValues(alpha: 0.15),
+                        const Color(0xFF0D040A),
+                      ]
+                    : [
+                        const Color(0xFF1A0E14),
+                        const Color(0xFF0D040A),
+                      ]),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: canClaim
+              ? const Color(0xFFFFD700)
+              : reached
+                  ? const Color(0xFF4FFFA3)
+                  : Colors.white12,
+          width: canClaim ? 2 : 1,
+        ),
+        boxShadow: canClaim
+            ? [
+                BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.3),
+                    blurRadius: 12)
+              ]
+            : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: canClaim
+                      ? [const Color(0xFFFFD700), const Color(0xFFFF5A26)]
+                      : reached
+                          ? [
+                              const Color(0xFF4FFFA3),
+                              const Color(0xFF4FFFA3).withValues(alpha: 0.5)
+                            ]
+                          : [Colors.white24, Colors.white12]),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                '${milestone.count}',
+                style: TextStyle(
+                  color: canClaim
+                      ? Colors.black
+                      : (reached ? Colors.white : Colors.white38),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  reached ? 'HITO DESBLOQUEADO' : 'HITO ${milestone.count}/20',
+                  style: TextStyle(
+                    color: canClaim
+                        ? const Color(0xFFFFD700)
+                        : (reached ? const Color(0xFF4FFFA3) : Colors.white54),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Recompensa: ${milestone.shards} esquirlas +${(milestone.globalBonus * 100).toInt()}% ATK/HP global',
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                ),
+              ],
+            ),
+          ),
+          if (canClaim)
+            BrimstoneButton(
+              label: 'RECLAMAR',
+              icon: Icons.card_giftcard,
+              onPressed: onClaim,
+              isSecondary: true,
+            )
+          else if (reached)
+            const Icon(Icons.check_circle, color: Color(0xFF4FFFA3), size: 28)
+          else
+            const Icon(Icons.lock, color: Colors.white24, size: 28),
+        ],
+      ),
+    );
+  }
+}
+
+/// Block 6: Collection Milestones - rewards for unique creatures collected.
+class _CollectionMilestones extends ConsumerWidget {
+  final CollectionState collection;
+
+  const _CollectionMilestones({required this.collection});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final uniqueCreatures =
+        collection.owned.map((c) => c.catalogId).toSet().length;
+
+    final milestones = [
+      _Milestone(count: 4, shards: 250, globalBonus: 0.05, claimed: false),
+      _Milestone(count: 8, shards: 400, globalBonus: 0.10, claimed: false),
+      _Milestone(count: 12, shards: 600, globalBonus: 0.15, claimed: false),
+      _Milestone(count: 16, shards: 800, globalBonus: 0.20, claimed: false),
+      _Milestone(count: 20, shards: 1000, globalBonus: 0.25, claimed: false),
+    ];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Progress Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [
+                const Color(0xFF1A0E14),
+                const Color(0xFF0D040A),
+              ]),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.5)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.menu_book,
+                        color: Color(0xFFFFD700), size: 28),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'ÃLBUM DE CRIATURAS',
+                      style: TextStyle(
+                        color: Color(0xFFFFD700),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '$uniqueCreatures / 20 CRIATURAS ÃšNICAS',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 22,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Stack(
+                  children: [
+                    Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0A0008),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: (uniqueCreatures / 20).clamp(0.0, 1.0),
+                      child: Container(
+                        height: 10,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(colors: [
+                            Color(0xFFFFD700),
+                            Color(0xFFFF5A26),
+                          ]),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: Row(
+                        children: milestones
+                            .map((m) => Expanded(
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 2),
+                                    child: Center(
+                                      child: Container(
+                                        width: 4,
+                                        height: 14,
+                                        decoration: BoxDecoration(
+                                          color: uniqueCreatures >= m.count
+                                              ? const Color(0xFF4FFFA3)
+                                              : Colors.white24,
+                                          borderRadius:
+                                              BorderRadius.circular(2),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Global Bonus Display
+          if (uniqueCreatures >= 4)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [
+                  const Color(0xFF4FFFA3).withValues(alpha: 0.2),
+                  const Color(0xFF4FFFA3).withValues(alpha: 0.05),
+                ]),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: const Color(0xFF4FFFA3).withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.bolt, color: Color(0xFF4FFFA3), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'BONO GLOBAL ACTIVO: +${_getGlobalBonus(milestones, uniqueCreatures)}% ATK/HP A TODAS LAS CARTAS',
+                      style: const TextStyle(
+                        color: Color(0xFF4FFFA3),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 16),
+          // Milestones List
+          ...milestones.map((m) => _MilestoneTile(
+                milestone: m,
+                currentCount: uniqueCreatures,
+                onClaim: () => _claimMilestone(context, ref, m),
+              )),
+        ],
+      ),
+    );
+  }
+
+  void _claimMilestone(
+      BuildContext context, WidgetRef ref, _Milestone milestone) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Â¡Hito de ${milestone.count} criaturas reclamado! +${milestone.shards} esquirlas +${(milestone.globalBonus * 100).toInt()}% ATK/HP global'),
+        backgroundColor: const Color(0xFF4FFFA3),
+      ),
     );
   }
 }
@@ -298,27 +623,27 @@ class _BossAnnals extends StatelessWidget {
       {
         'id': 'pyroth',
         'name': 'Pyroth, Coloso de Ceniza',
-        'element': 'Ígneo',
+        'element': 'Ãgneo',
         'weakness': 'Agua/Abyssal',
-        'enrage': 'Quema 1 ranura de bandeja por 4s (tocar 2× apaga).',
+        'enrage': 'Quema 1 ranura de bandeja por 4s (tocar 2Ã— apaga).',
         'kills': 0,
       },
       {
         'id': 'vaelor',
-        'name': 'Vaelor, Señor de la Fosa Helada',
+        'name': 'Vaelor, SeÃ±or de la Fosa Helada',
         'element': 'Abyssal',
-        'weakness': 'Ígneo (rompe escudo de hielo)',
+        'weakness': 'Ãgneo (rompe escudo de hielo)',
         'enrage':
-            'Escuda una diana con hielo (necesita golpe Ígneo para romper).',
+            'Escuda una diana con hielo (necesita golpe Ãgneo para romper).',
         'kills': 0,
       },
       {
         'id': 'azathor',
-        'name': 'Azathor, Monolito del Vacío',
-        'element': 'Vacío',
+        'name': 'Azathor, Monolito del VacÃ­o',
+        'element': 'VacÃ­o',
         'weakness': 'Ninguna conocida',
         'enrage':
-            'Invierte rotación cada 5s + proyectiles dobles de Counter-Flick.',
+            'Invierte rotaciÃ³n cada 5s + proyectiles dobles de Counter-Flick.',
         'kills': 0,
       },
     ];
@@ -347,7 +672,7 @@ class _BossAnnals extends StatelessWidget {
               children: [
                 const SizedBox(height: 4),
                 Text(
-                  'Elemento: ${b['element']} · Debilidad: ${b['weakness']}',
+                  'Elemento: ${b['element']} Â· Debilidad: ${b['weakness']}',
                   style: const TextStyle(color: Colors.white54, fontSize: 11),
                 ),
                 const SizedBox(height: 2),

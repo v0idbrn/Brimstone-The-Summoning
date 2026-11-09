@@ -105,6 +105,8 @@ class _FakePlayerRepository extends PlayerRepository {
       baseHealth: 15,
       level: 1,
       stars: 1,
+      skillLevel: 1,
+      masteryXp: 0,
     );
     _cards.insert(0, card);
     return card;

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:sqflite_common/sqlite_api.dart';
 
 import 'package:brimstone_summoning/core/security/integrity_signer.dart';
@@ -73,6 +75,8 @@ class PlayerRepository {
             'baseHealth': c.baseHealth,
             'level': c.level,
             'stars': c.stars,
+            'skillLevel': c.skillLevel,
+            'masteryXp': c.masteryXp,
           },
       ],
       'squad': squad,
@@ -173,6 +177,8 @@ class PlayerRepository {
             'card_id': _asStr(raw['catalogId'], 'fighterX'),
             'level': _asInt(raw['level'], 1),
             'stars': _asInt(raw['stars'], 1),
+            'skill_level': _asInt(raw['skillLevel'], 1),
+            'mastery_xp': _asInt(raw['masteryXp'], 0),
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
@@ -396,13 +402,47 @@ class PlayerRepository {
     return {'gold': boostedGold, 'shards': boostedShards};
   }
 
+  /// Añade energía al perfil.
+  Future<void> addEnergy(int amount) async {
+    final profile = await loadProfile();
+    await saveProfile(
+      gold: profile[0],
+      shards: profile[1],
+      energy: (profile[2] + amount).clamp(0, 9999),
+      summonerLevel: profile[3],
+    );
+  }
+
+  /// Añade esquirlas al perfil.
+  Future<void> addShards(int amount) async {
+    final profile = await loadProfile();
+    await saveProfile(
+      gold: profile[0],
+      shards: profile[1] + amount,
+      energy: profile[2],
+      summonerLevel: profile[3],
+    );
+  }
+
+  /// Añade oro al perfil.
+  Future<void> addGold(int amount) async {
+    final profile = await loadProfile();
+    await saveProfile(
+      gold: profile[0] + amount,
+      shards: profile[1],
+      energy: profile[2],
+      summonerLevel: profile[3],
+    );
+  }
+
   // ---------------------------------------------------------- collection
 
   Future<List<OwnedCard>> loadCollection() async {
     final db = await _db.db;
     final rows = await db.rawQuery('''
       SELECT o.id AS instance_id, c.id AS catalog_id, c.name, c.element,
-             c.rarity, c.base_mana_cost, c.attack, c.health, o.level, o.stars
+             c.rarity, c.base_mana_cost, c.attack, c.health, o.level, o.stars,
+             o.skill_level, o.mastery_xp
       FROM owned_cards o
       LEFT JOIN cards c ON c.id = o.card_id
       ORDER BY o.id DESC
@@ -426,6 +466,8 @@ class PlayerRepository {
           baseHealth: (row['health'] as int?) ?? 15,
           level: (row['level'] as int?) ?? 1,
           stars: (row['stars'] as int?) ?? 1,
+          skillLevel: (row['skill_level'] as int?) ?? 1,
+          masteryXp: (row['mastery_xp'] as int?) ?? 0,
         ),
     ];
   }
@@ -463,6 +505,8 @@ class PlayerRepository {
       'card_id': catalogId,
       'level': 1,
       'stars': 1,
+      'skill_level': 1,
+      'mastery_xp': 0,
     });
     return OwnedCard(
       instanceId: id,
@@ -481,6 +525,8 @@ class PlayerRepository {
       baseHealth: (metaRow['health'] as int?) ?? 15,
       level: 1,
       stars: 1,
+      skillLevel: 1,
+      masteryXp: 0,
     );
   }
 
@@ -503,7 +549,12 @@ class PlayerRepository {
     final db = await _db.db;
     await db.update(
       'owned_cards',
-      {'level': card.level, 'stars': card.stars},
+      {
+        'level': card.level,
+        'stars': card.stars,
+        'skill_level': card.skillLevel,
+        'mastery_xp': card.masteryXp,
+      },
       where: 'id = ?',
       whereArgs: [card.instanceId],
     );
@@ -614,6 +665,27 @@ class PlayerRepository {
       where: 'owned_card_id = ?',
       whereArgs: [instanceId],
     );
+  }
+
+  /// Añade una runa al perfil del jugador (para el inventario de runas forjadas).
+  Future<void> addRuneToProfile(RuneType runeType) async {
+    final db = await _db.db;
+    // Store in player_stats with key 'rune_<type>'
+    await db.insert(
+      'player_stats',
+      {'stat_key': 'rune_${runeType.name}', 'stat_value': 1},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Mejora la runa equipada en la carta al siguiente nivel.
+  Future<void> upgradeCardRune(int instanceId) async {
+    final db = await _db.db;
+    final rune = await loadCardRune(instanceId);
+    if (rune == null) return;
+    if (rune.level >= 5) return;
+    await saveCardRune(
+        instanceId, RuneInstance(type: rune.type, level: rune.level + 1));
   }
 
   // ---------------------------------------------------------------- endless
@@ -1159,5 +1231,204 @@ class PlayerRepository {
       for (final r in rows)
         (r['id'] as String): (r['detonations'] as int?) ?? 0,
     };
+  }
+
+  // ============================================================ RAID BOSSES (v8)
+
+  /// Carga todos los Titanes de Raid con su HP actual.
+  Future<List<Map<String, Object?>>> loadRaidBosses() async {
+    final db = await _db.db;
+    return await db.query('raid_bosses', orderBy: 'id');
+  }
+
+  /// Carga un Titán específico por ID.
+  Future<Map<String, Object?>?> loadRaidBoss(String id) async {
+    final db = await _db.db;
+    final rows = await db.query(
+      'raid_bosses',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first;
+  }
+
+  /// Aplica daño al Titán y actualiza su HP actual en SQLite.
+  /// Retorna true si el Titán fue abatido (current_hp <= 0).
+  Future<bool> dealDamageToRaidBoss(String id, int damage) async {
+    final db = await _db.db;
+    final boss = await loadRaidBoss(id);
+    if (boss == null) return false;
+    final currentHp = (boss['current_hp'] as int?) ?? 0;
+    final newHp = math.max(0, currentHp - damage);
+    final isDefeated = newHp <= 0;
+    await db.update(
+      'raid_bosses',
+      {
+        'current_hp': newHp,
+        'last_updated': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return isDefeated;
+  }
+
+  /// Resetea el Titán a HP completo y sube su nivel de Ascensión (+1).
+  Future<void> ascendRaidBoss(String id) async {
+    final db = await _db.db;
+    final boss = await loadRaidBoss(id);
+    if (boss == null) return;
+    final baseHp = (boss['base_hp'] as int?) ?? 0;
+    final ascension = ((boss['ascension_level'] as int?) ?? 0) + 1;
+    // Escala x1.8 por nivel de Ascensión.
+    final newHp = (baseHp * math.pow(1.8, ascension)).round();
+    await db.update(
+      'raid_bosses',
+      {
+        'current_hp': newHp,
+        'ascension_level': ascension,
+        'last_updated': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ============================================================ GACHA STATE (v8)
+
+  /// Carga el estado del Gacha (pity counter, banner activo, invocación gratuita diaria).
+  Future<Map<String, Object?>> loadGachaState() async {
+    final db = await _db.db;
+    final rows = await db.query('gacha_state',
+        where: 'id = ?', whereArgs: ['gacha_state'], limit: 1);
+    if (rows.isEmpty) {
+      return {
+        'pityCounter': 0,
+        'activeBanner': 'general',
+        'lastFreeSummonDate': null,
+        'dailySummonsToday': 0,
+      };
+    }
+    return rows.first;
+  }
+
+  /// Guarda el estado del Gacha.
+  Future<void> saveGachaState(Map<String, Object?> data) async {
+    final db = await _db.db;
+    await db.update(
+      'gacha_state',
+      {
+        'pity_counter': data['pityCounter'] ?? 0,
+        'active_banner': data['activeBanner'] ?? 'general',
+        'last_free_summon_date': data['lastFreeSummonDate'],
+        'daily_summons_today': data['dailySummonsToday'] ?? 0,
+      },
+      where: 'id = ?',
+      whereArgs: ['gacha_state'],
+    );
+  }
+
+  /// Verifica si la invocación gratuita diaria está disponible.
+  Future<bool> isFreeSummonAvailable() async {
+    final state = await loadGachaState();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final lastFree = state['lastFreeSummonDate'] as String?;
+    return lastFree != today;
+  }
+
+  /// Marca la invocación gratuita diaria como usada.
+  Future<void> markFreeSummonUsed() async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    await saveGachaState({
+      'pityCounter': 0,
+      'activeBanner': 'general',
+      'lastFreeSummonDate': today,
+      'dailySummonsToday': 0,
+    });
+  }
+
+  /// Incrementa el pity counter y verifica si se garantiza una Legendaria.
+  /// Retorna true si la siguiente invocación es garantizada Legendaria (pity >= 20).
+  Future<bool> incrementPityAndCheckGuaranteed() async {
+    final state = await loadGachaState();
+    final pity = (state['pityCounter'] as int?) ?? 0;
+    final newPity = pity + 1;
+    final guaranteed = newPity >= 20;
+    await saveGachaState({
+      'pityCounter': guaranteed ? 0 : newPity,
+      'activeBanner': state['activeBanner'],
+      'lastFreeSummonDate': state['lastFreeSummonDate'],
+      'dailySummonsToday': state['dailySummonsToday'],
+    });
+    return guaranteed;
+  }
+
+  /// Cambia el banner activo y resetea el pity counter.
+  Future<void> setActiveBanner(String bannerId) async {
+    await saveGachaState({
+      'pityCounter': 0,
+      'activeBanner': bannerId,
+      'lastFreeSummonDate': null,
+      'dailySummonsToday': 0,
+    });
+  }
+
+  // ============================================================ REDEEMED CODES (v8)
+
+  /// Verifica si un código promocional ya fue canjeado.
+  Future<bool> isCodeRedeemed(String code) async {
+    final db = await _db.db;
+    final rows = await db.query(
+      'redeemed_codes',
+      where: 'code = ?',
+      whereArgs: [code],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
+  /// Canjea un código promocional. Retorna el mapa de recompensas o null si ya fue canjeado.
+  Future<Map<String, int>?> redeemCode(String code) async {
+    final db = await _db.db;
+    final already = await isCodeRedeemed(code);
+    if (already) return null;
+    final upper = code.toUpperCase();
+    Map<String, int> rewards;
+    switch (upper) {
+      case 'HELLFIRE2026':
+        rewards = {'shards': 1000, 'gold': 2500};
+        break;
+      case 'BRIMSTONEVIP':
+        rewards = {
+          'shards': 500,
+          'gold': 0,
+          'card': 1
+        }; // card handled separately
+        break;
+      case 'VOIDLORD':
+        rewards = {
+          'shards': 500,
+          'gold': 0,
+          'card': 2
+        }; // card handled separately
+        break;
+      case 'AUTOBATTLE':
+        rewards = {'gold': 3000, 'shards': 300};
+        break;
+      default:
+        return null;
+    }
+    await db.insert('redeemed_codes', {
+      'code': upper,
+      'redeemed_at': DateTime.now().millisecondsSinceEpoch,
+    });
+    return rewards;
+  }
+
+  /// Otorga la carta de recompensa por código canjeado.
+  Future<void> grantPromoCard(String cardId) async {
+    await insertSummonedCard(cardId);
   }
 }

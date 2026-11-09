@@ -10,8 +10,8 @@ import 'database_platform.dart';
 /// contención del archivo. Para tests se puede usar [useInMemory] o un
 /// archivo único por suite con [setOverridePath].
 class DatabaseHelper {
-  /// Schema actual: v7 añade mazos guardados (deck_presets).
-  static const int version = 7;
+  /// Schema actual: v8 añade card_mastery (skill_level, mastery_xp), raid_bosses, gacha_state, redeemed_codes.
+  static const int version = 8;
 
   /// Ruta por defecto para las instancias creadas después de esta llamada.
   static String? _overridePath;
@@ -131,7 +131,8 @@ class DatabaseHelper {
     );
     await db.execute(
       'CREATE TABLE owned_cards(id INTEGER PRIMARY KEY AUTOINCREMENT, '
-      'card_id TEXT, level INTEGER DEFAULT 1, stars INTEGER DEFAULT 1)',
+      'card_id TEXT, level INTEGER DEFAULT 1, stars INTEGER DEFAULT 1, '
+      'skill_level INTEGER DEFAULT 1, mastery_xp INTEGER DEFAULT 0)',
     );
     await db.execute(
       'CREATE TABLE player_squad(slot INTEGER PRIMARY KEY, '
@@ -187,6 +188,45 @@ class DatabaseHelper {
       'claimed_premium TEXT NOT NULL DEFAULT \'\', '
       'premium_unlocked INTEGER NOT NULL DEFAULT 0)',
     );
+    // v8: Maestría de Criaturas (Skill Level 1-5, Mastery Rank 1-10).
+    await db.execute(
+      'CREATE TABLE card_mastery('
+      'owned_card_id INTEGER PRIMARY KEY, '
+      'skill_level INTEGER NOT NULL DEFAULT 1, '
+      'mastery_xp INTEGER NOT NULL DEFAULT 0, '
+      'FOREIGN KEY(owned_card_id) REFERENCES owned_cards(id) ON DELETE CASCADE)',
+    );
+    // v8: Raid Bosses (Cacería de Titanes - World Boss Raids).
+    await db.execute(
+      'CREATE TABLE raid_bosses('
+      'id TEXT PRIMARY KEY, '
+      'name TEXT NOT NULL, '
+      'element TEXT NOT NULL, '
+      'base_hp INTEGER NOT NULL, '
+      'current_hp INTEGER NOT NULL, '
+      'ascension_level INTEGER NOT NULL DEFAULT 0, '
+      'last_updated INTEGER NOT NULL)',
+    );
+    // v8: Gacha State (Pity Counter 0-20, Daily Free Summon).
+    await db.execute(
+      'CREATE TABLE gacha_state('
+      'id TEXT PRIMARY KEY, '
+      'pity_counter INTEGER NOT NULL DEFAULT 0, '
+      'active_banner TEXT NOT NULL DEFAULT \'general\', '
+      'last_free_summon_date TEXT, '
+      'daily_summons_today INTEGER NOT NULL DEFAULT 0)',
+    );
+    // v8: Redeemed Promo Codes.
+    await db.execute(
+      'CREATE TABLE redeemed_codes('
+      'code TEXT PRIMARY KEY, '
+      'redeemed_at INTEGER NOT NULL)',
+    );
+
+    // Seed initial raid bosses.
+    await _seedRaidBosses(db);
+    // Seed initial gacha state.
+    await _seedGachaState(db);
 
     await _seedCatalog(db);
     await _seedRelics(db);
@@ -687,5 +727,59 @@ class DatabaseHelper {
     for (final r in reactions) {
       await db.insert('codex_reactions', r);
     }
+  }
+
+  Future<void> _seedRaidBosses(Database db) async {
+    final raidBosses = <Map<String, Object?>>[
+      {
+        'id': 'titan_igneous',
+        'name': 'Bahamut de Escoria',
+        'element': 'igneous',
+        'base_hp': 8000,
+        'current_hp': 8000,
+        'ascension_level': 0,
+        'last_updated': DateTime.now().millisecondsSinceEpoch,
+      },
+      {
+        'id': 'titan_abyssal',
+        'name': 'Jörmungandr del Foso',
+        'element': 'abyssal',
+        'base_hp': 12000,
+        'current_hp': 12000,
+        'ascension_level': 0,
+        'last_updated': DateTime.now().millisecondsSinceEpoch,
+      },
+      {
+        'id': 'titan_telluric',
+        'name': 'Atlas Monolítico',
+        'element': 'telluric',
+        'base_hp': 18000,
+        'current_hp': 18000,
+        'ascension_level': 0,
+        'last_updated': DateTime.now().millisecondsSinceEpoch,
+      },
+      {
+        'id': 'titan_void',
+        'name': 'Nyarlathotep del Eclipse',
+        'element': 'void',
+        'base_hp': 25000,
+        'current_hp': 25000,
+        'ascension_level': 0,
+        'last_updated': DateTime.now().millisecondsSinceEpoch,
+      },
+    ];
+    for (final b in raidBosses) {
+      await db.insert('raid_bosses', b);
+    }
+  }
+
+  Future<void> _seedGachaState(Database db) async {
+    await db.insert('gacha_state', {
+      'id': 'gacha_state',
+      'pity_counter': 0,
+      'active_banner': 'general',
+      'last_free_summon_date': null,
+      'daily_summons_today': 0,
+    });
   }
 }

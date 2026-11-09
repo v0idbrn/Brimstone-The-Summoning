@@ -8,16 +8,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../core/performance/object_pool.dart';
 import '../../../core/performance/performance_settings.dart';
+import '../../../domain/campaign/campaign_enemies.dart';
 import '../../../domain/combat/combat_engine.dart';
 import '../../../domain/combat/combat_math.dart';
 import '../../../domain/combat/combat_models.dart';
+import '../../../domain/meta/card_mastery_system.dart';
 import '../../../domain/meta/rune_system.dart';
 import '../../../domain/meta/seal_challenge_rules.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../../domain/value_objects/orb_level.dart';
-import '../../controllers/meta_controller.dart';
 import '../../combat_engine/brimstone_combat_game.dart';
+import '../../controllers/meta_controller.dart';
 import '../../widgets/tcg_card_widget.dart';
 import '../meta/how_to_play_modal.dart';
 import '../sanctuary/settings_modal.dart';
@@ -97,6 +99,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   // Game speed multiplier (1.0 or 1.5x)
   double _gameSpeed = 1.0;
+
+  // Block 3: Auto-Battle state
+  bool _autoBattleEnabled = false;
 
   // Unified drag/flick state
   int? _draggedSlot;
@@ -314,6 +319,8 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     _engine!.onEnrage = () {
       ProceduralSfxEngine.playBossEnrage();
     };
+    // Block 3: Sync auto-battle state.
+    _engine!.autoBattleEnabled = _autoBattleEnabled;
     game = BrimstoneCombatGame(
       engine: _engine!,
       onVictory: () => _resolve(true),
@@ -347,6 +354,31 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
           counterflicks: engine.counterflicks,
           bossKilled: victory,
         );
+    // Grant Mastery XP to squad cards on victory (Block 1).
+    if (victory) {
+      final repo = ref.read(playerRepositoryProvider);
+      final collection = await repo.loadCollection();
+      final collectionById = {for (final c in collection) c.instanceId: c};
+      final squad = await repo.loadSquad();
+      // Determine if this was a boss fight by checking boss ID.
+      final bossId = engine.boss.id;
+      final isBoss = bossId.contains('boss') ||
+          bossId.contains('elite') ||
+          bossId.contains('chapter') ||
+          bossId.contains('titan') ||
+          bossId == 'pyroth' ||
+          bossId == 'vaelor' ||
+          bossId == 'gorgath' ||
+          bossId == 'azathor' ||
+          bossId == 'nyxara' ||
+          engine.boss.maxHp > 1000;
+      await grantMasteryXpToSquad(
+        squadInstanceIds: squad,
+        collectionById: collectionById,
+        isBoss: isBoss,
+        repo: repo,
+      );
+    }
     if (!mounted) return;
     await _showCombatSummary(victory);
     widget.onCombatResolved?.call(victory, engine.playerHp);
@@ -984,10 +1016,26 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                         fontWeight: FontWeight.w700,
                         fontFeatures: [FontFeature.tabularFigures()])),
               ),
+              // Block 3: Boss Shield HP Bar
+              if (engine.boss.shieldHp > 0)
+                _BossShieldBar(
+                  currentShield: engine.bossShieldHp,
+                  maxShield: engine.boss.shieldHp,
+                  isBroken: engine.bossShieldBroken,
+                  breakTimer: engine.bossBreakTimer,
+                ),
               // Speed toggle 1x / 1.5x
               _SpeedToggle(
                 initialSpeed: _gameSpeed,
                 onChanged: (speed) => setState(() => _gameSpeed = speed),
+              ),
+              // Auto-Battle toggle (Block 3: 🤖 AUTO)
+              _AutoBattleToggle(
+                enabled: _autoBattleEnabled,
+                onChanged: (enabled) {
+                  setState(() => _autoBattleEnabled = enabled);
+                  _engine?.autoBattleEnabled = enabled;
+                },
               ),
               IconButton(
                   icon: const Icon(Icons.help_outline,
@@ -1644,6 +1692,172 @@ class _SpeedButton extends StatelessWidget {
             letterSpacing: 0.3,
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Auto-Battle Toggle (Block 3: 🤖 AUTO)
+class _AutoBattleToggle extends StatelessWidget {
+  final bool enabled;
+  final void Function(bool) onChanged;
+
+  const _AutoBattleToggle({required this.enabled, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+            colors: enabled
+                ? [
+                    const Color(0xFF00C853).withValues(alpha: 0.3),
+                    const Color(0xFFFFD700).withValues(alpha: 0.2),
+                  ]
+                : [
+                    const Color(0xFF1A0A0F),
+                    const Color(0xFF0C0608),
+                  ]),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+            color: enabled
+                ? const Color(0xFF00C853).withValues(alpha: 0.8)
+                : const Color(0xFFB16EFF).withValues(alpha: 0.5),
+            width: 1.5),
+        boxShadow: enabled
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF00C853).withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
+      ),
+      child: GestureDetector(
+        onTap: () => onChanged(!enabled),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.smart_toy,
+              size: 14,
+              color: enabled ? const Color(0xFF00C853) : Colors.white38,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'AUTO',
+              style: TextStyle(
+                color: enabled ? const Color(0xFF00C853) : Colors.white70,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Boss Shield Break Bar (Block 3: Barrera Arcana + ¡BREAK!)
+class _BossShieldBar extends StatelessWidget {
+  final double currentShield;
+  final double maxShield;
+  final bool isBroken;
+  final double breakTimer;
+
+  const _BossShieldBar({
+    required this.currentShield,
+    required this.maxShield,
+    required this.isBroken,
+    required this.breakTimer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction =
+        maxShield > 0 ? (currentShield / maxShield).clamp(0.0, 1.0) : 0.0;
+    final showBreak = isBroken && breakTimer > 0;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Shield bar
+          Container(
+            height: 6,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A0008),
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Stack(
+              children: [
+                // Shield fill
+                FractionallySizedBox(
+                  widthFactor: fraction,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                          colors: showBreak
+                              ? [
+                                  const Color(0xFFFFD700),
+                                  const Color(0xFFFF5A26)
+                                ]
+                              : [
+                                  const Color(0xFF00FFFF),
+                                  const Color(0xFFB16EFF)
+                                ]),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+                // Break state indicator
+                if (showBreak)
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(0xFFFFD700).withValues(alpha: 0.5),
+                          const Color(0xFFFF5A26).withValues(alpha: 0.5),
+                        ],
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '¡RUPTURA DE SELLO! ${breakTimer.toStringAsFixed(1)}s',
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 7,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+          // Shield label
+          Text(
+            showBreak
+                ? '¡BREAK! DAÑO CRÍTICO +50%  •  JEFE ATURDIDO'
+                : 'Barrera Arcana: ${currentShield.toInt()} / ${maxShield.toInt()} (Golpe débil: 2.5x)',
+            style: TextStyle(
+              color:
+                  showBreak ? const Color(0xFFFFD700) : const Color(0xFF00FFFF),
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2332,25 +2546,33 @@ CombatEngine defaultEngine() => CombatEngine(
           name: 'Sabueso de Azufre',
           element: Element.igneous,
           baseManaCost: 100,
-          attack: 10),
+          attack: 10,
+          skillLevel: 1,
+          masteryRank: 1),
       ManaCard(
           id: 'abyss_stalker',
           name: 'Acechador de Escarcha',
           element: Element.abyssal,
           baseManaCost: 95,
-          attack: 12),
+          attack: 12,
+          skillLevel: 1,
+          masteryRank: 1),
       ManaCard(
           id: 'terra_golem',
           name: 'Gólem de Basalto',
           element: Element.telluric,
           baseManaCost: 100,
-          attack: 8),
+          attack: 8,
+          skillLevel: 1,
+          masteryRank: 1),
       ManaCard(
           id: 'void_specter',
           name: 'Espectro del Sello',
           element: Element.empty,
           baseManaCost: 110,
-          attack: 15),
+          attack: 15,
+          skillLevel: 1,
+          masteryRank: 1),
     ],
     playerMaxHp: 100);
 

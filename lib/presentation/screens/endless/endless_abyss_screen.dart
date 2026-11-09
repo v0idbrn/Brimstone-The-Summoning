@@ -93,6 +93,8 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
             baseManaCost: c.baseManaCost,
             attack: c.baseAttack.toDouble(),
             stars: c.stars,
+            skillLevel: c.skillLevel,
+            masteryRank: c.masteryRank,
           ),
         );
       }
@@ -106,6 +108,8 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
           element: Element.igneous,
           baseManaCost: 100,
           attack: 10,
+          skillLevel: 1,
+          masteryRank: 1,
         ),
       );
     }

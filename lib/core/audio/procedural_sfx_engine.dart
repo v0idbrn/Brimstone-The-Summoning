@@ -164,6 +164,12 @@ class ProceduralSfxEngine {
     _nativeFeedback(SystemSoundType.click, HapticFeedback.lightImpact);
   }
 
+  /// Play a heavy UI click sound.
+  static void playUIHeavyClick() {
+    _play(cached('ui_heavy_click'));
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
+  }
+
   // --- Internal synthesis methods ---
 
   /// Generate a WAV file in memory (Uint8List) from PCM samples.

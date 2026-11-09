@@ -4,14 +4,19 @@ import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
+import '../../../data/repositories/player_repository.dart';
 import '../../../domain/entities/owned_card.dart';
+import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
+import '../../screens/meta/widgets.dart';
+import '../../widgets/brimstone_button.dart';
 import '../../widgets/tcg_card_widget.dart';
-import '../meta/widgets.dart';
 
-/// Summon Portal: Pacto Menor (1 card, 100 esquirlas / 500 oro) and
-/// Gran Ritual (5 cards, 450 esquirlas, >=1 épica garantizada) with an
-/// animated rotating rune circle and a reveal dialog.
+/// Summon Portal with Gacha System (Block 4):
+/// - 5 Elemental Banners (General, Igneous, Abyssal, Telluric, Void)
+/// - Pity Counter (0-20, guaranteed 3★ at 20)
+/// - Daily Free Summon
+/// - Animated ritual circle
 class SummonPortalScreen extends ConsumerStatefulWidget {
   const SummonPortalScreen({super.key});
 
@@ -27,10 +32,145 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
   )..repeat();
   bool _channeling = false;
 
+  // Gacha state
+  int _pityCounter = 0;
+  String _activeBanner = 'general';
+  bool _freeSummonAvailable = false;
+  Map<String, Object?> _gachaState = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGachaState();
+  }
+
   @override
   void dispose() {
     _spin.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadGachaState() async {
+    final repo = ref.read(playerRepositoryProvider);
+    final state = await repo.loadGachaState();
+    if (mounted) {
+      setState(() {
+        _gachaState = state;
+        _pityCounter = (state['pityCounter'] as int?) ?? 0;
+        _activeBanner = (state['activeBanner'] as String?) ?? 'general';
+        _freeSummonAvailable = (state['lastFreeSummonDate'] as String?) !=
+            DateTime.now().toIso8601String().substring(0, 10);
+      });
+    }
+  }
+
+  Future<void> _setActiveBanner(String bannerId) async {
+    final repo = ref.read(playerRepositoryProvider);
+    await repo.setActiveBanner(bannerId);
+    if (mounted) {
+      setState(() {
+        _activeBanner = bannerId;
+        _pityCounter = 0;
+      });
+    }
+  }
+
+  Future<void> _summon({required bool grandRitual, bool free = false}) async {
+    setState(() => _channeling = true);
+
+    final repo = ref.read(playerRepositoryProvider);
+    final profile = await repo.loadProfile();
+    final shards = profile[1];
+    final gold = profile[0];
+
+    if (!free) {
+      if (grandRitual) {
+        if (shards < 450) {
+          setState(() => _channeling = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content:
+                      Text('Esquirlas insuficientes para Gran Ritual (450).')),
+            );
+          }
+          return;
+        }
+        await repo.spend(shards: 450);
+      } else {
+        if (shards >= 100) {
+          await repo.spend(shards: 100);
+        } else if (gold >= 500) {
+          await repo.spend(gold: 500);
+        } else {
+          setState(() => _channeling = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Fondos insuficientes para Pacto Menor.')),
+            );
+          }
+          return;
+        }
+      }
+    } else {
+      await repo.markFreeSummonUsed();
+    }
+
+    final cards = await ref
+        .read(collectionProvider.notifier)
+        .summon(grandRitual: grandRitual, banner: _activeBanner);
+
+    if (!mounted) return;
+    setState(() => _channeling = false);
+
+    if (cards == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El ritual falló: fondos insuficientes.')),
+      );
+      return;
+    }
+
+    // Update pity counter based on results
+    await _updatePityAfterSummon(cards, grandRitual);
+
+    if (!mounted) return;
+    ProceduralSfxEngine.playSummonReveal(cards.length);
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _RevealDialog(cards: cards),
+    );
+    await _loadGachaState(); // Refresh pity/free summon state
+  }
+
+  Future<void> _updatePityAfterSummon(
+      List<OwnedCard> cards, bool grandRitual) async {
+    final repo = ref.read(playerRepositoryProvider);
+    for (final card in cards) {
+      // Check if any card is Legendary (3★)
+      final isLegendary = card.stars >= 3;
+      if (!isLegendary) {
+        final guaranteed = await repo.incrementPityAndCheckGuaranteed();
+        if (guaranteed && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  '¡LLEGASTE AL PITY! Próxima invocación garantiza Legendaria 3★.'),
+              backgroundColor: Color(0xFFFFD700),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        // Reset pity on Legendary
+        await repo.saveGachaState({
+          'pityCounter': 0,
+          'activeBanner': _activeBanner,
+          'lastFreeSummonDate': _gachaState['lastFreeSummonDate'],
+          'dailySummonsToday': _gachaState['dailySummonsToday'] ?? 0,
+        });
+      }
+    }
   }
 
   @override
@@ -39,6 +179,8 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
     final minorShards = profile.shards >= 100;
     final minorGold = profile.gold >= 500;
     final grand = profile.shards >= 450;
+
+    final banners = _BannerData.all;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0608),
@@ -57,6 +199,22 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
       body: Column(
         children: [
           const CurrencyBar(),
+          // Banner Selector
+          _BannerSelector(
+            banners: banners,
+            activeBanner: _activeBanner,
+            onChanged: _setActiveBanner,
+          ),
+          // Pity Counter Bar
+          _PityCounterBar(
+            pityCounter: _pityCounter,
+            activeBanner: _activeBanner,
+            banners: banners,
+          ),
+          // Daily Free Summon Indicator
+          if (_freeSummonAvailable)
+            _DailyFreeSummonBanner(
+                onTap: () => _summon(grandRitual: false, free: true)),
           Expanded(
             child: Stack(
               alignment: Alignment.center,
@@ -88,14 +246,21 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _SummonButton(
-                  title: 'PACTO MENOR',
-                  subtitle: minorShards
-                      ? '1 carta — 100 esquirlas'
-                      : minorGold
-                          ? '1 carta — 500 oro (sin esquirlas)'
-                          : 'Sin fondos suficientes',
-                  enabled: !_channeling && (minorShards || minorGold),
-                  onTap: () => _summon(grandRitual: false),
+                  title: _freeSummonAvailable
+                      ? '✨ INVOCACIÓN DIARIA GRATIS'
+                      : 'PACTO MENOR',
+                  subtitle: _freeSummonAvailable
+                      ? '0 Esquirlas (1 gratis por día)'
+                      : (minorShards
+                          ? '1 carta — 100 esquirlas'
+                          : minorGold
+                              ? '1 carta — 500 oro (sin esquirlas)'
+                              : 'Sin fondos suficientes'),
+                  enabled: !_channeling &&
+                      (_freeSummonAvailable || minorShards || minorGold),
+                  onTap: () =>
+                      _summon(grandRitual: false, free: _freeSummonAvailable),
+                  isFree: _freeSummonAvailable,
                 ),
                 const SizedBox(height: 10),
                 _SummonButton(
@@ -103,6 +268,7 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
                   subtitle: '5 cartas — 450 esquirlas · ≥1 épica garantizada',
                   enabled: !_channeling && grand,
                   onTap: () => _summon(grandRitual: true),
+                  isGrand: true,
                 ),
               ],
             ),
@@ -111,28 +277,347 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
       ),
     );
   }
+}
 
-  Future<void> _summon({required bool grandRitual}) async {
-    setState(() {
-      _channeling = true;
-    });
-    final cards = await ref
-        .read(collectionProvider.notifier)
-        .summon(grandRitual: grandRitual);
-    if (!mounted) return;
-    setState(() {
-      _channeling = false;
-    });
-    if (cards == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El ritual falló: fondos insuficientes.')),
-      );
-      return;
-    }
-    ProceduralSfxEngine.playSummonReveal(cards.length);
-    await showDialog<void>(
-      context: context,
-      builder: (_) => _RevealDialog(cards: cards),
+class _BannerData {
+  final String id;
+  final String name;
+  final Element? featuredElement;
+  final Color color;
+  final String description;
+
+  const _BannerData({
+    required this.id,
+    required this.name,
+    this.featuredElement,
+    required this.color,
+    required this.description,
+  });
+
+  static const List<_BannerData> all = [
+    _BannerData(
+      id: 'general',
+      name: 'Grieta Primordial',
+      featuredElement: null,
+      color: Color(0xFFB16EFF),
+      description: 'Pool general de las 20 criaturas.',
+    ),
+    _BannerData(
+      id: 'igneous',
+      name: 'Forja de Ignis',
+      featuredElement: Element.igneous,
+      color: Color(0xFFFF5A26),
+      description: '60% probabilidad de cartas Ígneas.',
+    ),
+    _BannerData(
+      id: 'abyssal',
+      name: 'Fosa de Leviatán',
+      featuredElement: Element.abyssal,
+      color: Color(0xFF00FFFF),
+      description: '60% probabilidad de cartas Abisales.',
+    ),
+    _BannerData(
+      id: 'telluric',
+      name: 'Cumbre del Titán',
+      featuredElement: Element.telluric,
+      color: Color(0xFF8B5A2B),
+      description: '60% probabilidad de cartas Telúricas.',
+    ),
+    _BannerData(
+      id: 'void',
+      name: 'Eclipse de Malakor',
+      featuredElement: Element.empty,
+      color: Color(0xFFB16EFF),
+      description: '60% probabilidad de cartas de Vacío.',
+    ),
+  ];
+}
+
+class _BannerSelector extends StatelessWidget {
+  final List<_BannerData> banners;
+  final String activeBanner;
+  final void Function(String) onChanged;
+
+  const _BannerSelector({
+    required this.banners,
+    required this.activeBanner,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 70,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: banners.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final banner = banners[index];
+          final isActive = banner.id == activeBanner;
+          return GestureDetector(
+            onTap: () => onChanged(banner.id),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 140,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                    colors: isActive
+                        ? [
+                            banner.color.withValues(alpha: 0.4),
+                            banner.color.withValues(alpha: 0.2)
+                          ]
+                        : [const Color(0xFF1A0A0F), const Color(0xFF0C0608)]),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isActive ? banner.color : Colors.white12,
+                  width: isActive ? 2 : 1,
+                ),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                            color: banner.color.withValues(alpha: 0.3),
+                            blurRadius: 8)
+                      ]
+                    : null,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    banner.name,
+                    style: TextStyle(
+                      color: isActive ? banner.color : Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (banner.featuredElement != null) ...[
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: banner.color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PityCounterBar extends StatelessWidget {
+  final int pityCounter;
+  final String activeBanner;
+  final List<_BannerData> banners;
+
+  const _PityCounterBar({
+    required this.pityCounter,
+    required this.activeBanner,
+    required this.banners,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final banner = banners.firstWhere((b) => b.id == activeBanner);
+    final progress = pityCounter / 20.0;
+    final isGuaranteed = pityCounter >= 20;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [
+          banner.color.withValues(alpha: 0.2),
+          banner.color.withValues(alpha: 0.05),
+        ]),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isGuaranteed
+              ? const Color(0xFFFFD700)
+              : banner.color.withValues(alpha: 0.5),
+          width: 2,
+        ),
+        boxShadow: isGuaranteed
+            ? [
+                BoxShadow(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                    blurRadius: 12)
+              ]
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isGuaranteed ? Icons.star : Icons.auto_awesome,
+                color: isGuaranteed ? const Color(0xFFFFD700) : banner.color,
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isGuaranteed
+                      ? '¡GARANTÍA LEGENDARIA (3★) LISTA!'
+                      : 'Garantía Legendaria (3★): $pityCounter / 20 invocaciones',
+                  style: TextStyle(
+                    color:
+                        isGuaranteed ? const Color(0xFFFFD700) : Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              if (isGuaranteed)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFFFFD700), Color(0xFFFF5A26)]),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    '¡LISTO!',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Stack(
+            children: [
+              Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0008),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              FractionallySizedBox(
+                widthFactor: progress.clamp(0.0, 1.0),
+                child: Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                        colors: isGuaranteed
+                            ? [const Color(0xFFFFD700), const Color(0xFFFF5A26)]
+                            : [
+                                banner.color,
+                                banner.color.withValues(alpha: 0.6)
+                              ]),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              // Milestone markers
+              Positioned.fill(
+                child: Row(
+                  children: [
+                    for (int i = 1; i <= 19; i++)
+                      Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                          decoration: BoxDecoration(
+                            color: pityCounter >= i
+                                ? banner.color.withValues(alpha: 0.5)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DailyFreeSummonBanner extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _DailyFreeSummonBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [
+              Color(0xFF00C853),
+              Color(0xFF4FFFA3),
+              Color(0xFFFFD700),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00C853).withValues(alpha: 0.4),
+              blurRadius: 12,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.card_giftcard, color: Colors.black, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'INVOCACIÓN DIARIA GRATIS DISPONIBLE',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const Text(
+                    'Tu pacto menor diario no cuesta nada hoy',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, color: Colors.black, size: 18),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -142,32 +627,73 @@ class _SummonButton extends StatelessWidget {
   final String subtitle;
   final bool enabled;
   final VoidCallback onTap;
+  final bool isFree;
+  final bool isGrand;
 
   const _SummonButton({
     required this.title,
     required this.subtitle,
     required this.enabled,
     required this.onTap,
+    this.isFree = false,
+    this.isGrand = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = enabled ? const Color(0xFFB16EFF) : Colors.white24;
+    final baseColor = isFree
+        ? const Color(0xFF00C853)
+        : isGrand
+            ? const Color(0xFFFFD700)
+            : const Color(0xFFB16EFF);
+    final color = enabled ? baseColor : Colors.white24;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF2A1116),
+            gradient: LinearGradient(
+                colors: enabled
+                    ? [
+                        const Color(0xFF2A1116),
+                        const Color(0xFF1A0A0F),
+                      ]
+                    : [
+                        const Color(0xFF14090D),
+                        const Color(0xFF0C0608),
+                      ]),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color, width: 1.6),
+            border: Border.all(color: color, width: isFree ? 2.5 : 1.6),
+            boxShadow: enabled && isFree
+                ? [
+                    BoxShadow(
+                        color: baseColor.withValues(alpha: 0.4), blurRadius: 12)
+                  ]
+                : null,
           ),
           child: Row(
             children: [
-              Icon(Icons.auto_awesome, color: color),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                    baseColor.withValues(alpha: 0.3),
+                    baseColor.withValues(alpha: 0.1),
+                  ]),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isFree
+                      ? Icons.card_giftcard
+                      : (isGrand ? Icons.auto_awesome : Icons.casino),
+                  color: color,
+                  size: 24,
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -179,6 +705,7 @@ class _SummonButton extends StatelessWidget {
                         color: color,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 1.5,
+                        fontSize: isFree ? 14 : 13,
                       ),
                     ),
                     Text(
@@ -191,6 +718,8 @@ class _SummonButton extends StatelessWidget {
                   ],
                 ),
               ),
+              if (enabled)
+                Icon(Icons.arrow_forward_ios, color: color, size: 16),
             ],
           ),
         ),

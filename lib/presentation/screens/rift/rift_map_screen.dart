@@ -400,6 +400,8 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
           baseManaCost: c.baseManaCost,
           attack: c.baseAttack * (1.0 + 0.10 * (c.level - 1)),
           stars: c.stars,
+          skillLevel: c.skillLevel,
+          masteryRank: c.masteryRank,
         ));
         break;
       }
@@ -413,25 +415,33 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
             name: 'Sabueso de Azufre',
             element: Element.igneous,
             baseManaCost: 100,
-            attack: 10),
+            attack: 10,
+            skillLevel: 1,
+            masteryRank: 1),
         ManaCard(
             id: 'abyss_stalker',
             name: 'Acechador de Escarcha',
             element: Element.abyssal,
             baseManaCost: 95,
-            attack: 12),
+            attack: 12,
+            skillLevel: 1,
+            masteryRank: 1),
         ManaCard(
             id: 'terra_golem',
             name: 'Gólem de Basalto',
             element: Element.telluric,
             baseManaCost: 100,
-            attack: 8),
+            attack: 8,
+            skillLevel: 1,
+            masteryRank: 1),
         ManaCard(
             id: 'void_specter',
             name: 'Espectro del Sello',
             element: Element.empty,
             baseManaCost: 110,
-            attack: 15),
+            attack: 15,
+            skillLevel: 1,
+            masteryRank: 1),
       ];
 
   Widget _buildNodeTooltip(int nodeId, BoxConstraints constraints) {

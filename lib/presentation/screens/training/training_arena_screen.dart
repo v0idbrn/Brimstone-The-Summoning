@@ -61,6 +61,8 @@ class _TrainingArenaScreenState extends ConsumerState<TrainingArenaScreen> {
           baseManaCost: owned.baseManaCost,
           attack: owned.baseAttack.toDouble(),
           stars: owned.stars,
+          skillLevel: owned.skillLevel,
+          masteryRank: owned.masteryRank,
         ),
       );
     }
@@ -72,6 +74,8 @@ class _TrainingArenaScreenState extends ConsumerState<TrainingArenaScreen> {
         element: Element.igneous,
         baseManaCost: 100,
         attack: 10,
+        skillLevel: 1,
+        masteryRank: 1,
       ),
       ManaCard(
         id: 'abyss_stalker',
@@ -79,6 +83,8 @@ class _TrainingArenaScreenState extends ConsumerState<TrainingArenaScreen> {
         element: Element.abyssal,
         baseManaCost: 95,
         attack: 12,
+        skillLevel: 1,
+        masteryRank: 1,
       ),
       ManaCard(
         id: 'terra_golem',
@@ -86,6 +92,8 @@ class _TrainingArenaScreenState extends ConsumerState<TrainingArenaScreen> {
         element: Element.telluric,
         baseManaCost: 100,
         attack: 8,
+        skillLevel: 1,
+        masteryRank: 1,
       ),
       ManaCard(
         id: 'void_specter',
@@ -93,6 +101,8 @@ class _TrainingArenaScreenState extends ConsumerState<TrainingArenaScreen> {
         element: Element.empty,
         baseManaCost: 110,
         attack: 15,
+        skillLevel: 1,
+        masteryRank: 1,
       ),
     ];
   }

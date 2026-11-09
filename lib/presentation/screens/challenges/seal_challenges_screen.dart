@@ -59,6 +59,8 @@ class _SealChallengesScreenState extends ConsumerState<SealChallengesScreen> {
           baseManaCost: owned.baseManaCost,
           attack: owned.baseAttack.toDouble(),
           stars: owned.stars,
+          skillLevel: owned.skillLevel,
+          masteryRank: owned.masteryRank,
         ),
       );
     }
@@ -78,6 +80,8 @@ class _SealChallengesScreenState extends ConsumerState<SealChallengesScreen> {
           element: elements[id] ?? Element.igneous,
           baseManaCost: 100,
           attack: 10,
+          skillLevel: 1,
+          masteryRank: 1,
         ),
       );
     }

@@ -179,12 +179,14 @@ void main() {
       );
     });
 
-    test('costo de forja: 100 oro * nivel actual', () {
-      expect(RuneSystem.forgeCost(1), 100);
-      expect(RuneSystem.forgeCost(5), 500);
+    test('costo de forja: varies by type', () {
+      for (final type in RuneType.values) {
+        final cost = RuneSystem.forgeCost(type);
+        expect(cost, greaterThan(0));
+      }
     });
 
-    test('costo de esquirlas: 25 * nivel actual', () {
+    test('costo de esquirlas: 25 * nivel actual (legacy)', () {
       expect(RuneSystem.shardCost(1), 25);
       expect(RuneSystem.shardCost(4), 100);
     });

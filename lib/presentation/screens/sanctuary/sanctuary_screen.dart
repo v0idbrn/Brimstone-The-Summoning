@@ -23,6 +23,8 @@ import 'summoner_profile_modal.dart';
 import 'talent_tree_modal.dart';
 import '../challenges/seal_challenges_screen.dart';
 import '../training/training_arena_screen.dart';
+import '../raids/abyssal_raid_screen.dart';
+import '../shop/brimstone_shop_modal.dart';
 import '../../../domain/meta/summoner_titles.dart';
 
 /// Main hub: summoner level, currencies, active squad preview, rift difficulty
@@ -440,7 +442,22 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
       body: ListView(
         padding: const EdgeInsets.all(14),
         children: [
-          const CurrencyBar(),
+          Row(
+            children: [
+              Expanded(child: const CurrencyBar()),
+              const SizedBox(width: 8),
+              BrimstoneButton(
+                label: 'EMPORIO',
+                icon: Icons.store,
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: const Color(0xFF14090D),
+                  builder: (_) => const BrimstoneShopModal(),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           // Header de Invocador ornamentado
           Container(
@@ -696,6 +713,21 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => const EndlessAbyssScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          // Block 2: Cacería de Titanes (World Boss Raids)
+          BrimstoneButton(
+            width: double.infinity,
+            height: 52,
+            icon: Icons.dangerous,
+            label: '🐉 CACERÍA DE TITANES (RAID)',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const AbyssalRaidScreen(),
                 ),
               );
             },
