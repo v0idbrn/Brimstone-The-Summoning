@@ -2,12 +2,32 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
-import 'package:flame/flame.dart';
 import 'package:flutter/material.dart' hide Element;
+import 'package:flutter/services.dart';
 
+import '../../domain/campaign/campaign_enemies.dart';
 import '../../domain/combat/combat_engine.dart';
 import '../../domain/value_objects/element.dart';
 import 'brimstone_combat_game.dart';
+
+/// Ruta real del retrato de un jefe (assets/portraits/), o null si se usa
+/// el fallback pintado. Los Titanes de Raid se mapean por elemento.
+String? _portraitAssetForBoss(String bossId) {
+  for (final e in campaignEnemies) {
+    if (e.id == bossId) return 'assets/${e.portraitAsset}';
+  }
+  const titans = {
+    'titan_igneous': 'assets/portraits/boss_pyroth.webp',
+    'titan_abyssal': 'assets/portraits/boss_vaelor.webp',
+    'titan_telluric': 'assets/portraits/boss_gorgath.webp',
+    'titan_void': 'assets/portraits/boss_nyxara.webp',
+  };
+  final titan = titans[bossId];
+  if (titan != null) return titan;
+  const namedBosses = ['pyroth', 'vaelor', 'azathor', 'gorgath', 'nyxara'];
+  if (namedBosses.contains(bossId)) return 'assets/portraits/boss_$bossId.webp';
+  return null;
+}
 
 /// Boss actor that renders a full-color Wesnoth painted portrait (240x240) with:
 /// - Rotating abyssal portal behind
@@ -33,12 +53,16 @@ class BossActorComponent extends PositionComponent {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    final bossId = combatGame.engine.boss.id;
-    // Assets are named boss_pyroth.webp, boss_vaelor.webp, etc.
+    // Retratos reales en assets/portraits/<id>.webp cargados por bytes
+    // (Flame.images añade el prefijo assets/images/ que no existe aquí).
+    final asset = _portraitAssetForBoss(combatGame.engine.boss.id);
+    if (asset == null) return;
     try {
-      _portraitImage = await Flame.images.load('portraits/boss_$bossId.webp');
+      final data = await rootBundle.load(asset);
+      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+      _portraitImage = (await codec.getNextFrame()).image;
     } catch (_) {
-      // Image not found, will use fallback
+      // Imagen no disponible: se usa el fallback pintado.
     }
   }
 

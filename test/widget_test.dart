@@ -1,6 +1,9 @@
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:brimstone_summoning/data/database/database_helper.dart';
+import 'package:brimstone_summoning/domain/campaign/campaign_enemies.dart';
+import 'package:brimstone_summoning/domain/combat/combat_engine.dart';
+import 'package:brimstone_summoning/domain/combat/combat_models.dart';
 import 'package:brimstone_summoning/data/repositories/player_repository.dart';
 import 'package:brimstone_summoning/domain/meta/rune_system.dart';
 import 'package:brimstone_summoning/domain/meta/summoner_titles.dart';
@@ -11,6 +14,8 @@ import 'package:brimstone_summoning/presentation/controllers/meta_controller.dar
 import 'package:brimstone_summoning/presentation/screens/altar/altar_evolution_screen.dart';
 import 'package:brimstone_summoning/presentation/screens/barracks/barracks_screen.dart';
 import 'package:brimstone_summoning/presentation/screens/challenges/seal_challenges_screen.dart';
+import 'package:brimstone_summoning/presentation/screens/combat/combat_screen.dart';
+import 'package:brimstone_summoning/presentation/screens/rift/rift_map_screen.dart';
 import 'package:brimstone_summoning/presentation/screens/meta/widgets.dart';
 import 'package:brimstone_summoning/presentation/screens/meta/how_to_play_modal.dart';
 import 'package:brimstone_summoning/presentation/screens/sanctuary/backup_restore_modal.dart';
@@ -514,6 +519,110 @@ void main() {
       await tester.pumpWidget(_screen(const WebArcadeFrame(child: SizedBox())));
       await tester.pump();
       expect(find.byKey(WebArcadeFrame.frameKey), findsNothing);
+    });
+  });
+
+  group('Widget — Grieta: navegación de nodos sin crash gris', () {
+    Future<void> pumpView(WidgetTester tester, Widget widget) async {
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(_screen(widget));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    CombatEngine squadEngine(BossConfig boss) => CombatEngine(
+          boss: boss,
+          cards: [
+            ManaCard(
+                id: 'ignis_hound',
+                name: 'Sabueso de Azufre',
+                element: Element.igneous,
+                baseManaCost: 100,
+                attack: 10,
+                skillLevel: 1,
+                masteryRank: 1),
+            ManaCard(
+                id: 'terra_golem',
+                name: 'Gólem de Basalto',
+                element: Element.telluric,
+                baseManaCost: 100,
+                attack: 8,
+                skillLevel: 1,
+                masteryRank: 1),
+          ],
+          playerMaxHp: 100,
+        );
+
+    testWidgets('RiftMapScreen cierra prólogo, toca nodo piso 1 y abre combate',
+        (tester) async {
+      await pumpView(tester, const RiftMapScreen(chapterNumber: 1));
+      // El prólogo debe renderizarse con retrato real (sin excepción de asset).
+      expect(tester.takeException(), isNull);
+      expect(find.text('CONTINUAR'), findsOneWidget);
+      await tester.tap(find.text('CONTINUAR'));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // Nodo del piso 1: (cx=215, cy=40 del cuerpo + 56 de AppBar).
+      await tester.tapAt(const Offset(215, 96));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(CombatScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('CombatScreen monta esbirro de piso 1 sin excepción',
+        (tester) async {
+      await pumpView(
+          tester,
+          CombatScreen(
+              engine: squadEngine(enemyForFloor(1, 1)!.toBossConfig())));
+      expect(find.text('Imp de Azufre'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('CombatScreen monta mini-jefe Ignarok sin excepción',
+        (tester) async {
+      await pumpView(
+          tester,
+          CombatScreen(
+              engine: squadEngine(miniBossForChapter(1)!.toBossConfig())));
+      expect(find.text('Ignarok, Carcelero de Magma'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('CombatScreen monta jefe de capítulo Pyroth sin excepción',
+        (tester) async {
+      await pumpView(
+          tester,
+          CombatScreen(
+              engine: squadEngine(
+            chapterBossForChapter(1)!.toBossConfig(),
+          )));
+      expect(find.text('Pyroth, Coloso de Ceniza'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('CombatScreen monta Titán de Raid (25k HP + barrera)',
+        (tester) async {
+      const titan = BossConfig(
+        id: 'titan_void',
+        name: 'Nyarlathotep del Eclipse',
+        element: Element.empty,
+        maxHp: 25000,
+        attackInterval: 4.0,
+        attackDamage: 26,
+        projectilesPerAttack: 4,
+      );
+      await pumpView(tester, CombatScreen(engine: squadEngine(titan)));
+      expect(find.text('Nyarlathotep del Eclipse'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

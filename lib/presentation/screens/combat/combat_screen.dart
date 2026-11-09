@@ -86,7 +86,7 @@ class CombatScreen extends ConsumerStatefulWidget {
 }
 
 class _CombatScreenState extends ConsumerState<CombatScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   CombatEngine? _engine;
   late final BrimstoneCombatGame game;
   late final AnimationController _particleCtrl;
@@ -900,6 +900,8 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
           child: Row(
             children: [
               IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
                 icon:
                     const Icon(Icons.arrow_back, color: Colors.white, size: 22),
                 onPressed: () => Navigator.of(context).maybePop(),
@@ -913,15 +915,17 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                   children: [
                     Row(
                       children: [
-                        Text(
-                          engine.boss.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.3,
+                        Expanded(
+                          child: Text(
+                            engine.boss.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.3,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
                         if (isEnraged) ...[
                           const SizedBox(width: 6),
@@ -948,81 +952,86 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        Stack(
-                          children: [
-                            Container(
-                                height: 6,
-                                decoration: BoxDecoration(
-                                    color: const Color(0xFF1E0A0E),
-                                    borderRadius: BorderRadius.circular(3))),
-                            FractionallySizedBox(
-                              widthFactor: hpFraction.clamp(0.0, 1.0),
-                              child: Container(
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                      colors: isEnraged
-                                          ? [
-                                              Colors.orangeAccent,
-                                              Colors.redAccent
-                                            ]
-                                          : [
-                                              Colors.redAccent,
-                                              const Color(0xFFCC0000)
-                                            ]),
-                                  borderRadius: BorderRadius.circular(3),
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              Container(
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                      color: const Color(0xFF1E0A0E),
+                                      borderRadius: BorderRadius.circular(3))),
+                              FractionallySizedBox(
+                                widthFactor: hpFraction.clamp(0.0, 1.0),
+                                child: Container(
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                        colors: isEnraged
+                                            ? [
+                                                Colors.orangeAccent,
+                                                Colors.redAccent
+                                              ]
+                                            : [
+                                                Colors.redAccent,
+                                                const Color(0xFFCC0000)
+                                              ]),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(width: 8),
-                        // Elemental weakness chip
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [
-                              weakElementColor.withValues(alpha: 0.9),
-                              weakElementColor.withValues(alpha: 0.7),
-                            ]),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                width: 1),
-                          ),
-                          child: Text(
-                            'Débil a: $weakElementName (+30%)',
+                        Text('${engine.bossHp.toInt()}',
                             style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.3),
+                                color: Colors.white70,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                fontFeatures: [FontFeature.tabularFigures()])),
+                        const SizedBox(width: 8),
+                        // Elemental weakness chip
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [
+                                weakElementColor.withValues(alpha: 0.9),
+                                weakElementColor.withValues(alpha: 0.7),
+                              ]),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  width: 1),
+                            ),
+                            child: Text(
+                              'Débil a: $weakElementName (+30%)',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.3),
+                            ),
                           ),
                         ),
                       ],
                     ),
+                    // Block 3: Boss Shield HP Bar (ancho acotado por la columna)
+                    if (engine.boss.shieldHp > 0) ...[
+                      const SizedBox(height: 3),
+                      _BossShieldBar(
+                        currentShield: engine.bossShieldHp,
+                        maxShield: engine.boss.shieldHp,
+                        isBroken: engine.bossShieldBroken,
+                        breakTimer: engine.bossBreakTimer,
+                      ),
+                    ],
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                    '${engine.bossHp.toInt()} / ${engine.boss.maxHp.toInt()}',
-                    style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: [FontFeature.tabularFigures()])),
-              ),
-              // Block 3: Boss Shield HP Bar
-              if (engine.boss.shieldHp > 0)
-                _BossShieldBar(
-                  currentShield: engine.bossShieldHp,
-                  maxShield: engine.boss.shieldHp,
-                  isBroken: engine.bossShieldBroken,
-                  breakTimer: engine.bossBreakTimer,
-                ),
               // Speed toggle 1x / 1.5x
               _SpeedToggle(
                 initialSpeed: _gameSpeed,
@@ -1037,6 +1046,8 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                 },
               ),
               IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
                   icon: const Icon(Icons.help_outline,
                       color: Colors.white70, size: 22),
                   onPressed: () => showModalBottomSheet(
@@ -1046,6 +1057,8 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                       builder: (_) => const HowToPlayModal()),
                   tooltip: 'Ayuda'),
               IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
                   icon: const Icon(Icons.settings,
                       color: Colors.white70, size: 22),
                   onPressed: () => showDialog(
@@ -1620,8 +1633,8 @@ class _SpeedToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(left: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: [
           const Color(0xFF1A0A0F),
@@ -1672,7 +1685,7 @@ class _SpeedButton extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
           gradient: selected
               ? LinearGradient(colors: [
@@ -1706,8 +1719,8 @@ class _AutoBattleToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(left: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         gradient: LinearGradient(
             colors: enabled
@@ -1784,12 +1797,14 @@ class _BossShieldBar extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
+      width: 120,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Shield bar
           Container(
             height: 6,
+            width: double.infinity,
             decoration: BoxDecoration(
               color: const Color(0xFF0A0008),
               borderRadius: BorderRadius.circular(3),
@@ -1848,7 +1863,9 @@ class _BossShieldBar extends StatelessWidget {
           Text(
             showBreak
                 ? '¡BREAK! DAÑO CRÍTICO +50%  •  JEFE ATURDIDO'
-                : 'Barrera Arcana: ${currentShield.toInt()} / ${maxShield.toInt()} (Golpe débil: 2.5x)',
+                : 'Barrera Arcana: ${currentShield.toInt()} / ${maxShield.toInt()}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color:
                   showBreak ? const Color(0xFFFFD700) : const Color(0xFF00FFFF),

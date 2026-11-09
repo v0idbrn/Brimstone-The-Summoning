@@ -177,7 +177,7 @@ class StoryScenes {
     1: {
       'prologue': StorySceneData(
         title: 'PRÓLOGO: LA FORJA DE CENIZA',
-        illustration: 'assets/portraits/story_chapter1_prologue.webp',
+        illustration: 'assets/portraits/boss_pyroth.webp',
         dialogue: [
           'Las cenizas del viejo mundo aún arden bajo la Forja.',
           'Pyroth, el Coloso de Ceniza, ha despertado de su letargo.',
@@ -187,7 +187,7 @@ class StoryScenes {
       ),
       'miniboss': StorySceneData(
         title: 'PISO 4: IGNAROK, CARCELERO DE MAGMA',
-        illustration: 'assets/portraits/boss_ignarok.webp',
+        illustration: 'assets/portraits/ignis_colossus.webp',
         dialogue: [
           'El calor se intensifica. El aire vibra con cada paso.',
           'Ignarok bloquea el camino, su armadura fluye como lava viva.',
@@ -197,7 +197,7 @@ class StoryScenes {
       ),
       'epilogue': StorySceneData(
         title: 'EPÍLOGO: LA LLAMA SE APAGA',
-        illustration: 'assets/portraits/story_chapter1_epilogue.webp',
+        illustration: 'assets/portraits/boss_pyroth.webp',
         dialogue: [
           'El último golpe resuena. Pyroth cae de rodillas.',
           'Su fuego interno se apaga, dejando solo cenizas frías.',
@@ -209,7 +209,7 @@ class StoryScenes {
     2: {
       'prologue': StorySceneData(
         title: 'PRÓLOGO: LA FOSA DE ESCARCHA',
-        illustration: 'assets/portraits/story_chapter2_prologue.webp',
+        illustration: 'assets/portraits/boss_vaelor.webp',
         dialogue: [
           'Donde el fuego muere, el hielo reina supremo.',
           'Vaelor, Señor de la Fosa Helada, observa desde su trono de hielo.',
@@ -219,7 +219,7 @@ class StoryScenes {
       ),
       'miniboss': StorySceneData(
         title: 'PISO 4: CRYON, VERDUGO DEL GLACIAR',
-        illustration: 'assets/portraits/boss_cryon.webp',
+        illustration: 'assets/portraits/abyss_leviathan.webp',
         dialogue: [
           'El suelo cruje bajo tus pies. Es hielo milenario.',
           'Cryon emerge del glaciar, su hoja tallada en escarcha perpetua.',
@@ -229,7 +229,7 @@ class StoryScenes {
       ),
       'epilogue': StorySceneData(
         title: 'EPÍLOGO: EL HIELO SE ROMPE',
-        illustration: 'assets/portraits/story_chapter2_epilogue.webp',
+        illustration: 'assets/portraits/boss_vaelor.webp',
         dialogue: [
           'Vaelor se desvanece en copos de nieve.',
           'Su trono de hielo se agrieta, revelando el camino profundo.',
@@ -241,7 +241,7 @@ class StoryScenes {
     3: {
       'prologue': StorySceneData(
         title: 'PRÓLOGO: EL BASTIÓN TECTÓNICO',
-        illustration: 'assets/portraits/story_chapter3_prologue.webp',
+        illustration: 'assets/portraits/boss_gorgath.webp',
         dialogue: [
           'Bajo la superficie, la tierra recuerda cada paso.',
           'Gorgath, Monarca de Basalto, lleva el peso de mil montañas.',
@@ -251,7 +251,7 @@ class StoryScenes {
       ),
       'miniboss': StorySceneData(
         title: 'PISO 4: KRAG, DEMOLEDOR MONOLÍTICO',
-        illustration: 'assets/portraits/boss_krag.webp',
+        illustration: 'assets/portraits/terra_behemoth.webp',
         dialogue: [
           'Las paredes tiemblan. El polvo cae del techo.',
           'Krag rompe la roca como si fuera papel, emergiendo imponente.',
@@ -261,7 +261,7 @@ class StoryScenes {
       ),
       'epilogue': StorySceneData(
         title: 'EPÍLOGO: LA TIERRA DESCANSA',
-        illustration: 'assets/portraits/story_chapter3_epilogue.webp',
+        illustration: 'assets/portraits/boss_gorgath.webp',
         dialogue: [
           'Gorgath se arrodilla, y la tierra deja de temblar.',
           'El Basalto se aquieta. Las grietas se sellan.',
@@ -273,7 +273,7 @@ class StoryScenes {
     4: {
       'prologue': StorySceneData(
         title: 'PRÓLOGO: EL VELO DE LAS PESADILLAS',
-        illustration: 'assets/portraits/story_chapter4_prologue.webp',
+        illustration: 'assets/portraits/boss_nyxara.webp',
         dialogue: [
           'Donde la luz no llega, las pesadillas tejen su tela.',
           'Nyxara, Tejedora del Eclipse, baila entre sombras.',
@@ -283,7 +283,7 @@ class StoryScenes {
       ),
       'miniboss': StorySceneData(
         title: 'PISO 4: MORVATH, TEJEDOR DE SOMBRAS',
-        illustration: 'assets/portraits/boss_morvath.webp',
+        illustration: 'assets/portraits/void_malakor.webp',
         dialogue: [
           'La oscuridad se condensa. Una figura emerge de la nada.',
           'Morvath teje hilos de sombra alrededor de tu cuello.',
@@ -293,7 +293,7 @@ class StoryScenes {
       ),
       'epilogue': StorySceneData(
         title: 'EPÍLOGO: EL ECLIPSE TERMINA',
-        illustration: 'assets/portraits/story_chapter4_epilogue.webp',
+        illustration: 'assets/portraits/boss_nyxara.webp',
         dialogue: [
           'Nyxara se desvanece en la penumbra, su tejido roto.',
           'La primera luz en eones atraviesa el Velo.',
@@ -305,7 +305,7 @@ class StoryScenes {
     5: {
       'prologue': StorySceneData(
         title: 'PRÓLOGO: EL TRONO DEL SELLO ROTO',
-        illustration: 'assets/portraits/story_chapter5_prologue.webp',
+        illustration: 'assets/portraits/boss_azathor.webp',
         dialogue: [
           'El Sello que contenía el Vacío está roto.',
           'Azathor, Gran Arconte del Sello, se alza sobre la realidad fracturada.',
@@ -315,7 +315,7 @@ class StoryScenes {
       ),
       'miniboss': StorySceneData(
         title: 'PISO 4: MALPHAS, HERALDO DEL TRONO',
-        illustration: 'assets/portraits/boss_malphas.webp',
+        illustration: 'assets/portraits/void_malakor.webp',
         dialogue: [
           'El aire se distorsiona. La realidad parpadea.',
           'Malphas desciende, sus alas rasgando el tejido del mundo.',
@@ -325,7 +325,7 @@ class StoryScenes {
       ),
       'epilogue': StorySceneData(
         title: 'EPÍLOGO: EL VACÍO SE SELLA',
-        illustration: 'assets/portraits/story_chapter5_epilogue.webp',
+        illustration: 'assets/portraits/boss_azathor.webp',
         dialogue: [
           'Azathor cae. El Vacío retrocede, sellado una vez más.',
           'La luz retorna a los rincones más oscuros del mundo.',

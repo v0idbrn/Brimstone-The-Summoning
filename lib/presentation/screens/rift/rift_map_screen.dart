@@ -33,7 +33,6 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseCtrl;
   int? _hoveredNodeId;
-  RiftRun? _run;
 
   @override
   void initState() {
@@ -42,36 +41,23 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
-    _initRun();
+    // El run vive en riftRunProvider (único path de escritura); el mapa
+    // solo lo refleja. La incursión arranca SIEMPRE en el piso 1.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final current = ref.read(riftRunProvider);
+      final needsRun = current == null || current.completed;
+      if (needsRun) {
+        ref.read(riftRunProvider.notifier).startRun(widget.chapterNumber);
+      }
+      _showPrologue();
+    });
   }
 
   @override
   void dispose() {
     _pulseCtrl.dispose();
     super.dispose();
-  }
-
-  void _initRun() {
-    _run = RiftRun(
-      difficulty: 1,
-      nodes: RiftGeneratorService().generate(),
-      currentNodeId: 0,
-      playerHp: 100,
-      playerMaxHp: 100,
-      relicIds: const [],
-      gold: 0,
-      shards: 0,
-      clearedNodeIds: const {},
-      startManaFraction: 0.0,
-      completed: false,
-    );
-
-    // Show prologue story scene
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _showPrologue();
-      }
-    });
   }
 
   void _showPrologue() {
@@ -89,9 +75,25 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
 
   @override
   Widget build(BuildContext context) {
-    final run = _run!;
-    final chapter =
-        chapterById(run.currentNodeId.toString()) ?? campaignChapters.first;
+    final run = ref.watch(riftRunProvider);
+    if (run == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0C0608),
+        body:
+            Center(child: CircularProgressIndicator(color: Color(0xFFB16EFF))),
+      );
+    }
+    final chapterMatches =
+        campaignChapters.where((c) => c.number == widget.chapterNumber);
+    final chapter = chapterMatches.isNotEmpty
+        ? chapterMatches.first
+        : campaignChapters.first;
+    // Habilitados primero: el nodo actual (piso 1 al iniciar) sin completar
+    // y, tras cada victoria, los nodos conectados del siguiente piso.
+    final enterable = <int>{
+      if (!run.clearedNodeIds.contains(run.currentNodeId)) run.currentNodeId,
+      ...run.currentNode.next
+    };
 
     return Scaffold(
       backgroundColor: const Color(0xFF0C0608),
@@ -132,21 +134,49 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
           // Map canvas
           LayoutBuilder(
             builder: (context, constraints) {
+              final layouts =
+                  _RiftMapPainter.computeLayouts(run, constraints.biggest);
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapUp: (d) =>
                     _onNodeTap(context, d.localPosition, constraints.biggest),
                 onPanUpdate: (d) => setState(() => _hoveredNodeId =
                     _findHoveredNode(d.localPosition, constraints.biggest)),
-                child: CustomPaint(
-                  size: constraints.biggest,
-                  painter: _RiftMapPainter(
-                    run: run,
-                    hoveredNodeId: _hoveredNodeId,
-                    pulseValue: _pulseCtrl.value,
-                    chapterNumber: widget.chapterNumber,
-                    size: constraints.biggest,
-                  ),
+                child: Stack(
+                  children: [
+                    CustomPaint(
+                      size: constraints.biggest,
+                      painter: _RiftMapPainter(
+                        run: run,
+                        enterable: enterable,
+                        hoveredNodeId: _hoveredNodeId,
+                        pulseValue: _pulseCtrl.value,
+                        chapterNumber: widget.chapterNumber,
+                        size: constraints.biggest,
+                      ),
+                    ),
+                    // Mini retratos pintados sobre los nodos de combate
+                    // (los píxeles negros los dibuja el CustomPainter).
+                    for (final layout in layouts)
+                      if (_isCombatNode(layout.node.type))
+                        Positioned(
+                          left: layout.center.dx - 14,
+                          top: layout.center.dy - 14,
+                          width: 28,
+                          height: 28,
+                          child: IgnorePointer(
+                            child: ClipOval(
+                              child: Image.asset(
+                                _enemyPortraitAsset(
+                                    widget.chapterNumber, layout.node.floor),
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const SizedBox.shrink(),
+                              ),
+                            ),
+                          ),
+                        ),
+                  ],
                 ),
               );
             },
@@ -161,11 +191,17 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
 
   BoxConstraints? _lastConstraints;
 
+  bool _isCombatNode(RiftNodeType type) =>
+      type == RiftNodeType.combat ||
+      type == RiftNodeType.elite ||
+      type == RiftNodeType.boss;
+
   void _onNodeTap(BuildContext context, Offset tap, Size size) {
-    if (_run == null) return;
-    final layouts = _RiftMapPainter.computeLayouts(_run!, size);
+    final run = ref.read(riftRunProvider);
+    if (run == null) return;
+    final layouts = _RiftMapPainter.computeLayouts(run, size);
     for (final layout in layouts) {
-      if (!_run!.currentNode.next.contains(layout.node.id)) continue;
+      if (!_isEnterable(run, layout.node)) continue;
       final rect =
           Rect.fromCenter(center: layout.center, width: 56, height: 56);
       if (rect.contains(tap)) {
@@ -175,9 +211,16 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
     }
   }
 
+  /// Un nodo se puede jugar si es el nodo actual sin completar (piso 1 al
+  /// arrancar la incursión) o un sucesor del nodo actual tras cada victoria.
+  bool _isEnterable(RiftRun run, RiftRunNode node) =>
+      (node.id == run.currentNodeId && !run.clearedNodeIds.contains(node.id)) ||
+      run.currentNode.next.contains(node.id);
+
   int? _findHoveredNode(Offset pos, Size size) {
-    if (_run == null) return null;
-    final layouts = _RiftMapPainter.computeLayouts(_run!, size);
+    final run = ref.read(riftRunProvider);
+    if (run == null) return null;
+    final layouts = _RiftMapPainter.computeLayouts(run, size);
     for (final layout in layouts) {
       final rect =
           Rect.fromCenter(center: layout.center, width: 56, height: 56);
@@ -445,16 +488,23 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
       ];
 
   Widget _buildNodeTooltip(int nodeId, BoxConstraints constraints) {
-    final run = _run!;
-    final node = run.nodes.firstWhere((n) => n.id == nodeId);
-    final enemy = campaignEnemies.firstWhere(
-      (e) =>
-          e.chapterNumber == widget.chapterNumber &&
-          e.floor == node.floor &&
-          e.tier == _nodeTier(node.type),
-      orElse: () => campaignEnemies.first,
-    );
-    final isAvailable = run.currentNode.next.contains(node.id);
+    final run = ref.read(riftRunProvider);
+    if (run == null) return const SizedBox.shrink();
+    final node = run.nodeById(nodeId);
+    if (node == null) return const SizedBox.shrink();
+    final chapterEnemies = campaignEnemies
+        .where((e) => e.chapterNumber == widget.chapterNumber)
+        .toList();
+    final tierMatches = chapterEnemies
+        .where((e) => e.floor == node.floor && e.tier == _nodeTier(node.type))
+        .toList()
+      ..sort((a, b) => a.tier.index.compareTo(b.tier.index));
+    final enemy = tierMatches.isNotEmpty
+        ? tierMatches.first
+        : (chapterEnemies.isNotEmpty
+            ? chapterEnemies.first
+            : campaignEnemies.first);
+    final isAvailable = _isEnterable(run, node);
     final isCleared = run.clearedNodeIds.contains(node.id);
 
     return Positioned(
@@ -555,6 +605,14 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
   }
 }
 
+/// Ruta real en assets/ del retrato del enemigo de un piso.
+String _enemyPortraitAsset(int chapterNumber, int floor) {
+  final e = enemyForFloor(chapterNumber, floor);
+  return e != null
+      ? 'assets/${e.portraitAsset}'
+      : 'assets/portraits/boss_pyroth.webp';
+}
+
 class _StatChip extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -611,6 +669,7 @@ class _ChapterBackground extends StatelessWidget {
 
 class _RiftMapPainter extends CustomPainter {
   final RiftRun run;
+  final Set<int> enterable;
   final int? hoveredNodeId;
   final double pulseValue;
   final int chapterNumber;
@@ -618,6 +677,7 @@ class _RiftMapPainter extends CustomPainter {
 
   const _RiftMapPainter({
     required this.run,
+    required this.enterable,
     this.hoveredNodeId,
     required this.pulseValue,
     required this.chapterNumber,
@@ -654,7 +714,7 @@ class _RiftMapPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final layouts = computeLayouts(run, size);
     final byId = {for (final l in layouts) l.node.id: l};
-    final available = run.currentNode.next;
+    final available = enterable;
     final cleared = run.clearedNodeIds;
 
     // Draw Bézier curves between nodes
@@ -789,38 +849,17 @@ class _RiftMapPainter extends CustomPainter {
       textPainter.paint(canvas,
           l.center - Offset(textPainter.width / 2, textPainter.height / 2));
 
-      // Mini portrait for combat nodes
-      if (l.node.type == RiftNodeType.combat ||
-          l.node.type == RiftNodeType.elite ||
-          l.node.type == RiftNodeType.boss) {
-        final portraitRect = Rect.fromCenter(
-          center: l.center + Offset(0, r + 18),
-          width: 28,
-          height: 28,
-        );
+      // Mini retrato pintado como widget overlay sobre el centro del nodo
+      // (ver build()); aquí solo se dibuja el aro de borde en la tapa.
+      if (_isCombatNodeType(l.node.type)) {
         canvas.drawCircle(
-          portraitRect.center,
-          14,
-          Paint()..color = const Color(0xFF0A0407),
-        );
-        canvas.drawCircle(
-          portraitRect.center,
-          14,
+          l.center,
+          15,
           Paint()
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 1
-            ..color = baseColor.withValues(alpha: 0.5),
+            ..strokeWidth = 2
+            ..color = baseColor.withValues(alpha: isAvailable ? 0.9 : 0.5),
         );
-        // Element color indicator
-        final enemy = enemyForFloor(chapterNumber, l.node.floor);
-        if (enemy != null) {
-          canvas.drawCircle(
-            portraitRect.center,
-            10,
-            Paint()
-              ..color = _elementColor(enemy.element).withValues(alpha: 0.6),
-          );
-        }
       }
 
       // State indicator
@@ -872,6 +911,11 @@ class _RiftMapPainter extends CustomPainter {
     return const Color(0xFF3A2328);
   }
 
+  bool _isCombatNodeType(RiftNodeType type) =>
+      type == RiftNodeType.combat ||
+      type == RiftNodeType.elite ||
+      type == RiftNodeType.boss;
+
   String _nodeLetter(RiftNodeType type) => switch (type) {
         RiftNodeType.combat => '⚔',
         RiftNodeType.elite => '★',
@@ -880,19 +924,13 @@ class _RiftMapPainter extends CustomPainter {
         RiftNodeType.event => '?',
       };
 
-  Color _elementColor(Element e) => switch (e) {
-        Element.igneous => const Color(0xFFFF5A26),
-        Element.abyssal => const Color(0xFF3FD8FF),
-        Element.telluric => const Color(0xFFB0703B),
-        Element.empty => const Color(0xFFB16EFF),
-      };
-
   @override
   bool shouldRepaint(covariant _RiftMapPainter oldDelegate) =>
       oldDelegate.run != run ||
       oldDelegate.hoveredNodeId != hoveredNodeId ||
       oldDelegate.pulseValue != pulseValue ||
       oldDelegate.chapterNumber != chapterNumber ||
+      oldDelegate.enterable != enterable ||
       oldDelegate.size != size;
 }
 

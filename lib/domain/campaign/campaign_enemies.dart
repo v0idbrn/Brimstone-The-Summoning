@@ -69,7 +69,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/igneous_imp.webp',
+    portraitAsset: 'portraits/ignis_hound.webp',
     threatDialog: 'El fuego me consume... y a ti también.',
   ),
   CampaignEnemy(
@@ -84,7 +84,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/igneous_hound.webp',
+    portraitAsset: 'portraits/ignis_drake.webp',
     threatDialog: 'Mi amo Pyroth te hará cenizas.',
   ),
   CampaignEnemy(
@@ -99,7 +99,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/igneous_gargoyle.webp',
+    portraitAsset: 'portraits/ignis_lord.webp',
     threatDialog: 'La piedra arde bajo mis garras.',
   ),
   // Piso 4: Mini-Jefe
@@ -115,7 +115,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/boss_ignarok.webp',
+    portraitAsset: 'portraits/ignis_colossus.webp',
     threatDialog: 'La Forja de Ceniza arde bajo mi mando. ¡Nadie escapa!',
     furyDialog: '¡QUÉMENSE HASTA EL HUESO! El fuego no perdona.',
   ),
@@ -132,7 +132,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/igneous_magma.webp',
+    portraitAsset: 'portraits/ignis_seraph.webp',
     threatDialog: 'El magma fluye por mis venas.',
   ),
   // Piso 7: Jefe Final
@@ -166,7 +166,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/abyssal_stalker.webp',
+    portraitAsset: 'portraits/abyss_stalker.webp',
     threatDialog: 'El frío te cala los huesos.',
   ),
   CampaignEnemy(
@@ -181,7 +181,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/abyssal_naga.webp',
+    portraitAsset: 'portraits/abyss_siren.webp',
     threatDialog: 'Vaelor reclamará tu calor.',
   ),
   CampaignEnemy(
@@ -196,7 +196,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/abyssal_specter.webp',
+    portraitAsset: 'portraits/abyss_wraith.webp',
     threatDialog: 'El hielo eterno no conoce piedad.',
   ),
   CampaignEnemy(
@@ -211,7 +211,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/boss_cryon.webp',
+    portraitAsset: 'portraits/abyss_leviathan.webp',
     threatDialog: 'El Glaciar no perdona a los intrusos.',
     furyDialog: '¡ESCARCHA ABSOLUTA! El hielo me pertenece.',
   ),
@@ -227,7 +227,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/abyssal_guardian.webp',
+    portraitAsset: 'portraits/abyss_kraken.webp',
     threatDialog: 'Mi hoja está forjada en hielo perpetuo.',
   ),
   CampaignEnemy(
@@ -260,7 +260,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/telluric_sentinel.webp',
+    portraitAsset: 'portraits/terra_golem.webp',
     threatDialog: 'La roca aguanta. Tú no.',
   ),
   CampaignEnemy(
@@ -275,7 +275,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/telluric_breaker.webp',
+    portraitAsset: 'portraits/terra_titan.webp',
     threatDialog: 'Gorgath aplasta a los débiles.',
   ),
   CampaignEnemy(
@@ -290,7 +290,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/telluric_viper.webp',
+    portraitAsset: 'portraits/terra_hydra.webp',
     threatDialog: 'Mi veneno es polvo de estrellas.',
   ),
   CampaignEnemy(
@@ -305,7 +305,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/boss_krag.webp',
+    portraitAsset: 'portraits/terra_behemoth.webp',
     threatDialog: 'La montaña cae sobre ti.',
     furyDialog: '¡LA TIERRA TIEMBLA! Nada resiste al peso.',
   ),
@@ -321,7 +321,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/telluric_golem.webp',
+    portraitAsset: 'portraits/terra_warden.webp',
     threatDialog: 'Soy la roca que nunca se rompe.',
   ),
   CampaignEnemy(
@@ -354,7 +354,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/void_shadow.webp',
+    portraitAsset: 'portraits/void_specter.webp',
     threatDialog: 'La oscuridad todo lo consume.',
   ),
   CampaignEnemy(
@@ -369,7 +369,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_acolyte.webp',
+    portraitAsset: 'portraits/void_oracle.webp',
     threatDialog: 'Nyxara ve tu final.',
   ),
   CampaignEnemy(
@@ -384,7 +384,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_larva.webp',
+    portraitAsset: 'portraits/void_reaper.webp',
     threatDialog: 'Nací de las estrellas muertas.',
   ),
   CampaignEnemy(
@@ -399,7 +399,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/boss_morvath.webp',
+    portraitAsset: 'portraits/void_malakor.webp',
     threatDialog: 'El Velo se cierra sobre ti.',
     furyDialog: '¡LA NOCHE ETERNA! No hay escape del vacío.',
   ),
@@ -415,7 +415,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_phantom.webp',
+    portraitAsset: 'portraits/void_archon.webp',
     threatDialog: 'No hay luz que me alcance.',
   ),
   CampaignEnemy(
@@ -448,7 +448,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/void_knight.webp',
+    portraitAsset: 'portraits/void_archon.webp',
     threatDialog: 'Mi lealtad es al Vacío.',
   ),
   CampaignEnemy(
@@ -463,7 +463,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_inquisitor.webp',
+    portraitAsset: 'portraits/void_oracle.webp',
     threatDialog: 'Azathor exige tu rendición.',
   ),
   CampaignEnemy(
@@ -478,7 +478,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_chimera.webp',
+    portraitAsset: 'portraits/void_specter.webp',
     threatDialog: 'Tres cabezas, un solo hambre.',
   ),
   CampaignEnemy(
@@ -493,7 +493,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/boss_malphas.webp',
+    portraitAsset: 'portraits/void_malakor.webp',
     threatDialog: 'El Trono del Sello Roto no conoce señor salvo Azathor.',
     furyDialog: '¡EL SELLO SE ROMPE! El Vacío lo devora todo.',
   ),
@@ -509,7 +509,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_vanguard.webp',
+    portraitAsset: 'portraits/void_reaper.webp',
     threatDialog: 'Somos el filo de la nada.',
   ),
   CampaignEnemy(

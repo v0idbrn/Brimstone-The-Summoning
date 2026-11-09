@@ -51,7 +51,7 @@ class RiftRun {
     required this.completed,
   });
 
-  RiftRunNode get currentNode => nodes.firstWhere((n) => n.id == currentNodeId);
+  RiftRunNode get currentNode => nodeById(currentNodeId) ?? nodes.first;
 
   RiftRunNode? nodeById(int id) {
     for (final n in nodes) {

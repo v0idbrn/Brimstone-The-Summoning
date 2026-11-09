@@ -10,6 +10,11 @@ import 'presentation/screens/barracks/barracks_screen.dart';
 import 'presentation/screens/sanctuary/sanctuary_screen.dart';
 import 'presentation/screens/summon/summon_portal_screen.dart';
 
+/// Clave del Navigator raíz: el guardián de errores la usa para volver
+/// a la raíz (Santuario) desde cualquier pila rota.
+final GlobalKey<NavigatorState> brimstoneNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -23,6 +28,62 @@ void main() {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     ProceduralSfxEngine.prewarmCache();
   });
+  // Guardián: jamás pantalla gris en Release/Web. Un error de render
+  // muestra una tarjeta oscura con el detalle técnico y salida al Santuario.
+  ErrorWidget.builder = (FlutterErrorDetails details) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: ColoredBox(
+          color: const Color(0xFF14090D),
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A0A0F),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFB16EFF), width: 2),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('ERROR DE RENDICIÓN',
+                      style: TextStyle(
+                          color: Color(0xFFB16EFF),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 10),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Text(
+                        details.exception.toString(),
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 11),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Material(
+                    color: Colors.transparent,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final nav = brimstoneNavigatorKey.currentState;
+                        if (nav != null) {
+                          nav.popUntil((route) => route.isFirst);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB16EFF),
+                        foregroundColor: Colors.black,
+                      ),
+                      child: const Text('Volver al Santuario'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
   runApp(const ProviderScope(child: BrimstoneApp()));
 }
 
@@ -44,6 +105,7 @@ class BrimstoneApp extends StatelessWidget {
         color: const Color(0xFF07050C),
         child: WebArcadeFrame(child: child ?? const SizedBox.shrink()),
       ),
+      navigatorKey: brimstoneNavigatorKey,
       home: const HomeShell(),
       debugShowCheckedModeBanner: false,
     );
