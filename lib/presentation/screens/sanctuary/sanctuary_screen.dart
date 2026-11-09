@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../core/performance/performance_settings.dart';
+import '../../../core/theme/design_tokens.dart';
 import '../../../domain/campaign/campaign_chapters.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/combat/combat_models.dart';
 import '../../controllers/meta_controller.dart';
 import '../../widgets/brimstone_button.dart';
 import '../../widgets/tcg_card_widget.dart';
+import '../../widgets/interactive_pressable.dart';
 import '../rift/rift_map_screen.dart';
 import '../meta/how_to_play_modal.dart';
 import '../meta/widgets.dart';
@@ -36,11 +38,10 @@ class SanctuaryScreen extends ConsumerStatefulWidget {
   ConsumerState<SanctuaryScreen> createState() => _SanctuaryScreenState();
 }
 
-/// Accesos directos del Santuario en una cuadrícula que nunca desborda.
+/// Accesos directos del Santuario en una cuadrícula uniforme (2x5) con botones sobrios.
 ///
-/// El AppBar mantiene los iconos compactos; este panel aporta etiquetas
-/// legibles y garantiza que las diez pantallas/modales de las fases 15–22
-/// estén a un toque en cualquier ancho de pantalla.
+/// Reemplaza los 10 chips de colores arcoíris por botones consistentes en surfaceElevated
+/// con borde goldMuted, eliminando el ruido visual.
 class _MetaActionsPanel extends StatelessWidget {
   const _MetaActionsPanel({
     required this.onTalentTree,
@@ -69,71 +70,47 @@ class _MetaActionsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = <_MetaAction>[
-      _MetaAction(
-        'Talentos',
-        Icons.account_tree,
-        const Color(0xFF4FFFA3),
-        onTalentTree,
-      ),
-      _MetaAction(
-        'Armadura',
-        Icons.shield_moon,
-        const Color(0xFF4FFFA3),
-        onGear,
-      ),
-      _MetaAction(
-        'Desafíos',
-        Icons.gavel,
-        const Color(0xFFFF5A26),
-        onChallenges,
-      ),
-      _MetaAction(
-        'Arena',
-        Icons.fitness_center,
-        const Color(0xFF3FD8FF),
-        onTraining,
-      ),
-      _MetaAction('Perfil', Icons.person, const Color(0xFFB16EFF), onProfile),
-      _MetaAction(
-        'Ajustes',
-        Icons.settings,
-        const Color(0xFFB16EFF),
-        onSettings,
-      ),
-      _MetaAction('Mercader', Icons.store, const Color(0xFFB16EFF), onMerchant),
-      _MetaAction('Códice', Icons.menu_book, const Color(0xFFB16EFF), onCodex),
-      _MetaAction(
-        'Juramentos',
-        Icons.military_tech,
-        const Color(0xFFFFC93C),
-        onBounties,
-      ),
-      _MetaAction('Backup', Icons.backup, const Color(0xFFB16EFF), onBackup),
+      _MetaAction('Talentos', Icons.account_tree, onTalentTree),
+      _MetaAction('Armadura', Icons.shield_moon, onGear),
+      _MetaAction('Desafíos', Icons.gavel, onChallenges),
+      _MetaAction('Arena', Icons.fitness_center, onTraining),
+      _MetaAction('Perfil', Icons.person, onProfile),
+      _MetaAction('Ajustes', Icons.settings, onSettings),
+      _MetaAction('Mercader', Icons.store, onMerchant),
+      _MetaAction('Códice', Icons.menu_book, onCodex),
+      _MetaAction('Juramentos', Icons.military_tech, onBounties),
+      _MetaAction('Backup', Icons.backup, onBackup),
     ];
+
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(BrimstoneSpacing.spaceSM),
       decoration: BoxDecoration(
-        color: const Color(0xFF14090D),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white12),
+        color: BrimstoneTokens.surfaceBase,
+        borderRadius: BorderRadius.circular(BrimstoneRadii.radiusLG),
+        border: BrimstoneBorders.hairline,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'MESA DEL INVOCADOR',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 10,
-              letterSpacing: 1.4,
-              fontWeight: FontWeight.w800,
-            ),
+            style: BrimstoneTypography.labelXS,
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [for (final action in actions) _MetaActionChip(action)],
+          const SizedBox(height: BrimstoneSpacing.spaceSM),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 5,
+              mainAxisSpacing: BrimstoneSpacing.spaceSM,
+              crossAxisSpacing: BrimstoneSpacing.spaceSM,
+              childAspectRatio: 1.6,
+            ),
+            itemCount: actions.length,
+            itemBuilder: (context, index) {
+              final action = actions[index];
+              return _MetaActionButton(action: action);
+            },
           ),
         ],
       ),
@@ -142,38 +119,43 @@ class _MetaActionsPanel extends StatelessWidget {
 }
 
 class _MetaAction {
-  const _MetaAction(this.label, this.icon, this.color, this.onTap);
+  const _MetaAction(this.label, this.icon, this.onTap);
 
   final String label;
   final IconData icon;
-  final Color color;
   final VoidCallback onTap;
 }
 
-class _MetaActionChip extends StatelessWidget {
-  const _MetaActionChip(this.action);
+class _MetaActionButton extends StatelessWidget {
+  const _MetaActionButton({required this.action});
 
   final _MetaAction action;
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: action.onTap,
-      icon: Icon(action.icon, size: 15, color: action.color),
-      label: Text(
-        action.label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        minimumSize: const Size(0, 32),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        side: BorderSide(color: action.color.withValues(alpha: 0.45)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    return InteractivePressable(
+      onTap: action.onTap,
+      borderRadius: BorderRadius.circular(BrimstoneRadii.radiusMD),
+      padding: const EdgeInsets.all(BrimstoneSpacing.spaceXS),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            action.icon,
+            size: 18,
+            color: BrimstoneTokens.goldPrimary,
+          ),
+          const SizedBox(height: BrimstoneSpacing.spaceXS),
+          Flexible(
+            child: Text(
+              action.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: BrimstoneTypography.labelSM,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -378,9 +360,10 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
             tooltip: 'Ajustes',
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Color(0xFFB16EFF)),
+            constraints: const BoxConstraints(maxWidth: 200),
+            icon: Icon(Icons.more_vert, color: BrimstoneAccents.voidPurple),
             tooltip: 'Más accesos',
-            color: const Color(0xFF14090D),
+            color: BrimstoneTokens.surfaceElevated,
             onSelected: (value) {
               switch (value) {
                 case 'codex':
@@ -399,41 +382,76 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
                   _openHowToPlay();
               }
             },
-            itemBuilder: (_) => const [
+            itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'codex',
-                child: Text('Códice Abisal',
-                    style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'Códice Abisal',
+                  style: BrimstoneTypography.bodySM.copyWith(
+                    color: BrimstoneTokens.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               PopupMenuItem(
                 value: 'backup',
-                child: Text('Backup / Restaurar',
-                    style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'Backup / Restaurar',
+                  style: BrimstoneTypography.bodySM.copyWith(
+                    color: BrimstoneTokens.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               PopupMenuItem(
                 value: 'bounties',
-                child: Text('Juramentos de Azufre',
-                    style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'Juramentos de Azufre',
+                  style: BrimstoneTypography.bodySM.copyWith(
+                    color: BrimstoneTokens.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               PopupMenuItem(
                 value: 'merchant',
-                child: Text('Mercader del Vacío',
-                    style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'Mercader del Vacío',
+                  style: BrimstoneTypography.bodySM.copyWith(
+                    color: BrimstoneTokens.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               PopupMenuItem(
                 value: 'challenges',
-                child: Text('Desafíos del Sello',
-                    style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'Desafíos del Sello',
+                  style: BrimstoneTypography.bodySM.copyWith(
+                    color: BrimstoneTokens.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               PopupMenuItem(
                 value: 'training',
-                child: Text('Arena de Entrenamiento',
-                    style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'Arena de Entrenamiento',
+                  style: BrimstoneTypography.bodySM.copyWith(
+                    color: BrimstoneTokens.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               PopupMenuItem(
                 value: 'howto',
-                child:
-                    Text('Cómo jugar', style: TextStyle(color: Colors.white)),
+                child: Text(
+                  'Cómo jugar',
+                  style: BrimstoneTypography.bodySM.copyWith(
+                    color: BrimstoneTokens.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

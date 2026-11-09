@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/design_tokens.dart';
 
 /// Dark Fantasy Gothic Button with beveled metallic borders,
-/// rich crimson/obsidian gradient fill, and icon support.
+/// rich crimson/obsidian gradient fill, icon support, and full
+/// interaction states (hover, pressed, disabled).
 class BrimstoneButton extends StatefulWidget {
   final String label;
   final IconData? icon;
   final VoidCallback? onPressed;
   final bool isSecondary;
+  final bool isDestructive;
   final double height;
   final double? width;
   final double fontSize;
   final EdgeInsetsGeometry padding;
+  final bool expandWidth;
 
   const BrimstoneButton({
     super.key,
@@ -18,10 +22,12 @@ class BrimstoneButton extends StatefulWidget {
     this.icon,
     this.onPressed,
     this.isSecondary = false,
+    this.isDestructive = false,
     this.height = 46,
     this.width,
     this.fontSize = 13,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.expandWidth = false,
   });
 
   @override
@@ -30,97 +36,102 @@ class BrimstoneButton extends StatefulWidget {
 
 class _BrimstoneButtonState extends State<BrimstoneButton> {
   bool _isPressed = false;
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
 
-    final baseGradient = widget.isSecondary
-        ? const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF261420), Color(0xFF140810), Color(0xFF0C040A)],
-          )
-        : const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF8B1E2F), Color(0xFF5C0F1C), Color(0xFF2E050C)],
-          );
+    final baseGradient = widget.isDestructive
+        ? BrimstoneGradients.crimson
+        : widget.isSecondary
+            ? BrimstoneGradients.cardBase
+            : BrimstoneGradients.gold;
 
-    final borderColor =
-        widget.isSecondary ? const Color(0xFF8A6538) : const Color(0xFFD4AF37);
+    final borderColor = widget.isSecondary
+        ? BrimstoneAccents.goldMuted
+        : BrimstoneAccents.goldPrimary;
+    final borderColorHover = BrimstoneAccents.goldBright;
+    final borderColorDisabled = const Color(0xFF332D42);
 
-    return GestureDetector(
-      onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
-      onTapUp: enabled ? (_) => setState(() => _isPressed = false) : null,
-      onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
-      onTap: widget.onPressed,
-      child: AnimatedScale(
-        scale: _isPressed ? 0.96 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: Container(
-          width: widget.width,
-          height: widget.height,
-          padding: widget.padding,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            gradient: baseGradient,
-            boxShadow: enabled
-                ? [
-                    BoxShadow(
-                      color: widget.isSecondary
-                          ? const Color(0x33000000)
-                          : const Color(0x66FF2A54),
-                      blurRadius: widget.isSecondary ? 4 : 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-            border: Border.all(
-              color: enabled ? borderColor : Colors.white12,
-              width: 1.6,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (widget.icon != null) ...[
-                Icon(
-                  widget.icon,
-                  size: widget.fontSize + 4,
-                  color: enabled
-                      ? (widget.isSecondary
-                          ? const Color(0xFFD4AF37)
-                          : const Color(0xFFFFD700))
-                      : Colors.white24,
-                ),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                widget.label,
-                style: TextStyle(
-                  color: enabled
-                      ? (widget.isSecondary
-                          ? const Color(0xFFE5D4FF)
-                          : Colors.white)
-                      : Colors.white24,
-                  fontSize: widget.fontSize,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.8,
-                  shadows: enabled
-                      ? const [
-                          Shadow(
-                            color: Colors.black,
-                            blurRadius: 4,
-                            offset: Offset(0, 1),
-                          ),
-                        ]
-                      : null,
-                ),
+    final textColor = widget.isSecondary
+        ? BrimstoneAccents.goldPrimary
+        : BrimstoneAccents.textOnGold;
+
+    final iconColor = widget.isSecondary
+        ? BrimstoneAccents.goldPrimary
+        : BrimstoneAccents.goldBright;
+
+    final shadowColor = widget.isDestructive
+        ? BrimstoneAccents.crimsonGlow
+        : BrimstoneAccents.goldPrimary;
+
+    return MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: enabled ? (_) => setState(() => _isHovered = true) : null,
+      onExit: enabled ? (_) => setState(() => _isHovered = false) : null,
+      child: GestureDetector(
+        onTapDown: enabled ? (_) => setState(() => _isPressed = true) : null,
+        onTapUp: enabled ? (_) => setState(() => _isPressed = false) : null,
+        onTapCancel: enabled ? () => setState(() => _isPressed = false) : null,
+        onTap: widget.onPressed,
+        child: AnimatedScale(
+          scale: _isPressed ? 0.96 : 1.0,
+          duration: BrimstoneMotion.fast,
+          curve: BrimstoneMotion.press,
+          child: AnimatedContainer(
+            duration: BrimstoneMotion.fast,
+            curve: BrimstoneMotion.standard,
+            width: widget.expandWidth ? double.infinity : widget.width,
+            height: widget.height,
+            padding: widget.padding,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(BrimstoneRadii.radiusMD),
+              gradient: baseGradient,
+              boxShadow: enabled && !widget.isSecondary
+                  ? [
+                      BoxShadow(
+                        color: shadowColor.withValues(
+                          alpha: _isHovered ? 0.35 : 0.25,
+                        ),
+                        blurRadius: _isHovered ? 12 : 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+              border: Border.all(
+                color: enabled
+                    ? (_isHovered ? borderColorHover : borderColor)
+                    : borderColorDisabled,
+                width: enabled ? 1.6 : 1,
               ),
-            ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (widget.icon != null) ...[
+                  Icon(
+                    widget.icon,
+                    size: widget.fontSize + 4,
+                    color: enabled ? iconColor : BrimstoneAccents.textMuted,
+                  ),
+                  const SizedBox(width: BrimstoneSpacing.spaceSM),
+                ],
+                Flexible(
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: BrimstoneTypography.buttonPrimary.copyWith(
+                      color: enabled ? textColor : BrimstoneAccents.textMuted,
+                      fontSize: widget.fontSize,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/design_tokens.dart';
 import '../../../domain/entities/owned_card.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../../domain/value_objects/rarity.dart';
@@ -8,19 +9,14 @@ import '../../controllers/meta_controller.dart';
 import '../../widgets/tcg_card_widget.dart';
 
 /// Shared visual helpers for the gothic meta screens.
-Color elementColor(Element e) => switch (e) {
-      Element.igneous => const Color(0xFFFF5A26),
-      Element.abyssal => const Color(0xFF3FD8FF),
-      Element.telluric => const Color(0xFFB0703B),
-      Element.empty => const Color(0xFFB16EFF),
-    };
+Color elementColor(Element e) => BrimstoneElements.forElement(e);
 
 Color rarityColor(Rarity r) => switch (r) {
       Rarity.common => const Color(0xFF9AA4A8),
-      Rarity.rare => const Color(0xFF4FC3F7),
-      Rarity.epic => const Color(0xFFB16EFF),
-      Rarity.legendary => const Color(0xFFFFC93C),
-      Rarity.mythic => const Color(0xFFFF5A26),
+      Rarity.rare => BrimstoneElements.abyssal,
+      Rarity.epic => BrimstoneAccents.voidPurple,
+      Rarity.legendary => BrimstoneTokens.goldPrimary,
+      Rarity.mythic => BrimstoneElements.igneous,
     };
 
 /// Compact card tile reused by squad preview, barracks and evolution altar.
@@ -58,29 +54,35 @@ class CurrencyBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(profileProvider);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: BrimstoneSpacing.spaceXS,
+        vertical: BrimstoneSpacing.spaceXS,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _cu(
             icon: Icons.workspace_premium,
-            color: const Color(0xFFB16EFF),
+            color: BrimstoneAccents.voidPurple,
             label: 'Nv.${profile.summonerLevel}',
           ),
+          const SizedBox(width: BrimstoneSpacing.spaceSM),
           _cu(
             icon: Icons.monetization_on,
-            color: Colors.amber,
-            label: '${profile.gold}',
+            color: BrimstoneTokens.goldPrimary,
+            label: profile.gold.toString(),
           ),
+          const SizedBox(width: BrimstoneSpacing.spaceSM),
           _cu(
             icon: Icons.diamond,
-            color: const Color(0xFF3FD8FF),
-            label: '${profile.shards}',
+            color: BrimstoneElements.abyssal,
+            label: profile.shards.toString(),
           ),
+          const SizedBox(width: BrimstoneSpacing.spaceSM),
           _cu(
             icon: Icons.bolt,
-            color: Colors.greenAccent,
-            label: '${profile.energy}',
+            color: BrimstoneAccents.info,
+            label: profile.energy.toString(),
           ),
         ],
       ),
@@ -92,15 +94,15 @@ class CurrencyBar extends ConsumerWidget {
     required Color color,
     required String label,
   }) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 13),
-            const SizedBox(width: 2),
-            Text(label, style: TextStyle(color: color, fontSize: 10)),
-          ],
-        ),
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: BrimstoneSpacing.spaceXS),
+          Text(
+            label,
+            style: BrimstoneTypography.numericMonoSM.copyWith(color: color),
+          ),
+        ],
       );
 }

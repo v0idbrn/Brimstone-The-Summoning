@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/audio/procedural_sfx_engine.dart';
+import 'core/theme/design_tokens.dart';
 import 'presentation/screens/altar/altar_evolution_screen.dart';
 import 'presentation/screens/barracks/barracks_screen.dart';
 import 'presentation/screens/sanctuary/sanctuary_screen.dart';
@@ -92,17 +93,12 @@ class BrimstoneApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = _buildBrimstoneTheme();
     return MaterialApp(
       title: 'Brimstone: The Summoning',
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0C0608),
-        snackBarTheme: const SnackBarThemeData(
-          backgroundColor: Color(0xFF2A1116),
-          contentTextStyle: TextStyle(color: Colors.white),
-        ),
-      ),
+      theme: theme,
       builder: (context, child) => Material(
-        color: const Color(0xFF07050C),
+        color: BrimstoneTokens.bgAbyss,
         child: WebArcadeFrame(child: child ?? const SizedBox.shrink()),
       ),
       navigatorKey: brimstoneNavigatorKey,
@@ -110,6 +106,226 @@ class BrimstoneApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
     );
   }
+
+  ThemeData _buildBrimstoneTheme() {
+    final base = ThemeData.dark();
+    return base.copyWith(
+      scaffoldBackgroundColor: BrimstoneTokens.bgAbyss,
+      cardColor: BrimstoneTokens.surfaceBase,
+      canvasColor: BrimstoneTokens.surfaceBase,
+      dialogTheme: DialogThemeData(
+        backgroundColor: BrimstoneTokens.surfaceElevated,
+        surfaceTintColor: Colors.transparent,
+      ),
+      shadowColor: Colors.black,
+      dividerColor: BrimstoneAccents.goldMuted.withValues(alpha: 0.3),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: BrimstoneTokens.surfaceElevated,
+        contentTextStyle: BrimstoneTypography.bodyMD.copyWith(
+          color: BrimstoneTokens.textPrimary,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(BrimstoneRadii.radiusMD),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: BrimstoneTokens.surfaceBase,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        titleTextStyle: BrimstoneTypography.headingLG,
+        iconTheme: IconThemeData(color: BrimstoneTokens.goldPrimary),
+        actionsIconTheme: IconThemeData(color: BrimstoneTokens.goldPrimary),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: BrimstoneTokens.surfaceBase,
+        selectedItemColor: BrimstoneTokens.goldPrimary,
+        unselectedItemColor: BrimstoneTokens.textMuted,
+        type: BottomNavigationBarType.fixed,
+        elevation: 8,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: BrimstoneTokens.surfaceBase,
+        indicatorColor: BrimstoneTokens.goldPrimary.withValues(alpha: 0.22),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return BrimstoneTypography.labelSM.copyWith(
+              color: BrimstoneTokens.goldPrimary,
+            );
+          }
+          return BrimstoneTypography.labelSM.copyWith(
+            color: BrimstoneTokens.textMuted,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(color: BrimstoneTokens.goldPrimary);
+          }
+          return IconThemeData(color: BrimstoneTokens.textMuted);
+        }),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: BrimstoneTokens.goldPrimary,
+          foregroundColor: BrimstoneTokens.textOnGold,
+          disabledBackgroundColor:
+              BrimstoneTokens.goldMuted.withValues(alpha: 0.3),
+          disabledForegroundColor: BrimstoneTokens.textMuted,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(BrimstoneRadii.radiusMD),
+            side: BorderSide(color: BrimstoneTokens.goldPrimary, width: 1.5),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: BrimstoneSpacing.spaceLG,
+            vertical: BrimstoneSpacing.spaceSM,
+          ),
+          textStyle: BrimstoneTypography.buttonPrimary,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: BrimstoneTokens.goldPrimary,
+          disabledForegroundColor: BrimstoneTokens.textMuted,
+          side: BorderSide(color: BrimstoneTokens.goldMuted, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(BrimstoneRadii.radiusMD),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: BrimstoneSpacing.spaceLG,
+            vertical: BrimstoneSpacing.spaceSM,
+          ),
+          textStyle: BrimstoneTypography.buttonSecondary,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: BrimstoneTokens.textSecondary,
+          disabledForegroundColor: BrimstoneTokens.textMuted,
+          textStyle: BrimstoneTypography.buttonGhost,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: BrimstoneTokens.surfaceInteractive,
+        hintStyle: BrimstoneTypography.bodySM.copyWith(
+          color: BrimstoneTokens.textMuted,
+        ),
+        labelStyle: BrimstoneTypography.bodySM.copyWith(
+          color: BrimstoneTokens.textSecondary,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
+          borderSide: BorderSide(color: BrimstoneTokens.goldMuted),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
+          borderSide: BorderSide(color: BrimstoneTokens.goldMuted),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
+          borderSide: BorderSide(color: BrimstoneTokens.goldBright, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
+          borderSide: BorderSide(color: BrimstoneTokens.danger),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: BrimstoneSpacing.spaceMD,
+          vertical: BrimstoneSpacing.spaceSM,
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: BrimstoneTokens.surfaceInteractive,
+        disabledColor:
+            BrimstoneTokens.surfaceInteractive.withValues(alpha: 0.5),
+        selectedColor: BrimstoneTokens.goldPrimary.withValues(alpha: 0.2),
+        secondarySelectedColor:
+            BrimstoneTokens.goldPrimary.withValues(alpha: 0.3),
+        padding: const EdgeInsets.symmetric(
+          horizontal: BrimstoneSpacing.spaceSM,
+          vertical: BrimstoneSpacing.spaceXS,
+        ),
+        labelStyle: BrimstoneTypography.bodySM.copyWith(
+          color: BrimstoneTokens.textPrimary,
+        ),
+        secondaryLabelStyle: BrimstoneTypography.bodySM.copyWith(
+          color: BrimstoneTokens.textOnGold,
+        ),
+        side: BorderSide(color: BrimstoneTokens.goldMuted),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: BrimstoneTokens.goldPrimary,
+        unselectedLabelColor: BrimstoneTokens.textMuted,
+        indicatorColor: BrimstoneTokens.goldPrimary,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelStyle: BrimstoneTypography.labelMD,
+        unselectedLabelStyle: BrimstoneTypography.labelMD,
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: BrimstoneTokens.surfaceElevated,
+          borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
+          border: Border.all(color: BrimstoneTokens.goldMuted),
+        ),
+        textStyle: BrimstoneTypography.bodyXS.copyWith(
+          color: BrimstoneTokens.textPrimary,
+        ),
+        preferBelow: false,
+        verticalOffset: 24,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: BrimstoneTokens.surfaceElevated,
+        surfaceTintColor: Colors.transparent,
+        elevation: 24,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(BrimstoneRadii.radiusLG),
+          ),
+          side: BorderSide(color: BrimstoneTokens.goldMuted, width: 1.5),
+        ),
+        modalBackgroundColor: BrimstoneSurfaces.surfaceOverlay,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: BrimstoneTokens.goldPrimary,
+        linearTrackColor: BrimstoneTokens.goldMuted.withValues(alpha: 0.3),
+        circularTrackColor: BrimstoneTokens.goldMuted.withValues(alpha: 0.3),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: BrimstoneTokens.goldPrimary,
+        inactiveTrackColor: BrimstoneTokens.goldMuted.withValues(alpha: 0.3),
+        thumbColor: BrimstoneTokens.goldPrimary,
+        overlayColor: BrimstoneTokens.goldPrimary.withValues(alpha: 0.2),
+        valueIndicatorColor: BrimstoneTokens.goldPrimary,
+        valueIndicatorTextStyle: BrimstoneTypography.numericMonoSM,
+      ),
+    );
+  }
+}
+
+/// Route transition helper: Fade + Scale over abyss background.
+Route<T> brimstoneRoute<T>(Widget page) {
+  return PageRouteBuilder<T>(
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionDuration: BrimstoneMotion.route,
+    reverseTransitionDuration: BrimstoneMotion.route,
+    opaque: true,
+    barrierColor: BrimstoneTokens.bgAbyss,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: 0.97, end: 1.0).animate(
+            CurvedAnimation(parent: animation, curve: BrimstoneMotion.standard),
+          ),
+          child: child,
+        ),
+      );
+    },
+  );
 }
 
 /// Marco arcade vertical para pantallas anchas (navegador de PC).
@@ -153,11 +369,7 @@ class WebArcadeFrame extends StatelessWidget {
         final showPanels = constraints.maxWidth >= sidePanelBreakpoint;
         return DecoratedBox(
           decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF07050B), Color(0xFF150A12), Color(0xFF07050B)],
-            ),
+            gradient: BrimstoneGradients.abyssBg,
           ),
           child: Row(
             children: [
@@ -208,12 +420,9 @@ class _GothicBezel extends StatelessWidget {
       height: height,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF4A2630), width: 3),
-        boxShadow: const [
-          BoxShadow(color: Color(0xCC000000), blurRadius: 40, spreadRadius: 6),
-          BoxShadow(color: Color(0x33FF5A26), blurRadius: 24, spreadRadius: 1),
-        ],
+        borderRadius: BorderRadius.circular(BrimstoneRadii.radiusLG),
+        border: BrimstoneBorders.bold,
+        boxShadow: BrimstoneShadows.level3,
       ),
       child: child,
     );
@@ -228,30 +437,33 @@ class _SidePanelLeft extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        margin:
+            const EdgeInsets.symmetric(horizontal: BrimstoneSpacing.spaceLG),
+        padding: const EdgeInsets.symmetric(
+          horizontal: BrimstoneSpacing.spaceLG,
+          vertical: BrimstoneSpacing.spaceSM,
+        ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1A0E14), Color(0xFF0F060A)],
-          ),
+          borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
+          border: BrimstoneBorders.standard,
+          gradient: BrimstoneGradients.cardBase,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.local_fire_department,
-                color: Color(0xFFFF5A26), size: 20),
-            SizedBox(width: 10),
+          children: [
+            Icon(
+              Icons.local_fire_department,
+              color: BrimstoneElements.igneous,
+              size: 20,
+            ),
+            const SizedBox(width: BrimstoneSpacing.spaceSM),
             Flexible(
               child: Text(
                 'BRIMSTONE: THE SUMMONING',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFFB16EFF),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
+                style: BrimstoneTypography.headingSM.copyWith(
+                  color: BrimstoneAccents.voidPurple,
                   letterSpacing: 3,
                 ),
               ),
@@ -273,16 +485,26 @@ class _SidePanelRight extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: const [
+        children: [
           _SideHint(
-              icon: Icons.touch_app, text: 'CLICK + ARRASTRAR · Fusionar'),
-          SizedBox(height: 12),
-          _SideHint(icon: Icons.swipe_up, text: 'DESLIZAR ↑ · Lanzar esfera'),
-          SizedBox(height: 12),
-          _SideHint(icon: Icons.ads_click, text: 'CLICK EN DIANA · Bullseye'),
-          SizedBox(height: 12),
+            icon: Icons.touch_app,
+            text: 'CLICK + ARRASTRAR · Fusionar',
+          ),
+          const SizedBox(height: BrimstoneSpacing.spaceSM),
           _SideHint(
-              icon: Icons.gesture, text: 'DESLIZAR FUERA · Counter-Flick'),
+            icon: Icons.swipe_up,
+            text: 'DESLIZAR ↑ · Lanzar esfera',
+          ),
+          const SizedBox(height: BrimstoneSpacing.spaceSM),
+          _SideHint(
+            icon: Icons.center_focus_strong,
+            text: 'CLICK EN DIANA · Bullseye',
+          ),
+          const SizedBox(height: BrimstoneSpacing.spaceSM),
+          _SideHint(
+            icon: Icons.gesture,
+            text: 'DESLIZAR FUERA · Counter-Flick',
+          ),
         ],
       ),
     );
@@ -298,22 +520,25 @@ class _SideHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: BrimstoneSpacing.spaceMD,
+        vertical: BrimstoneSpacing.spaceXS,
+      ),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1A0E14), Color(0xFF0F060A)],
-        ),
+        borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
+        border: BrimstoneBorders.standard,
+        gradient: BrimstoneGradients.cardBase,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFFFFC93C)),
-          const SizedBox(width: 8),
+          Icon(icon, size: 16, color: BrimstoneTokens.goldPrimary),
+          const SizedBox(width: BrimstoneSpacing.spaceXS),
           Text(
             text,
-            style: const TextStyle(color: Colors.white54, fontSize: 11),
+            style: BrimstoneTypography.bodyXS.copyWith(
+              color: BrimstoneTokens.textSecondary,
+            ),
           ),
         ],
       ),
@@ -341,48 +566,49 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: BrimstoneTokens.bgAbyss,
       body: IndexedStack(index: _tab, children: _screens),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0B0814),
+        decoration: BoxDecoration(
+          color: BrimstoneTokens.surfaceBase,
           border: Border(
             top: BorderSide(
-              color: Color(0xFFD4AF37),
+              color: BrimstoneTokens.goldPrimary,
               width: 1.5,
             ),
           ),
           boxShadow: [
             BoxShadow(
-              color: Color(0x55000000),
+              color: Colors.black.withValues(alpha: 0.5),
               blurRadius: 10,
-              offset: Offset(0, -3),
+              offset: const Offset(0, -3),
             ),
           ],
         ),
         child: NavigationBar(
-          backgroundColor: const Color(0xFF0B0814),
-          indicatorColor: const Color(0xFFD4AF37).withValues(alpha: 0.22),
+          backgroundColor: BrimstoneTokens.surfaceBase,
+          indicatorColor: BrimstoneTokens.goldPrimary.withValues(alpha: 0.22),
           selectedIndex: _tab,
           onDestinationSelected: (i) => setState(() => _tab = i),
           destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.home_outlined, color: Colors.white54),
-              selectedIcon: Icon(Icons.home, color: Color(0xFFFFD700)),
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
               label: 'Santuario',
             ),
             NavigationDestination(
-              icon: Icon(Icons.shield_outlined, color: Colors.white54),
-              selectedIcon: Icon(Icons.shield, color: Color(0xFFFFD700)),
+              icon: Icon(Icons.shield_outlined),
+              selectedIcon: Icon(Icons.shield),
               label: 'Cuartel',
             ),
             NavigationDestination(
-              icon: Icon(Icons.auto_fix_high_outlined, color: Colors.white54),
-              selectedIcon: Icon(Icons.auto_fix_high, color: Color(0xFFFFD700)),
+              icon: Icon(Icons.auto_fix_high_outlined),
+              selectedIcon: Icon(Icons.auto_fix_high),
               label: 'Altar',
             ),
             NavigationDestination(
-              icon: Icon(Icons.auto_awesome_outlined, color: Colors.white54),
-              selectedIcon: Icon(Icons.auto_awesome, color: Color(0xFFFFD700)),
+              icon: Icon(Icons.auto_awesome_outlined),
+              selectedIcon: Icon(Icons.auto_awesome),
               label: 'Portal',
             ),
           ],

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../core/performance/object_pool.dart';
 import '../../../core/performance/performance_settings.dart';
+import '../../../core/theme/design_tokens.dart';
 import '../../../domain/combat/combat_engine.dart';
 import '../../../domain/combat/combat_math.dart';
 import '../../../domain/combat/combat_models.dart';
@@ -886,32 +887,42 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     final isEnraged = engine.enraged;
     final weakElement = elementalWeakness(engine.boss.element);
     final weakElementName = _elementDisplayName(weakElement);
-    final weakElementColor = _elementColor(weakElement);
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF1A0A0F), Color(0xFF0C0608)],
+          colors: [BrimstoneTokens.surfaceBase, BrimstoneTokens.bgAbyss],
         ),
-        border: Border(bottom: BorderSide(color: Color(0xFF2A151A), width: 1)),
+        border: Border(
+          bottom: BorderSide(
+            color: BrimstoneTokens.goldMuted.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: BrimstoneSpacing.spaceSM,
+            vertical: BrimstoneSpacing.spaceXS,
+          ),
           child: Row(
             children: [
               IconButton(
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
-                icon:
-                    const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+                icon: Icon(
+                  Icons.arrow_back,
+                  color: BrimstoneTokens.textPrimary,
+                  size: 22,
+                ),
                 onPressed: () => Navigator.of(context).maybePop(),
                 tooltip: 'Salir del combate',
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: BrimstoneSpacing.spaceXS),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -922,33 +933,28 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                         Expanded(
                           child: Text(
                             engine.boss.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.3,
-                            ),
+                            style: BrimstoneTypography.headingSM,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (isEnraged) ...[
-                          const SizedBox(width: 6),
+                          const SizedBox(width: BrimstoneSpacing.spaceXS),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(colors: [
-                                Color(0xFFFF2A54),
-                                Color(0xFFFFD700)
-                              ]),
-                              borderRadius: BorderRadius.circular(4),
+                              horizontal: BrimstoneSpacing.spaceXS,
+                              vertical: 1,
                             ),
-                            child: const Text('FURIA',
-                                style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 7,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5)),
+                            decoration: BoxDecoration(
+                              gradient: BrimstoneGradients.crimson,
+                              borderRadius: BorderRadius.circular(
+                                  BrimstoneRadii.radiusSM),
+                            ),
+                            child: Text(
+                              'FURIA',
+                              style: BrimstoneTypography.labelXS.copyWith(
+                                color: BrimstoneTokens.textOnGold,
+                              ),
+                            ),
                           ),
                         ],
                       ],
@@ -960,25 +966,23 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                           child: Stack(
                             children: [
                               Container(
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                      color: const Color(0xFF1E0A0E),
-                                      borderRadius: BorderRadius.circular(3))),
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: BrimstoneTokens.surfaceInteractive,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
                               FractionallySizedBox(
                                 widthFactor: hpFraction.clamp(0.0, 1.0),
                                 child: Container(
                                   height: 6,
                                   decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                        colors: isEnraged
-                                            ? [
-                                                Colors.orangeAccent,
-                                                Colors.redAccent
-                                              ]
-                                            : [
-                                                Colors.redAccent,
-                                                const Color(0xFFCC0000)
-                                              ]),
+                                    gradient: isEnraged
+                                        ? BrimstoneGradients.crimson
+                                        : LinearGradient(colors: [
+                                            BrimstoneElements.igneous,
+                                            BrimstoneAccents.crimsonPrimary,
+                                          ]),
                                     borderRadius: BorderRadius.circular(3),
                                   ),
                                 ),
@@ -986,44 +990,47 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Text('${engine.bossHp.toInt()}',
-                            style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                fontFeatures: [FontFeature.tabularFigures()])),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: BrimstoneSpacing.spaceXS),
+                        Text(
+                          '${engine.bossHp.toInt()}',
+                          style: BrimstoneTypography.numericMonoSM.copyWith(
+                            color: BrimstoneTokens.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: BrimstoneSpacing.spaceXS),
                         // Elemental weakness chip
                         Flexible(
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: BrimstoneSpacing.spaceXS,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(colors: [
-                                weakElementColor.withValues(alpha: 0.9),
-                                weakElementColor.withValues(alpha: 0.7),
+                                BrimstoneElements.forElement(weakElement),
+                                BrimstoneElements.forElement(weakElement)
+                                    .withValues(alpha: 0.7),
                               ]),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(
+                                  BrimstoneRadii.radiusSM),
                               border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  width: 1),
+                                color: BrimstoneTokens.goldMuted,
+                                width: 1,
+                              ),
                             ),
                             child: Text(
                               'Débil a: $weakElementName (+30%)',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.3),
+                              style: BrimstoneTypography.labelXS.copyWith(
+                                color: BrimstoneTokens.textOnGold,
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    // Block 3: Boss Shield HP Bar (ancho acotado por la columna)
+                    // Block 3: Boss Shield HP Bar
                     if (engine.boss.shieldHp > 0) ...[
                       const SizedBox(height: 3),
                       _BossShieldBar(
@@ -1036,38 +1043,57 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                   ],
                 ),
               ),
-              // Speed toggle 1x / 1.5x
-              _SpeedToggle(
-                initialSpeed: _gameSpeed,
-                onChanged: (speed) => setState(() => _gameSpeed = speed),
-              ),
-              // Auto-Battle toggle (Block 3: 🤖 AUTO)
-              _AutoBattleToggle(
-                enabled: _autoBattleEnabled,
-                onChanged: (enabled) {
-                  setState(() => _autoBattleEnabled = enabled);
-                  _engine?.autoBattleEnabled = enabled;
-                },
-              ),
-              IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.help_outline,
-                      color: Colors.white70, size: 22),
-                  onPressed: () => showModalBottomSheet(
+              // Right-side controls: horizontal row, min width to avoid overflow.
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _SpeedToggle(
+                    initialSpeed: _gameSpeed,
+                    onChanged: (speed) => setState(() => _gameSpeed = speed),
+                  ),
+                  const SizedBox(width: BrimstoneSpacing.spaceXS),
+                  // Auto-Battle toggle (Block 3: 🤖 AUTO)
+                  _AutoBattleToggle(
+                    enabled: _autoBattleEnabled,
+                    onChanged: (enabled) {
+                      setState(() => _autoBattleEnabled = enabled);
+                      _engine?.autoBattleEnabled = enabled;
+                    },
+                  ),
+                  const SizedBox(width: BrimstoneSpacing.spaceXS),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      Icons.help_outline,
+                      color: BrimstoneTokens.textSecondary,
+                      size: 22,
+                    ),
+                    onPressed: () => showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
-                      backgroundColor: const Color(0xFF14090D),
-                      builder: (_) => const HowToPlayModal()),
-                  tooltip: 'Ayuda'),
-              IconButton(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.settings,
-                      color: Colors.white70, size: 22),
-                  onPressed: () => showDialog(
-                      context: context, builder: (_) => const SettingsModal()),
-                  tooltip: 'Ajustes'),
+                      backgroundColor: BrimstoneTokens.surfaceElevated,
+                      builder: (_) => const HowToPlayModal(),
+                    ),
+                    tooltip: 'Ayuda',
+                  ),
+                  const SizedBox(width: BrimstoneSpacing.spaceXS),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    icon: Icon(
+                      Icons.settings,
+                      color: BrimstoneTokens.textSecondary,
+                      size: 22,
+                    ),
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => const SettingsModal(),
+                    ),
+                    tooltip: 'Ajustes',
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -1085,32 +1111,42 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   Widget _buildSquadCards() {
     final cards = engine.cards;
     if (cards.isEmpty) {
-      return const Center(
-          child: Text('Sin escuadrón',
-              style: TextStyle(color: Colors.white38, fontSize: 12)));
+      return Center(
+        child: Text(
+          'Sin escuadrón',
+          style: BrimstoneTypography.bodySM,
+        ),
+      );
     }
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF14090D), Color(0xFF0C0608)]),
-        border: Border(top: BorderSide(color: Color(0xFF2A151A), width: 1)),
+      decoration: BoxDecoration(
+        gradient: BrimstoneGradients.cardBase,
+        border: Border(
+          top: BorderSide(
+            color: BrimstoneTokens.goldMuted.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(
+          horizontal: BrimstoneSpacing.spaceXS,
+          vertical: BrimstoneSpacing.spaceXS,
+        ),
         itemCount: cards.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) =>
+            const SizedBox(width: BrimstoneSpacing.spaceXS),
         itemBuilder: (context, index) {
           final card = cards[index];
           final isReady = card.mana >= card.baseManaCost;
           return TcgCardWidget.fromCombatCard(
-              card: card,
-              isLeader: index == 0,
-              width: 112,
-              height: 112,
-              onTap: isReady ? () => _onCardTap(index) : null);
+            card: card,
+            isLeader: index == 0,
+            width: 112,
+            height: 112,
+            onTap: isReady ? () => _onCardTap(index) : null,
+          );
         },
       ),
     );
@@ -1134,35 +1170,45 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         children: [
           // Player HP bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            padding: const EdgeInsets.fromLTRB(
+              BrimstoneSpacing.spaceMD,
+              BrimstoneSpacing.spaceSM,
+              BrimstoneSpacing.spaceMD,
+              BrimstoneSpacing.spaceXS,
+            ),
             child: Row(children: [
-              const Icon(Icons.favorite, color: Color(0xFFFF2A54), size: 18),
-              const SizedBox(width: 6),
+              Icon(
+                Icons.favorite,
+                color: BrimstoneAccents.crimsonGlow,
+                size: 18,
+              ),
+              const SizedBox(width: BrimstoneSpacing.spaceXS),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(children: [
-                      Text('HP ',
-                          style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600)),
                       Text(
+                        'HP ',
+                        style: BrimstoneTypography.bodyXS.copyWith(
+                          color: BrimstoneTokens.textSecondary,
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
                           '${engine.playerHp.toInt()} / ${engine.playerMaxHp.toInt()}',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              fontFeatures: [FontFeature.tabularFigures()])),
+                          style: BrimstoneTypography.numericMonoSM,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ]),
                     const SizedBox(height: 2),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(3),
                       child: Container(
                         height: 5,
-                        color: const Color(0xFF1E0A0E),
+                        color: BrimstoneTokens.surfaceInteractive,
                         child: FractionallySizedBox(
                           widthFactor: engine.hpFraction.clamp(0.0, 1.0),
                           alignment: Alignment.centerLeft,
@@ -1171,12 +1217,12 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                                   gradient: LinearGradient(
                                       colors: engine.isLowHp
                                           ? [
-                                              Colors.redAccent,
-                                              const Color(0xFFFF5A26)
+                                              BrimstoneTokens.success,
+                                              BrimstoneAccents.info,
                                             ]
                                           : [
-                                              const Color(0xFF4FFFA3),
-                                              const Color(0xFF00C853)
+                                              BrimstoneTokens.success,
+                                              BrimstoneAccents.info,
                                             ]))),
                         ),
                       ),
@@ -2207,7 +2253,7 @@ class _TrainingToolsState extends State<_TrainingTools> {
             border: Border.all(color: const Color(0xFF3FD8FF))),
         child: Row(children: [
           const Icon(Icons.speed, color: Color(0xFF3FD8FF), size: 16),
-          const SizedBox(width: 6),
+          const SizedBox(width: BrimstoneSpacing.spaceXS),
           Text('DPS ${dps.toStringAsFixed(1)}',
               style: const TextStyle(
                   color: Color(0xFF3FD8FF),
