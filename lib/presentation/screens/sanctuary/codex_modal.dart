@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart' hide Element;
+import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../domain/roguelite/relic_catalog.dart';

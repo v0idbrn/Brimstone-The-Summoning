@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart' hide Element;
+import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
@@ -8,6 +8,9 @@ import '../../../domain/meta/rune_system.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../../domain/value_objects/rarity.dart';
 import '../../controllers/meta_controller.dart';
+import '../../graphics/art_registry.dart';
+import '../../graphics/painted_backdrop.dart';
+import '../../graphics/rift_effect.dart';
 import '../../widgets/brimstone_button.dart';
 import '../../widgets/tcg_card_widget.dart';
 
@@ -111,16 +114,35 @@ class _AltarEvolutionScreenState extends ConsumerState<AltarEvolutionScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Batch Evolve
-          _BatchEvolveTab(allCards: allCards),
-          // Tab 2: Rune Synthesis
-          _RuneSynthesisTab(allCards: allCards),
-          // Tab 3: Soul Crafting
-          _SoulCraftingTab(allCards: allCards),
-        ],
+      body: PaintedBackdrop(
+        asset: ArtRegistry.metaScenes['altar']!,
+        tint: const Color(0xFFFFC93C),
+        darkness: 0.7,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Forge aura: the rift burns dimly behind the altar tabs.
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AbyssalRiftView(
+                  color: const Color(0xFFFFC93C),
+                  intensity: 0.5,
+                ),
+              ),
+            ),
+            TabBarView(
+              controller: _tabController,
+              children: [
+                // Tab 1: Batch Evolve
+                _BatchEvolveTab(allCards: allCards),
+                // Tab 2: Rune Synthesis
+                _RuneSynthesisTab(allCards: allCards),
+                // Tab 3: Soul Crafting
+                _SoulCraftingTab(allCards: allCards),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

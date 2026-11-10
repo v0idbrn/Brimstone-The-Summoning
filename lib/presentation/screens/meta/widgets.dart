@@ -58,33 +58,37 @@ class CurrencyBar extends ConsumerWidget {
         horizontal: BrimstoneSpacing.spaceXS,
         vertical: BrimstoneSpacing.spaceXS,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _cu(
-            icon: Icons.workspace_premium,
-            color: BrimstoneAccents.voidPurple,
-            label: 'Nv.${profile.summonerLevel}',
-          ),
-          const SizedBox(width: BrimstoneSpacing.spaceSM),
-          _cu(
-            icon: Icons.monetization_on,
-            color: BrimstoneTokens.goldPrimary,
-            label: profile.gold.toString(),
-          ),
-          const SizedBox(width: BrimstoneSpacing.spaceSM),
-          _cu(
-            icon: Icons.diamond,
-            color: BrimstoneElements.abyssal,
-            label: profile.shards.toString(),
-          ),
-          const SizedBox(width: BrimstoneSpacing.spaceSM),
-          _cu(
-            icon: Icons.bolt,
-            color: BrimstoneAccents.info,
-            label: profile.energy.toString(),
-          ),
-        ],
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _cu(
+              icon: Icons.workspace_premium,
+              color: BrimstoneAccents.voidPurple,
+              label: 'Nv.${profile.summonerLevel}',
+            ),
+            const SizedBox(width: BrimstoneSpacing.spaceSM),
+            _cu(
+              icon: Icons.monetization_on,
+              color: BrimstoneTokens.goldPrimary,
+              label: profile.gold.toString(),
+            ),
+            const SizedBox(width: BrimstoneSpacing.spaceSM),
+            _cu(
+              icon: Icons.diamond,
+              color: BrimstoneElements.abyssal,
+              label: profile.shards.toString(),
+            ),
+            const SizedBox(width: BrimstoneSpacing.spaceSM),
+            _cu(
+              icon: Icons.bolt,
+              color: BrimstoneAccents.info,
+              label: profile.energy.toString(),
+            ),
+          ],
+        ),
       ),
     );
   }

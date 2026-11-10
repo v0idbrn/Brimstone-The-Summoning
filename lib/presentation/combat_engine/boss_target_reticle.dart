@@ -3,19 +3,31 @@ import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart' hide Element;
 
+import '../../core/performance/performance_settings.dart';
 import '../../domain/value_objects/element.dart';
 import 'brimstone_combat_game.dart';
 
-/// Moving dimensional arcane target reticles over the boss:
-/// segmented outer ring with rotating runes, crosshair targeting lines,
-/// elemental color halo glow, and a bright pulsing Bullseye core at the center.
+/// HellFire-style precision target seals.
+///
+/// Each moving target is rendered as an arcane aiming seal:
+///   * toothed outer ring rotating clockwise,
+///   * etched second ring counter-rotating with cardinal rune nodes,
+///   * arcane crosshair arms with a calibration circle,
+///   * incandescent bullseye core that pulses and blooms expanding shockwave
+///     rings while the player drags an orb upward,
+///   * frost crust when the target is frozen/petrified.
 class BossTargetReticle extends PositionComponent {
-  final BrimstoneCombatGame combatGame;
-
   BossTargetReticle(this.combatGame) {
     position = Vector2.zero();
     priority = 1;
   }
+
+  final BrimstoneCombatGame combatGame;
+
+  final Paint _stroke = Paint()..style = PaintingStyle.stroke;
+  final Paint _fill = Paint()..style = PaintingStyle.fill;
+  final Paint _glow = Paint()
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
 
   Color get auraColor => switch (combatGame.engine.aura) {
         Element.igneous => const Color(0xFFFF5A26),
@@ -34,131 +46,152 @@ class BossTargetReticle extends PositionComponent {
 
     final color = auraColor;
     final time = e.time;
+    final dragging = combatGame.draggingOrb;
 
     for (final t in e.targets) {
       final x = t.xAt(time, e.effectiveAngularSpeed(t));
       final y = t.yAt(time, e.effectiveAngularSpeed(t));
       final outer = e.outerRadiusFor(t);
       final inner = e.innerRadiusFor(t);
+      final center = Offset(x, y);
 
-      // ── HALO ELEMENTAL EXTERIOR (Glow ambiental) ────────────────
-      final haloPaint = Paint()
-        ..color = color.withValues(alpha: 0.22)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-      canvas.drawCircle(Offset(x, y), outer * 1.05, haloPaint);
+      // ── Elemental halo ──────────────────────────────────────────────
+      _glow.color = color.withValues(alpha: dragging ? 0.34 : 0.22);
+      canvas.drawCircle(center, outer * 1.08, _glow);
 
-      // ── ANILLO EXTERIOR SEGMENTADO (Portal Arcano) ──────────────
-      const segments = 6;
-      final arcAngle = (math.pi * 2 / segments) * 0.72;
-      final gapAngle = (math.pi * 2 / segments) * 0.28;
-      final rotOffset = time * 1.4;
-
-      final segPaint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.2
+      // ── Toothed outer ring (clockwise) ──────────────────────────────
+      _stroke
+        ..strokeWidth = 3.4
         ..color = color.withValues(alpha: 0.95);
-
-      for (var i = 0; i < segments; i++) {
-        final startA = rotOffset + i * (arcAngle + gapAngle);
+      const teeth = 18;
+      final toothArc = (math.pi * 2 / teeth) * 0.58;
+      for (var i = 0; i < teeth; i++) {
+        final start = time * 1.35 + i * (math.pi * 2 / teeth);
         canvas.drawArc(
-          Rect.fromCircle(center: Offset(x, y), radius: outer),
-          startA,
-          arcAngle,
+          Rect.fromCircle(center: center, radius: outer),
+          start,
+          toothArc,
           false,
-          segPaint,
+          _stroke,
         );
       }
 
-      // Nodos/marcas rúnicas en los vértices del portal
+      // ── Etched counter-rotating ring ────────────────────────────────
+      _stroke
+        ..strokeWidth = 1.2
+        ..color = color.withValues(alpha: 0.5);
+      canvas.drawCircle(center, outer * 0.84, _stroke);
+
       for (var i = 0; i < 4; i++) {
-        final a = -time * 0.9 + i * (math.pi / 2);
-        final nx = x + math.cos(a) * (outer + 3);
-        final ny = y + math.sin(a) * (outer + 3);
-        canvas.drawCircle(
+        final a = -time * 0.95 + i * (math.pi / 2);
+        final nx = x + math.cos(a) * (outer * 0.84);
+        final ny = y + math.sin(a) * (outer * 0.84);
+        canvas.drawCircle(Offset(nx, ny), 2.6, _fill..color = Colors.white);
+        // Cardinal rune tick pointing inward.
+        _stroke
+          ..strokeWidth = 1.4
+          ..color = color.withValues(alpha: 0.7);
+        canvas.drawLine(
           Offset(nx, ny),
-          2.6,
-          Paint()..color = Colors.white,
+          Offset(
+            x + math.cos(a) * (outer * 0.70),
+            y + math.sin(a) * (outer * 0.70),
+          ),
+          _stroke,
         );
       }
 
-      // ── LÍNEAS DE MIRA EN CRUZ (Crosshairs arcanos) ──────────────
-      final crosshairPaint = Paint()
-        ..color = color.withValues(alpha: 0.75)
-        ..strokeWidth = 1.6;
+      // ── Arcane crosshair arms ───────────────────────────────────────
+      const gap = 7.0;
+      final ext = outer + 7.0;
+      _stroke
+        ..strokeWidth = 1.6
+        ..color = color.withValues(alpha: 0.8);
+      _fill.color = Colors.white.withValues(alpha: 0.95);
 
-      final crossGlow = Paint()
-        ..color = Colors.white.withValues(alpha: 0.9)
-        ..strokeWidth = 1.0;
-
-      const crossGap = 7.0;
-      final crossExt = outer + 6.0;
-
-      // 4 brazos de la mira: izquierda, derecha, arriba, abajo
-      final arms = [
-        [Offset(x - crossExt, y), Offset(x - inner - crossGap, y)],
-        [Offset(x + inner + crossGap, y), Offset(x + crossExt, y)],
-        [Offset(x, y - crossExt), Offset(x, y - inner - crossGap)],
-        [Offset(x, y + inner + crossGap), Offset(x, y + crossExt)],
-      ];
-
-      for (final arm in arms) {
-        canvas.drawLine(arm[0], arm[1], crosshairPaint);
-        canvas.drawLine(arm[0], arm[1], crossGlow);
+      void arm(Offset a, Offset b) {
+        canvas.drawLine(a, b, _stroke);
       }
 
-      // ── CÍRCULO INTERMEDIO DE CALIBRACIÓN ─────────────────────────
-      canvas.drawCircle(
-        Offset(x, y),
-        inner * 1.55,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.0
-          ..color = color.withValues(alpha: 0.4),
-      );
+      arm(Offset(x - ext, y), Offset(x - inner - gap, y));
+      arm(Offset(x + inner + gap, y), Offset(x + ext, y));
+      arm(Offset(x, y - ext), Offset(x, y - inner - gap));
+      arm(Offset(x, y + inner + gap), Offset(x, y + ext));
 
-      // ── NÚCLEO BULLSEYE BRILLANTE PULSANTE ─────────────────────────
+      // Calibration circle.
+      _stroke
+        ..strokeWidth = 1.0
+        ..color = color.withValues(alpha: 0.4);
+      canvas.drawCircle(center, inner * 1.55, _stroke);
+
+      // ── Drag bloom: expanding lock-on shockwaves ───────────────────
+      if (dragging && PerformanceSettings.enableSecondaryGlow) {
+        for (var wave = 0; wave < 3; wave++) {
+          final phase = (time * 0.9 + wave / 3.0) % 1.0;
+          _stroke
+            ..strokeWidth = 2.0 * (1 - phase) + 0.4
+            ..color = color.withValues(alpha: (1 - phase) * 0.55);
+          canvas.drawCircle(center, inner * (1.0 + phase * 1.9), _stroke);
+        }
+      }
+
+      // ── Incandescent bullseye core ─────────────────────────────────
       final pulse = 0.85 + 0.15 * math.sin(time * 6.0);
-      final pulseR = inner * pulse;
+      final coreR = inner * pulse;
 
-      // Relleno de energía del Bullseye
-      final coreRadial = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            Colors.white,
-            color.withValues(alpha: 0.85),
-            color.withValues(alpha: 0.15),
-          ],
-          stops: const [0.0, 0.55, 1.0],
-        ).createShader(Rect.fromCircle(center: Offset(x, y), radius: inner))
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(x, y), pulseR, coreRadial);
+      _fill.shader = RadialGradient(
+        colors: [
+          Colors.white,
+          Color.lerp(Colors.white, color, 0.35)!,
+          color.withValues(alpha: 0.85),
+          color.withValues(alpha: 0.05),
+        ],
+        stops: const [0.0, 0.32, 0.66, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: inner));
+      canvas.drawCircle(center, coreR, _fill);
+      _fill.shader = null;
 
-      // Anillo blanco nítido del Bullseye
-      canvas.drawCircle(
-        Offset(x, y),
-        pulseR,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0
-          ..color = Colors.white,
+      _stroke
+        ..strokeWidth = 2.0
+        ..color = Colors.white;
+      canvas.drawCircle(center, coreR, _stroke);
+
+      _fill.color = Colors.white;
+      canvas.drawCircle(center, 3.0, _fill);
+
+      // Inner cross glint.
+      _stroke
+        ..strokeWidth = 1.0
+        ..color = Colors.white.withValues(alpha: 0.65);
+      canvas.drawLine(
+        Offset(x - coreR * 0.55, y),
+        Offset(x + coreR * 0.55, y),
+        _stroke,
+      );
+      canvas.drawLine(
+        Offset(x, y - coreR * 0.55),
+        Offset(x, y + coreR * 0.55),
+        _stroke,
       );
 
-      // Punto central puro de impacto crítico
-      canvas.drawCircle(
-        Offset(x, y),
-        3.0,
-        Paint()..color = Colors.white,
-      );
-
-      // Efecto de congelación si el objetivo está petrificado/ralentizado
+      // ── Frozen / petrified crust ───────────────────────────────────
       if (t.frozen) {
-        canvas.drawCircle(
-          Offset(x, y),
-          outer * 1.15,
-          Paint()
-            ..color = const Color(0xFF3FD8FF).withValues(alpha: 0.35)
-            ..style = PaintingStyle.fill,
-        );
+        _fill
+          ..color = const Color(0xFF3FD8FF).withValues(alpha: 0.32)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+        canvas.drawCircle(center, outer * 1.12, _fill);
+        _fill.maskFilter = null;
+        _stroke
+          ..strokeWidth = 2.0
+          ..color = const Color(0xFFB8F0FF).withValues(alpha: 0.8);
+        for (var i = 0; i < 6; i++) {
+          final a = i * math.pi / 3 + time * 0.2;
+          canvas.drawLine(
+            Offset(x + math.cos(a) * inner, y + math.sin(a) * inner),
+            Offset(x + math.cos(a) * outer, y + math.sin(a) * outer),
+            _stroke,
+          );
+        }
       }
     }
     canvas.restore();

@@ -56,3 +56,25 @@ flutter:
   uses-material-design: true
   assets:
     - assets/portraits/
+    - assets/backgrounds/
+    - assets/vfx/
+  shaders:
+    - shaders/abyssal_rift.frag
+    - shaders/foil_card.frag
+  fonts:
+    - family: Cinzel
+      fonts:
+        - asset: assets/fonts/Cinzel-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/Cinzel-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/Cinzel-Variable.ttf
+          weight: 900
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-Variable.ttf
+          weight: 900

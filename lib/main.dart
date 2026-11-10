@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/audio/procedural_sfx_engine.dart';
 import 'core/theme/design_tokens.dart';
+import 'presentation/graphics/art_registry.dart';
+import 'presentation/graphics/painted_backdrop.dart';
+import 'presentation/graphics/rift_effect.dart';
 import 'presentation/screens/altar/altar_evolution_screen.dart';
 import 'presentation/screens/barracks/barracks_screen.dart';
 import 'presentation/screens/sanctuary/sanctuary_screen.dart';
@@ -26,8 +29,11 @@ void main() {
     ),
   );
   // Los WAV procedurales se sintetizan una sola vez, tras el primer frame.
+  // Los fragment shaders (grieta + foil) se compilan allí también: nunca en el
+  // arranque, para no bloquear el primer frame ni romper los tests.
   WidgetsBinding.instance.addPostFrameCallback((_) {
     ProceduralSfxEngine.prewarmCache();
+    BrimstoneShaders.warmUp();
   });
   // Guardián: jamás pantalla gris en Release/Web. Un error de render
   // muestra una tarjeta oscura con el detalle técnico y salida al Santuario.
@@ -367,34 +373,55 @@ class WebArcadeFrame extends StatelessWidget {
           math.max(480.0, constraints.maxHeight - 24),
         );
         final showPanels = constraints.maxWidth >= sidePanelBreakpoint;
-        return DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: BrimstoneGradients.abyssBg,
-          ),
-          child: Row(
-            children: [
-              if (showPanels) const Expanded(child: _SidePanelLeft()),
-              SizedBox(
-                width: width,
-                child: Center(
-                  child: _GothicBezel(
-                    width: width,
-                    height: height,
-                    child: MediaQuery(
-                      data: MediaQuery.of(context).copyWith(
-                        size: Size(width, height),
-                        padding: EdgeInsets.zero,
-                        viewPadding: EdgeInsets.zero,
-                        viewInsets: EdgeInsets.zero,
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            // Panoramic abyss outside the cabinet: painted scene + embers.
+            PaintedBackdrop(
+              asset: ArtRegistry.sanctuaryBlur,
+              tint: BrimstoneAccents.voidPurple,
+              darkness: 0.82,
+              fog: false,
+            ),
+            // Deep ambient glow pulled toward the cabinet.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  radius: 0.75,
+                  colors: [
+                    BrimstoneAccents.voidPurple.withValues(alpha: 0.14),
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.55),
+                  ],
+                  stops: const [0.0, 0.45, 1.0],
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                if (showPanels) const Expanded(child: _SidePanelLeft()),
+                SizedBox(
+                  width: width,
+                  child: Center(
+                    child: _GothicBezel(
+                      width: width,
+                      height: height,
+                      child: MediaQuery(
+                        data: MediaQuery.of(context).copyWith(
+                          size: Size(width, height),
+                          padding: EdgeInsets.zero,
+                          viewPadding: EdgeInsets.zero,
+                          viewInsets: EdgeInsets.zero,
+                        ),
+                        child: child,
                       ),
-                      child: child,
                     ),
                   ),
                 ),
-              ),
-              if (showPanels) const Expanded(child: _SidePanelRight()),
-            ],
-          ),
+                if (showPanels) const Expanded(child: _SidePanelRight()),
+              ],
+            ),
+          ],
         );
       },
     );
@@ -414,17 +441,131 @@ class _GothicBezel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       key: WebArcadeFrame.frameKey,
       width: width,
       height: height,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(BrimstoneRadii.radiusLG),
-        border: BrimstoneBorders.bold,
-        boxShadow: BrimstoneShadows.level3,
+      child: Stack(
+        children: [
+          // Metal chassis: beveled gold rim + obsidian body + inner shadow.
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(26),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF3A2E18),
+                    Color(0xFF14100A),
+                    Color(0xFF2A2012),
+                    Color(0xFF0A0806),
+                  ],
+                  stops: [0.0, 0.35, 0.72, 1.0],
+                ),
+                border: Border.all(
+                  color: BrimstoneAccents.goldPrimary.withValues(alpha: 0.65),
+                  width: 1.4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.85),
+                    blurRadius: 48,
+                    spreadRadius: 6,
+                  ),
+                  BoxShadow(
+                    color: BrimstoneAccents.goldPrimary.withValues(alpha: 0.18),
+                    blurRadius: 60,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Rivets at the four corners of the chassis.
+          ...<Alignment>[
+            Alignment.topLeft,
+            Alignment.topRight,
+            Alignment.bottomLeft,
+            Alignment.bottomRight,
+          ].map(
+            (a) => Align(
+              alignment: a,
+              child: Padding(
+                padding: const EdgeInsets.all(7),
+                child: Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: BrimstoneAccents.goldBright,
+                    boxShadow: [
+                      BoxShadow(
+                        color:
+                            BrimstoneAccents.goldPrimary.withValues(alpha: 0.6),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Screen, inset inside the chassis.
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.all(9),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(19),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    child,
+                    // Glass sheen + inner vignette (non-interactive).
+                    const IgnorePointer(child: _ScreenGlass()),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-      child: child,
+    );
+  }
+}
+
+/// Static glass glaze over the cabinet screen: top sheen, bevel light and an
+/// inner vignette so the UI reads as a lit CRT behind curved glass.
+class _ScreenGlass extends StatelessWidget {
+  const _ScreenGlass();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.05),
+            Colors.transparent,
+            Colors.black.withValues(alpha: 0.16),
+          ],
+          stops: const [0.0, 0.32, 1.0],
+        ),
+        border: Border.all(
+          color: Colors.black.withValues(alpha: 0.55),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.6),
+            blurRadius: 18,
+            spreadRadius: 0,
+            offset: Offset.zero,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -441,35 +582,100 @@ class _SidePanelLeft extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: BrimstoneSpacing.spaceLG),
         padding: const EdgeInsets.symmetric(
           horizontal: BrimstoneSpacing.spaceLG,
-          vertical: BrimstoneSpacing.spaceSM,
+          vertical: BrimstoneSpacing.spaceMD,
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
           border: BrimstoneBorders.standard,
           gradient: BrimstoneGradients.cardBase,
+          boxShadow: [
+            BoxShadow(
+              color: BrimstoneAccents.goldPrimary.withValues(alpha: 0.16),
+              blurRadius: 24,
+            ),
+          ],
         ),
-        child: Row(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.local_fire_department,
-              color: BrimstoneElements.igneous,
-              size: 20,
+            // Gilded sigil above the wordmark.
+            const _BrimstoneSigil(size: 56),
+            const SizedBox(height: 12),
+            Text(
+              'BRIMSTONE: THE SUMMONING',
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: BrimstoneTypography.chapterTitle.copyWith(
+                color: BrimstoneAccents.goldBright,
+                fontSize: 16,
+                letterSpacing: 3,
+              ),
             ),
-            const SizedBox(width: BrimstoneSpacing.spaceSM),
-            Flexible(
-              child: Text(
-                'BRIMSTONE: THE SUMMONING',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: BrimstoneTypography.headingSM.copyWith(
-                  color: BrimstoneAccents.voidPurple,
-                  letterSpacing: 3,
+            const SizedBox(height: 6),
+            Text(
+              'EL SELLO DE LA GRIETA AGUARDA',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: BrimstoneTypography.labelSM.copyWith(
+                color: BrimstoneAccents.voidPurple,
+                letterSpacing: 2.4,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: 90,
+              height: 1,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    BrimstoneAccents.goldPrimary,
+                    Colors.transparent,
+                  ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Hand-drawn gold emblem: a flaming tear inside an arcane halo.
+class _BrimstoneSigil extends StatelessWidget {
+  const _BrimstoneSigil({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const RadialGradient(
+          colors: [Color(0xFF2A1A0A), Color(0xFF0B0705)],
+        ),
+        border: Border.all(
+          color: BrimstoneAccents.goldPrimary.withValues(alpha: 0.8),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: BrimstoneElements.igneous.withValues(alpha: 0.35),
+            blurRadius: 18,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Icon(
+        Icons.local_fire_department,
+        color: BrimstoneAccents.goldBright,
+        size: size * 0.52,
       ),
     );
   }

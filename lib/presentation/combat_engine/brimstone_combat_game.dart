@@ -25,6 +25,10 @@ class BrimstoneCombatGame extends FlameGame {
   double shakeX = 0;
   double shakeY = 0;
 
+  /// True while the player is dragging an orb upward. The reticle uses it to
+  /// bloom its "locked" shockwave rings.
+  bool draggingOrb = false;
+
   BrimstoneCombatGame({
     required this.engine,
     this.onVictory,
@@ -47,6 +51,7 @@ class BrimstoneCombatGame extends FlameGame {
       BossTargetReticle(this),
       OrbProjectile25D(this),
       EnemyCorruptedOrb(this),
+      ArenaForeground25D(this),
       FloatingCombatText(this),
       // MergeTrayComponent REMOVED - tray is now a Flutter widget overlay
     ]);

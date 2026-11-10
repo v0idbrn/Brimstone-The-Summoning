@@ -11,6 +11,8 @@ import '../../../domain/roguelite/rift_run.dart';
 import '../../../domain/roguelite/abyssal_events.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
+import '../../graphics/art_registry.dart';
+import '../../graphics/painted_backdrop.dart';
 import '../combat/combat_screen.dart';
 import '../combat/loot_chest_modal.dart';
 import '../story/story_scene_modal.dart';
@@ -650,16 +652,22 @@ class _ChapterBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.center,
-            radius: 1.5,
-            colors: [
-              _color.withValues(alpha: 0.08),
-              const Color(0xFF0C0608),
-              const Color(0xFF0C0608),
-            ],
+      child: PaintedBackdrop(
+        asset: ArtRegistry.chapterBackground(chapterNumber),
+        tint: _color,
+        darkness: 0.8,
+        embers: false,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment.center,
+              radius: 1.35,
+              colors: [
+                _color.withValues(alpha: 0.10),
+                const Color(0xFF0C0608).withValues(alpha: 0.55),
+                const Color(0xFF0C0608),
+              ],
+            ),
           ),
         ),
       ),

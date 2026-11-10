@@ -8,6 +8,8 @@ import '../../../domain/campaign/campaign_chapters.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/combat/combat_models.dart';
 import '../../controllers/meta_controller.dart';
+import '../../graphics/art_registry.dart';
+import '../../graphics/painted_backdrop.dart';
 import '../../widgets/brimstone_button.dart';
 import '../../widgets/tcg_card_widget.dart';
 import '../../widgets/interactive_pressable.dart';
@@ -457,308 +459,315 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(14),
-        children: [
-          Row(
-            children: [
-              Expanded(child: const CurrencyBar()),
-              const SizedBox(width: 8),
-              BrimstoneButton(
-                label: 'EMPORIO',
-                icon: Icons.store,
-                onPressed: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: const Color(0xFF14090D),
-                  builder: (_) => const BrimstoneShopModal(),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Header de Invocador ornamentado
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF22111A),
-                  Color(0xFF140810),
-                  Color(0xFF0D040A)
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: const Color(0xFFD4AF37),
-                width: 1.5,
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x33D4AF37),
-                  blurRadius: 10,
-                  spreadRadius: 1,
+      body: PaintedBackdrop(
+        asset: ArtRegistry.sanctuaryBlur,
+        tint: BrimstoneAccents.voidPurple,
+        darkness: 0.66,
+        child: ListView(
+          padding: const EdgeInsets.all(14),
+          children: [
+            Row(
+              children: [
+                Expanded(child: const CurrencyBar()),
+                const SizedBox(width: 8),
+                BrimstoneButton(
+                  label: 'EMPORIO',
+                  icon: Icons.store,
+                  onPressed: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: const Color(0xFF14090D),
+                    builder: (_) => const BrimstoneShopModal(),
+                  ),
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const RadialGradient(
-                      colors: [
-                        Color(0xFFFFD700),
-                        Color(0xFFFF5A26),
-                        Color(0xFF2E050C)
+            const SizedBox(height: 10),
+            // Header de Invocador ornamentado
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF22111A),
+                    Color(0xFF140810),
+                    Color(0xFF0D040A)
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFD4AF37),
+                  width: 1.5,
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33D4AF37),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const RadialGradient(
+                        colors: [
+                          Color(0xFFFFD700),
+                          Color(0xFFFF5A26),
+                          Color(0xFF2E050C)
+                        ],
+                      ),
+                      border: Border.all(
+                          color: const Color(0xFFD4AF37), width: 1.5),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.shield, color: Colors.white, size: 24),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'INVOCADOR DEL AZUFRE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                            letterSpacing: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _equippedTitleName(),
+                          style: const TextStyle(
+                            color: Color(0xFFFFD700),
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
-                    border:
-                        Border.all(color: const Color(0xFFD4AF37), width: 1.5),
                   ),
-                  child: const Center(
-                    child: Icon(Icons.shield, color: Colors.white, size: 24),
-                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _MetaActionsPanel(
+              onTalentTree: _openTalentTree,
+              onGear: _openTalentTree,
+              onChallenges: _openChallenges,
+              onTraining: _openTraining,
+              onProfile: _openProfile,
+              onSettings: _openSettings,
+              onMerchant: _openMerchant,
+              onCodex: _openCodex,
+              onBounties: _openBounties,
+              onBackup: _openBackup,
+            ),
+            const SizedBox(height: 12),
+            // Battle Pass Progress Bar
+            _battlePassProgressBar(
+              xp: _battlePassXp,
+              level: _battlePassLevel,
+              onTap: () => BattlePassModal.show(context),
+            ),
+            const SizedBox(height: 12),
+            // Altar del Escuadrón con PWR total y TcgCardWidget
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF140810),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
+                  width: 1.2,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'INVOCADOR DEL AZUFRE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
-                          letterSpacing: 1.4,
+                      Flexible(
+                        child: Text(
+                          'ALTAR DEL ESCUADRÓN',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Color(0xFFD4AF37),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                            letterSpacing: 1.2,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _equippedTitleName(),
-                        style: const TextStyle(
-                          color: Color(0xFFFFD700),
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'PWR TOTAL: ${squad.fold<int>(0, (sum, c) => sum + c.baseAttack)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFFF9E2C),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _MetaActionsPanel(
-            onTalentTree: _openTalentTree,
-            onGear: _openTalentTree,
-            onChallenges: _openChallenges,
-            onTraining: _openTraining,
-            onProfile: _openProfile,
-            onSettings: _openSettings,
-            onMerchant: _openMerchant,
-            onCodex: _openCodex,
-            onBounties: _openBounties,
-            onBackup: _openBackup,
-          ),
-          const SizedBox(height: 12),
-          // Battle Pass Progress Bar
-          _battlePassProgressBar(
-            xp: _battlePassXp,
-            level: _battlePassLevel,
-            onTap: () => BattlePassModal.show(context),
-          ),
-          const SizedBox(height: 12),
-          // Altar del Escuadrón con PWR total y TcgCardWidget
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF140810),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: const Color(0xFFD4AF37).withValues(alpha: 0.5),
-                width: 1.2,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'ALTAR DEL ESCUADRÓN',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Color(0xFFD4AF37),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 11,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        'PWR TOTAL: ${squad.fold<int>(0, (sum, c) => sum + c.baseAttack)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFFF9E2C),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    for (var i = 0; i < 4; i++)
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(right: i == 3 ? 0 : 6),
-                          child: (i < squad.length)
-                              ? AspectRatio(
-                                  aspectRatio: 0.72,
-                                  child: TcgCardWidget.fromOwnedCard(
-                                    card: squad[i],
-                                    isLeader: i == 0,
-                                    raised: true,
-                                  ),
-                                )
-                              : AspectRatio(
-                                  aspectRatio: 0.72,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF0C0508),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: Colors.white12),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      for (var i = 0; i < 4; i++)
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(right: i == 3 ? 0 : 6),
+                            child: (i < squad.length)
+                                ? AspectRatio(
+                                    aspectRatio: 0.72,
+                                    child: TcgCardWidget.fromOwnedCard(
+                                      card: squad[i],
+                                      isLeader: i == 0,
+                                      raised: true,
                                     ),
-                                    child: const Center(
-                                      child: Icon(Icons.add,
-                                          color: Colors.white24),
+                                  )
+                                : AspectRatio(
+                                    aspectRatio: 0.72,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0C0508),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border:
+                                            Border.all(color: Colors.white12),
+                                      ),
+                                      child: const Center(
+                                        child: Icon(Icons.add,
+                                            color: Colors.white24),
+                                      ),
                                     ),
                                   ),
-                                ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Banner de sinergia activa.
-          if (synergy.isActive)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A0E14),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFB16EFF), width: 1.5),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.auto_awesome,
-                    color: Color(0xFFB16EFF),
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          synergy.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
                           ),
                         ),
-                        Text(
-                          synergy.description,
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 10,
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
                 ],
               ),
             ),
-          const SizedBox(height: 18),
-          const Text(
-            'Capítulos de la Campaña',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-          const SizedBox(height: 8),
-          ...campaignChapters.map(_chapterTile),
-          const SizedBox(height: 18),
-          BrimstoneButton(
-            width: double.infinity,
-            height: 52,
-            icon: Icons.play_arrow,
-            label: _chapterLocked
-                ? 'CAPÍTULO BLOQUEADO'
-                : 'INICIAR INCURSIÓN DE GRIETA',
-            onPressed: _chapterLocked ? null : _startChapter,
-          ),
-          const SizedBox(height: 12),
-          BrimstoneButton(
-            isSecondary: true,
-            width: double.infinity,
-            height: 50,
-            icon: Icons.rocket_launch,
-            label: _highestEndlessWave > 0
-                ? 'ABISMO SIN FIN (RÉCORD: OLA $_highestEndlessWave)'
-                : 'ABISMO SIN FIN (ENDLESS)',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const EndlessAbyssScreen(),
+            const SizedBox(height: 12),
+            // Banner de sinergia activa.
+            if (synergy.isActive)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A0E14),
+                  borderRadius: BorderRadius.circular(12),
+                  border:
+                      Border.all(color: const Color(0xFFB16EFF), width: 1.5),
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-          // Block 2: Cacería de Titanes (World Boss Raids)
-          BrimstoneButton(
-            width: double.infinity,
-            height: 52,
-            icon: Icons.dangerous,
-            label: '🐉 CACERÍA DE TITANES (RAID)',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const AbyssalRaidScreen(),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome,
+                      color: Color(0xFFB16EFF),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            synergy.name,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            synergy.description,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 10,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 14),
-          const Center(
-            child: Text(
-              'Forja esferas, invoca cartas, evoluciona tu escuadrón y sella la Grieta.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white24, fontSize: 11),
+              ),
+            const SizedBox(height: 18),
+            const Text(
+              'Capítulos de la Campaña',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            ...campaignChapters.map(_chapterTile),
+            const SizedBox(height: 18),
+            BrimstoneButton(
+              width: double.infinity,
+              height: 52,
+              icon: Icons.play_arrow,
+              label: _chapterLocked
+                  ? 'CAPÍTULO BLOQUEADO'
+                  : 'INICIAR INCURSIÓN DE GRIETA',
+              onPressed: _chapterLocked ? null : _startChapter,
+            ),
+            const SizedBox(height: 12),
+            BrimstoneButton(
+              isSecondary: true,
+              width: double.infinity,
+              height: 50,
+              icon: Icons.rocket_launch,
+              label: _highestEndlessWave > 0
+                  ? 'ABISMO SIN FIN (RÉCORD: OLA $_highestEndlessWave)'
+                  : 'ABISMO SIN FIN (ENDLESS)',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const EndlessAbyssScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            // Block 2: Cacería de Titanes (World Boss Raids)
+            BrimstoneButton(
+              width: double.infinity,
+              height: 52,
+              icon: Icons.dangerous,
+              label: '🐉 CACERÍA DE TITANES (RAID)',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AbyssalRaidScreen(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            const Center(
+              child: Text(
+                'Forja esferas, invoca cartas, evoluciona tu escuadrón y sella la Grieta.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white24, fontSize: 11),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -981,13 +990,17 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
                 const Icon(Icons.military_tech,
                     color: Color(0xFFFFC93C), size: 18),
                 const SizedBox(width: 6),
-                const Text(
-                  'PASE DEL SELLO ABISAL',
-                  style: TextStyle(
-                    color: Color(0xFFFFC93C),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
+                const Flexible(
+                  child: Text(
+                    'PASE DEL SELLO ABISAL',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color(0xFFFFC93C),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
                 const Spacer(),

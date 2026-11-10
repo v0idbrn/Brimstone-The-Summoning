@@ -74,43 +74,147 @@ class BrimstoneRadii {
   static const double radiusFull = 999;
 }
 
+/// Dark-fantasy type system.
+///
+/// * **Cinzel** — chapters, bosses, card names and primary buttons. Its
+///   engraved Roman capitals are the signature of the setting.
+/// * **Inter** — body copy, labels and every number (tabulated so HP, gold and
+///   mana never jitter).
+///
+/// Both families ship inside `assets/fonts/`, so no runtime download happens and
+/// widget tests stay offline-safe.
+class BrimstoneFonts {
+  const BrimstoneFonts._();
+
+  static const String display = 'Cinzel';
+  static const String body = 'Inter';
+
+  static TextStyle cinzel({
+    double size = 16,
+    FontWeight weight = FontWeight.w800,
+    Color color = BrimstoneAccents.textPrimary,
+    double letterSpacing = 1.0,
+    double height = 1.2,
+    List<Shadow>? shadows,
+  }) =>
+      TextStyle(
+        fontFamily: display,
+        fontSize: size,
+        fontWeight: weight,
+        fontVariations: [FontVariation('wght', weight.value.toDouble())],
+        letterSpacing: letterSpacing,
+        height: height,
+        color: color,
+        shadows: shadows,
+      );
+
+  static TextStyle sans({
+    double size = 12,
+    FontWeight weight = FontWeight.w500,
+    Color color = BrimstoneAccents.textSecondary,
+    double letterSpacing = 0.2,
+    double height = 1.4,
+    bool tabular = false,
+  }) =>
+      TextStyle(
+        fontFamily: body,
+        fontSize: size,
+        fontWeight: weight,
+        letterSpacing: letterSpacing,
+        height: height,
+        color: color,
+        fontFeatures: tabular ? const [FontFeature.tabularFigures()] : null,
+      );
+}
+
 /// Typography with clear hierarchy and tabular figures for numbers.
 class BrimstoneTypography {
-  // Display / Headings
+  // Display / Headings — engraved Cinzel capitals.
   static const TextStyle headingXL = TextStyle(
+    fontFamily: BrimstoneFonts.display,
     fontSize: 22,
     fontWeight: FontWeight.w900,
-    letterSpacing: 1.1,
+    fontVariations: [FontVariation('wght', 900)],
+    letterSpacing: 1.4,
     height: 1.2,
     color: BrimstoneAccents.textPrimary,
   );
 
   static const TextStyle headingLG = TextStyle(
+    fontFamily: BrimstoneFonts.display,
     fontSize: 18,
     fontWeight: FontWeight.w800,
-    letterSpacing: 1.1,
+    fontVariations: [FontVariation('wght', 800)],
+    letterSpacing: 1.3,
     height: 1.25,
     color: BrimstoneAccents.textPrimary,
   );
 
   static const TextStyle headingMD = TextStyle(
+    fontFamily: BrimstoneFonts.display,
     fontSize: 15,
     fontWeight: FontWeight.w700,
-    letterSpacing: 1.0,
+    fontVariations: [FontVariation('wght', 700)],
+    letterSpacing: 1.1,
     height: 1.3,
     color: BrimstoneAccents.textPrimary,
   );
 
   static const TextStyle headingSM = TextStyle(
+    fontFamily: BrimstoneFonts.display,
     fontSize: 13,
     fontWeight: FontWeight.w800,
+    fontVariations: [FontVariation('wght', 800)],
     letterSpacing: 1.2,
     height: 1.3,
     color: BrimstoneAccents.textPrimary,
   );
 
-  // Body text
+  /// Chapter banner title (Cinzel Black with a gilded glow).
+  static const TextStyle chapterTitle = TextStyle(
+    fontFamily: BrimstoneFonts.display,
+    fontSize: 17,
+    fontWeight: FontWeight.w900,
+    fontVariations: [FontVariation('wght', 900)],
+    letterSpacing: 1.8,
+    height: 1.15,
+    color: BrimstoneAccents.goldBright,
+    shadows: [
+      Shadow(color: Color(0xCC000000), blurRadius: 6, offset: Offset(0, 2)),
+      Shadow(color: Color(0x66C8A24B), blurRadius: 12),
+    ],
+  );
+
+  /// Boss nameplate (Cinzel 900, crimson aura).
+  static const TextStyle bossName = TextStyle(
+    fontFamily: BrimstoneFonts.display,
+    fontSize: 14,
+    fontWeight: FontWeight.w900,
+    fontVariations: [FontVariation('wght', 900)],
+    letterSpacing: 1.2,
+    height: 1.2,
+    color: BrimstoneAccents.textPrimary,
+    shadows: [
+      Shadow(color: Color(0xAA9E1B24), blurRadius: 8),
+      Shadow(color: Color(0xCC000000), blurRadius: 3),
+    ],
+  );
+
+  /// Card name inside the foil frame.
+  static const TextStyle cardName = TextStyle(
+    fontFamily: BrimstoneFonts.display,
+    fontSize: 10.5,
+    fontWeight: FontWeight.w700,
+    fontVariations: [FontVariation('wght', 700)],
+    letterSpacing: 0.5,
+    height: 1.1,
+    color: Colors.white,
+    shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+  );
+
+  // Body text — Inter.
   static const TextStyle bodyLG = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 14,
     fontWeight: FontWeight.w500,
     letterSpacing: 0.2,
@@ -119,6 +223,7 @@ class BrimstoneTypography {
   );
 
   static const TextStyle bodyMD = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 12,
     fontWeight: FontWeight.w500,
     letterSpacing: 0.2,
@@ -127,6 +232,7 @@ class BrimstoneTypography {
   );
 
   static const TextStyle bodySM = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 11,
     fontWeight: FontWeight.w500,
     letterSpacing: 0.3,
@@ -135,6 +241,7 @@ class BrimstoneTypography {
   );
 
   static const TextStyle bodyXS = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 10,
     fontWeight: FontWeight.w500,
     letterSpacing: 0.3,
@@ -142,8 +249,9 @@ class BrimstoneTypography {
     color: BrimstoneAccents.textMuted,
   );
 
-  // Numeric / Monospace with tabular figures (CRITICAL for HP, Gold, Mana, DPS)
+  // Numeric / tabular figures (CRITICAL for HP, Gold, Mana, DPS)
   static const TextStyle numericMono = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 14,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.5,
@@ -153,6 +261,7 @@ class BrimstoneTypography {
   );
 
   static const TextStyle numericMonoLG = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 16,
     fontWeight: FontWeight.w800,
     letterSpacing: 0.5,
@@ -162,6 +271,7 @@ class BrimstoneTypography {
   );
 
   static const TextStyle numericMonoSM = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 11,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.4,
@@ -171,6 +281,7 @@ class BrimstoneTypography {
   );
 
   static const TextStyle numericMonoXS = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 9,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.3,
@@ -181,6 +292,7 @@ class BrimstoneTypography {
 
   // Labels / Captions
   static const TextStyle labelLG = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 11,
     fontWeight: FontWeight.w800,
     letterSpacing: 1.0,
@@ -189,6 +301,7 @@ class BrimstoneTypography {
   );
 
   static const TextStyle labelMD = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 10,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.8,
@@ -197,6 +310,7 @@ class BrimstoneTypography {
   );
 
   static const TextStyle labelSM = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 9,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.6,
@@ -205,6 +319,7 @@ class BrimstoneTypography {
   );
 
   static const TextStyle labelXS = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 8,
     fontWeight: FontWeight.w800,
     letterSpacing: 0.5,
@@ -214,28 +329,34 @@ class BrimstoneTypography {
 
   // Status badges
   static TextStyle badge(Color color) => TextStyle(
+        fontFamily: BrimstoneFonts.body,
         fontSize: 8,
         fontWeight: FontWeight.w900,
         letterSpacing: 0.5,
         color: color,
       );
 
-  // Button text
+  // Button text — Cinzel engraved capitals.
   static const TextStyle buttonPrimary = TextStyle(
-    fontSize: 13,
-    fontWeight: FontWeight.w900,
-    letterSpacing: 0.8,
+    fontFamily: BrimstoneFonts.display,
+    fontSize: 12,
+    fontWeight: FontWeight.w800,
+    fontVariations: [FontVariation('wght', 800)],
+    letterSpacing: 1.2,
     color: BrimstoneAccents.textOnGold,
   );
 
   static const TextStyle buttonSecondary = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w800,
-    letterSpacing: 0.6,
+    fontFamily: BrimstoneFonts.display,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    fontVariations: [FontVariation('wght', 700)],
+    letterSpacing: 1.0,
     color: BrimstoneAccents.goldPrimary,
   );
 
   static const TextStyle buttonGhost = TextStyle(
+    fontFamily: BrimstoneFonts.body,
     fontSize: 12,
     fontWeight: FontWeight.w700,
     letterSpacing: 0.5,
@@ -452,6 +573,9 @@ class BrimstoneTokens {
   static const TextStyle headingLG = BrimstoneTypography.headingLG;
   static const TextStyle headingMD = BrimstoneTypography.headingMD;
   static const TextStyle headingSM = BrimstoneTypography.headingSM;
+  static const TextStyle chapterTitle = BrimstoneTypography.chapterTitle;
+  static const TextStyle bossName = BrimstoneTypography.bossName;
+  static const TextStyle cardName = BrimstoneTypography.cardName;
   static const TextStyle bodyLG = BrimstoneTypography.bodyLG;
   static const TextStyle bodyMD = BrimstoneTypography.bodyMD;
   static const TextStyle bodySM = BrimstoneTypography.bodySM;

@@ -7,6 +7,8 @@ import '../../../domain/meta/rune_system.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
+import '../../graphics/art_registry.dart';
+import '../../graphics/painted_backdrop.dart';
 import '../../widgets/brimstone_button.dart';
 import '../../widgets/tcg_card_widget.dart';
 import '../meta/widgets.dart';
@@ -62,122 +64,129 @@ class _BarracksScreenState extends ConsumerState<BarracksScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const CurrencyBar(),
-          const SizedBox(height: 4),
-          // Deck Preset Selector + Auto-Arm
-          _buildDeckPresetSelector(deckPresets, collection),
-          const SizedBox(height: 8),
-          // Squad slots (tap to remove).
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                for (var slot = 0; slot < 4; slot++)
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: slot == 3 ? 0 : 6),
-                      child: _squadSlot(collection, slot),
+      body: PaintedBackdrop(
+        asset: ArtRegistry.metaScenes['barracks']!,
+        tint: const Color(0xFF4FFFA3),
+        darkness: 0.72,
+        child: Column(
+          children: [
+            const CurrencyBar(),
+            const SizedBox(height: 4),
+            // Deck Preset Selector + Auto-Arm
+            _buildDeckPresetSelector(deckPresets, collection),
+            const SizedBox(height: 8),
+            // Squad slots (tap to remove).
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  for (var slot = 0; slot < 4; slot++)
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: slot == 3 ? 0 : 6),
+                        child: _squadSlot(collection, slot),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          // Sinergia activa del escuadrón (banner en vivo).
-          _synergyBanner(collection),
-          const SizedBox(height: 8),
-          // Filters.
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 6,
-                  children: [
-                    FilterChip(
-                      label: const Text('Ígneo'),
-                      selected: _filterElement == Element.igneous,
-                      onSelected: (_) => setState(
-                        () => _filterElement = _filterElement == Element.igneous
-                            ? null
-                            : Element.igneous,
-                      ),
-                    ),
-                    FilterChip(
-                      label: const Text('Abisal'),
-                      selected: _filterElement == Element.abyssal,
-                      onSelected: (_) => setState(
-                        () => _filterElement = _filterElement == Element.abyssal
-                            ? null
-                            : Element.abyssal,
-                      ),
-                    ),
-                    FilterChip(
-                      label: const Text('Telúrico'),
-                      selected: _filterElement == Element.telluric,
-                      onSelected: (_) => setState(
-                        () => _filterElement =
-                            _filterElement == Element.telluric
-                                ? null
-                                : Element.telluric,
-                      ),
-                    ),
-                    FilterChip(
-                      label: const Text('Vacío'),
-                      selected: _filterElement == Element.empty,
-                      onSelected: (_) => setState(
-                        () => _filterElement = _filterElement == Element.empty
-                            ? null
-                            : Element.empty,
-                      ),
-                    ),
-                  ],
-                ),
-                Wrap(
-                  spacing: 6,
-                  children: [
-                    for (final stars in [1, 2, 3, 4])
+            const SizedBox(height: 8),
+            // Sinergia activa del escuadrón (banner en vivo).
+            _synergyBanner(collection),
+            const SizedBox(height: 8),
+            // Filters.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    children: [
                       FilterChip(
-                        label: Text('★' * stars),
-                        selected: _filterStars == stars,
+                        label: const Text('Ígneo'),
+                        selected: _filterElement == Element.igneous,
                         onSelected: (_) => setState(
-                          () => _filterStars =
-                              _filterStars == stars ? null : stars,
+                          () => _filterElement =
+                              _filterElement == Element.igneous
+                                  ? null
+                                  : Element.igneous,
                         ),
                       ),
-                    if (_filterElement != null || _filterStars != null)
-                      TextButton(
-                        onPressed: () => setState(() {
-                          _filterElement = null;
-                          _filterStars = null;
-                        }),
-                        child: const Text('Limpiar'),
+                      FilterChip(
+                        label: const Text('Abisal'),
+                        selected: _filterElement == Element.abyssal,
+                        onSelected: (_) => setState(
+                          () => _filterElement =
+                              _filterElement == Element.abyssal
+                                  ? null
+                                  : Element.abyssal,
+                        ),
                       ),
-                  ],
+                      FilterChip(
+                        label: const Text('Telúrico'),
+                        selected: _filterElement == Element.telluric,
+                        onSelected: (_) => setState(
+                          () => _filterElement =
+                              _filterElement == Element.telluric
+                                  ? null
+                                  : Element.telluric,
+                        ),
+                      ),
+                      FilterChip(
+                        label: const Text('Vacío'),
+                        selected: _filterElement == Element.empty,
+                        onSelected: (_) => setState(
+                          () => _filterElement = _filterElement == Element.empty
+                              ? null
+                              : Element.empty,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      for (final stars in [1, 2, 3, 4])
+                        FilterChip(
+                          label: Text('★' * stars),
+                          selected: _filterStars == stars,
+                          onSelected: (_) => setState(
+                            () => _filterStars =
+                                _filterStars == stars ? null : stars,
+                          ),
+                        ),
+                      if (_filterElement != null || _filterStars != null)
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _filterElement = null;
+                            _filterStars = null;
+                          }),
+                          child: const Text('Limpiar'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.all(12),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 0.74,
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 0.74,
-              ),
-              itemCount: cards.length,
-              itemBuilder: (context, i) => CardTileSmall(
-                card: cards[i],
-                onTap: () => _showInspector(context, cards[i]),
+                itemCount: cards.length,
+                itemBuilder: (context, i) => CardTileSmall(
+                  card: cards[i],
+                  onTap: () => _showInspector(context, cards[i]),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

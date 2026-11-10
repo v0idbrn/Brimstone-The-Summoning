@@ -7,6 +7,9 @@ import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../domain/entities/owned_card.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
+import '../../graphics/art_registry.dart';
+import '../../graphics/painted_backdrop.dart';
+import '../../graphics/rift_effect.dart';
 import '../../screens/meta/widgets.dart';
 import '../../widgets/tcg_card_widget.dart';
 
@@ -194,84 +197,98 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
           ),
         ),
       ),
-      body: Column(
-        children: [
-          const CurrencyBar(),
-          // Banner Selector
-          _BannerSelector(
-            banners: banners,
-            activeBanner: _activeBanner,
-            onChanged: _setActiveBanner,
-          ),
-          // Pity Counter Bar
-          _PityCounterBar(
-            pityCounter: _pityCounter,
-            activeBanner: _activeBanner,
-            banners: banners,
-          ),
-          // Daily Free Summon Indicator
-          if (_freeSummonAvailable)
-            _DailyFreeSummonBanner(
-                onTap: () => _summon(grandRitual: false, free: true)),
-          Expanded(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                AnimatedBuilder(
-                  animation: _spin,
-                  builder: (context, _) => CustomPaint(
-                    size: const Size(300, 300),
-                    painter: _RuneCirclePainter(
-                      angle: _spin.value * 2 * math.pi,
+      body: PaintedBackdrop(
+        asset: ArtRegistry.portalBlur,
+        tint: const Color(0xFF8B4FD9),
+        darkness: 0.64,
+        child: Column(
+          children: [
+            const CurrencyBar(),
+            // Banner Selector
+            _BannerSelector(
+              banners: banners,
+              activeBanner: _activeBanner,
+              onChanged: _setActiveBanner,
+            ),
+            // Pity Counter Bar
+            _PityCounterBar(
+              pityCounter: _pityCounter,
+              activeBanner: _activeBanner,
+              banners: banners,
+            ),
+            // Daily Free Summon Indicator
+            if (_freeSummonAvailable)
+              _DailyFreeSummonBanner(
+                  onTap: () => _summon(grandRitual: false, free: true)),
+            Expanded(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // GPU dimensional vortex behind the ritual circle.
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AbyssalRiftView(
+                        color: const Color(0xFF8B4FD9),
+                        intensity: 0.9,
+                      ),
                     ),
                   ),
-                ),
-                if (_channeling)
-                  const Text(
-                    'EL RITUAL SE CONSUMA...',
-                    style: TextStyle(
-                      color: Color(0xFFB16EFF),
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
+                  AnimatedBuilder(
+                    animation: _spin,
+                    builder: (context, _) => CustomPaint(
+                      size: const Size(300, 300),
+                      painter: _RuneCirclePainter(
+                        angle: _spin.value * 2 * math.pi,
+                      ),
                     ),
                   ),
-              ],
+                  if (_channeling)
+                    const Text(
+                      'EL RITUAL SE CONSUMA...',
+                      style: TextStyle(
+                        color: Color(0xFFB16EFF),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _SummonButton(
-                  title: _freeSummonAvailable
-                      ? '✨ INVOCACIÓN DIARIA GRATIS'
-                      : 'PACTO MENOR',
-                  subtitle: _freeSummonAvailable
-                      ? '0 Esquirlas (1 gratis por día)'
-                      : (minorShards
-                          ? '1 carta — 100 esquirlas'
-                          : minorGold
-                              ? '1 carta — 500 oro (sin esquirlas)'
-                              : 'Sin fondos suficientes'),
-                  enabled: !_channeling &&
-                      (_freeSummonAvailable || minorShards || minorGold),
-                  onTap: () =>
-                      _summon(grandRitual: false, free: _freeSummonAvailable),
-                  isFree: _freeSummonAvailable,
-                ),
-                const SizedBox(height: 10),
-                _SummonButton(
-                  title: 'GRAN RITUAL',
-                  subtitle: '5 cartas — 450 esquirlas · ≥1 épica garantizada',
-                  enabled: !_channeling && grand,
-                  onTap: () => _summon(grandRitual: true),
-                  isGrand: true,
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _SummonButton(
+                    title: _freeSummonAvailable
+                        ? '✨ INVOCACIÓN DIARIA GRATIS'
+                        : 'PACTO MENOR',
+                    subtitle: _freeSummonAvailable
+                        ? '0 Esquirlas (1 gratis por día)'
+                        : (minorShards
+                            ? '1 carta — 100 esquirlas'
+                            : minorGold
+                                ? '1 carta — 500 oro (sin esquirlas)'
+                                : 'Sin fondos suficientes'),
+                    enabled: !_channeling &&
+                        (_freeSummonAvailable || minorShards || minorGold),
+                    onTap: () =>
+                        _summon(grandRitual: false, free: _freeSummonAvailable),
+                    isFree: _freeSummonAvailable,
+                  ),
+                  const SizedBox(height: 10),
+                  _SummonButton(
+                    title: 'GRAN RITUAL',
+                    subtitle: '5 cartas — 450 esquirlas · ≥1 épica garantizada',
+                    enabled: !_channeling && grand,
+                    onTap: () => _summon(grandRitual: true),
+                    isGrand: true,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

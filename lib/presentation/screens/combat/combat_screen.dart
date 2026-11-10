@@ -21,6 +21,7 @@ import '../../../domain/value_objects/orb_level.dart';
 import '../../combat_engine/brimstone_combat_game.dart';
 import '../../controllers/meta_controller.dart';
 import '../../widgets/tcg_card_widget.dart';
+import 'hero_skill_cut_in.dart';
 import '../meta/how_to_play_modal.dart';
 import '../sanctuary/settings_modal.dart';
 
@@ -115,6 +116,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   // HellFire visual identity elements
   late final List<_ManaOrbParticle> _manaOrbParticles;
   int _chapterColorIndex = 0;
+
+  // Cinematic hero invocation banner (0.55 s, non-blocking).
+  HeroCutInData? _cutIn;
 
   CombatEngine get engine => _engine!;
 
@@ -319,6 +323,20 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     _engine!.onEnrage = () {
       ProceduralSfxEngine.playBossEnrage();
     };
+    // AAA cut-in: fires for manual taps and AUTO battle alike.
+    _engine!.onSkillCast = (card, index) {
+      if (!mounted) return;
+      setState(() {
+        _cutIn = HeroCutInData(
+          heroId: card.id,
+          heroName: card.name,
+          skillName: (CombatEngine.skillDescriptions[card.id] ?? card.name)
+              .split(' + ')
+              .first,
+          element: card.element,
+        );
+      });
+    };
     _engine!.onTrayChanged = () {
       if (mounted) setState(() {});
     };
@@ -516,6 +534,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         _draggedSlot = slot;
         _dragStartGlobalPos = d.globalPosition;
         _dragCurrentGlobalPos = d.globalPosition;
+        game.draggingOrb = true;
         engine.startDrag(slot, x, y);
         return;
       }
@@ -580,6 +599,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       }
     }
 
+    game.draggingOrb = false;
     setState(() {
       _draggedSlot = null;
       _dragStartGlobalPos = null;
@@ -805,6 +825,15 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                         ),
                       ),
                     ),
+                  // Cinematic hero invocation cut-in (diagonal band + impact)
+                  Positioned.fill(
+                    child: HeroSkillCutIn(
+                      data: _cutIn,
+                      onCompleted: () {
+                        if (mounted) setState(() => _cutIn = null);
+                      },
+                    ),
+                  ),
                   // Reaction banner
                   if (_reactionBanner != null)
                     Positioned(

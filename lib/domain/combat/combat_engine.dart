@@ -382,6 +382,10 @@ class CombatEngine {
       onHit;
   void Function(String)? onReaction;
 
+  /// Fired when a squad skill is successfully invoked. The battle screen uses
+  /// it to launch the cinematic hero "cut-in" banner.
+  void Function(ManaCard card, int index)? onSkillCast;
+
   /// Merge callback with exact engine (x, y) slot-center coordinates, resulting
   /// level and element.
   void Function(OrbLevel level, double x, double y, Element element)? onMerge;
@@ -1783,6 +1787,8 @@ class CombatEngine {
     }
     trauma = (trauma + 0.5).clamp(0.0, 1.0);
     hitStopRemaining = 0.045;
+    // Cinematic hook: fires once per successful invocation (also for AUTO).
+    onSkillCast?.call(c, index);
     return true;
   }
 

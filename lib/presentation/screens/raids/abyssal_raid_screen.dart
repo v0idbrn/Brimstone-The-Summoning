@@ -9,6 +9,8 @@ import '../../../domain/combat/combat_engine.dart';
 import '../../../domain/combat/combat_models.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
+import '../../graphics/art_registry.dart';
+import '../../graphics/painted_backdrop.dart';
 import '../../screens/combat/combat_screen.dart';
 import '../../widgets/brimstone_button.dart';
 
@@ -146,95 +148,105 @@ class _AbyssalRaidScreenState extends ConsumerState<AbyssalRaidScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF0A0008), Color(0xFF1A0010), Color(0xFF0D0015)],
+      body: PaintedBackdrop(
+        asset: ArtRegistry.raid,
+        tint: const Color(0xFF8B4FD9),
+        darkness: 0.7,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color(0xFF0A0008).withValues(alpha: 0.55),
+                const Color(0xFF1A0010).withValues(alpha: 0.35),
+                const Color(0xFF0D0015).withValues(alpha: 0.75),
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    BrimstoneButton(
-                      isSecondary: true,
-                      label: 'SANTUARIO',
-                      icon: Icons.arrow_back,
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '🐉 CACERÍA DE TITANES',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Color(0xFFFFD700),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.2,
-                          shadows: [
-                            Shadow(color: Color(0xFF8B0000), blurRadius: 4),
-                          ],
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      BrimstoneButton(
+                        isSecondary: true,
+                        label: 'SANTUARIO',
+                        icon: Icons.arrow_back,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '🐉 CACERÍA DE TITANES',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFFFFD700),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.2,
+                            shadows: [
+                              Shadow(color: Color(0xFF8B0000), blurRadius: 4),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, color: Colors.white70),
-                      onPressed: _loadRaidBosses,
-                    ),
-                  ],
-                ),
-              ),
-              // Timer indicator
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A0010),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF8B0000)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.timer, color: Color(0xFFFFD700), size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Cada incursión dura 60 segundos. El daño se acumula permanentemente.',
-                      style:
-                          const TextStyle(color: Colors.white70, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Boss List
-              Expanded(
-                child: _loading
-                    ? const Center(
-                        child:
-                            CircularProgressIndicator(color: Color(0xFFFFD700)))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _raidBosses.length,
-                        itemBuilder: (context, index) {
-                          final boss = _raidBosses[index];
-                          return _RaidBossCard(
-                            boss: boss,
-                            onTap: () => _startRaid(boss['id'] as String),
-                          );
-                        },
+                      const SizedBox(width: 12),
+                      IconButton(
+                        icon: const Icon(Icons.refresh, color: Colors.white70),
+                        onPressed: _loadRaidBosses,
                       ),
-              ),
-            ],
+                    ],
+                  ),
+                ),
+                // Timer indicator
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A0010),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF8B0000)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.timer,
+                          color: Color(0xFFFFD700), size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Cada incursión dura 60 segundos. El daño se acumula permanentemente.',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Boss List
+                Expanded(
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                              color: Color(0xFFFFD700)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _raidBosses.length,
+                          itemBuilder: (context, index) {
+                            final boss = _raidBosses[index];
+                            return _RaidBossCard(
+                              boss: boss,
+                              onTap: () => _startRaid(boss['id'] as String),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -308,9 +320,47 @@ class _RaidBossCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header: Name + Ascension + Element
+            // Header: painted titan portrait + Name + Ascension + Element
             Row(
               children: [
+                // Imposing titan medallion, blended into the elemental glow.
+                Container(
+                  width: 58,
+                  height: 58,
+                  margin: const EdgeInsets.only(right: 10),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isDefeated
+                          ? Colors.white24
+                          : elementColor.withValues(alpha: 0.8),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: elementColor.withValues(alpha: 0.45),
+                        blurRadius: 16,
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      ArtRegistry.portrait(_raidPortraitId(id)),
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.medium,
+                      errorBuilder: (_, __, ___) => ColoredBox(
+                        color: elementColor.withValues(alpha: 0.25),
+                        child: Center(
+                          child: Icon(
+                            Icons.local_fire_department,
+                            color: elementColor,
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -538,6 +588,15 @@ class _RaidBossCard extends ConsumerWidget {
       ),
     );
   }
+
+  /// Maps raid boss ids to their curated titan painting.
+  String _raidPortraitId(String id) => switch (id) {
+        'titan_igneous' => 'titan_bahamut',
+        'titan_abyssal' => 'titan_jormungandr',
+        'titan_telluric' => 'titan_atlas',
+        'titan_void' => 'titan_nyarlathotep',
+        _ => id,
+      };
 
   Color _elementColor(Element e) => switch (e) {
         Element.igneous => const Color(0xFFFF5A26),

@@ -69,7 +69,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/ignis_hound.webp',
+    portraitAsset: 'portraits/minion_ceniza_imp.webp',
     threatDialog: 'El fuego me consume... y a ti también.',
   ),
   CampaignEnemy(
@@ -84,7 +84,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/ignis_drake.webp',
+    portraitAsset: 'portraits/minion_ceniza_sabueso.webp',
     threatDialog: 'Mi amo Pyroth te hará cenizas.',
   ),
   CampaignEnemy(
@@ -99,7 +99,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/ignis_lord.webp',
+    portraitAsset: 'portraits/minion_ceniza_gargola.webp',
     threatDialog: 'La piedra arde bajo mis garras.',
   ),
   // Piso 4: Mini-Jefe
@@ -115,7 +115,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/ignis_colossus.webp',
+    portraitAsset: 'portraits/miniboss_ignarok.webp',
     threatDialog: 'La Forja de Ceniza arde bajo mi mando. ¡Nadie escapa!',
     furyDialog: '¡QUÉMENSE HASTA EL HUESO! El fuego no perdona.',
   ),
@@ -132,7 +132,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/ignis_seraph.webp',
+    portraitAsset: 'portraits/minion_ceniza_elemental.webp',
     threatDialog: 'El magma fluye por mis venas.',
   ),
   // Piso 7: Jefe Final
@@ -166,7 +166,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/abyss_stalker.webp',
+    portraitAsset: 'portraits/minion_fosa_acechador.webp',
     threatDialog: 'El frío te cala los huesos.',
   ),
   CampaignEnemy(
@@ -181,7 +181,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/abyss_siren.webp',
+    portraitAsset: 'portraits/minion_fosa_naga.webp',
     threatDialog: 'Vaelor reclamará tu calor.',
   ),
   CampaignEnemy(
@@ -196,7 +196,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/abyss_wraith.webp',
+    portraitAsset: 'portraits/minion_fosa_espectro.webp',
     threatDialog: 'El hielo eterno no conoce piedad.',
   ),
   CampaignEnemy(
@@ -211,7 +211,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/abyss_leviathan.webp',
+    portraitAsset: 'portraits/miniboss_cryon.webp',
     threatDialog: 'El Glaciar no perdona a los intrusos.',
     furyDialog: '¡ESCARCHA ABSOLUTA! El hielo me pertenece.',
   ),
@@ -227,7 +227,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/abyss_kraken.webp',
+    portraitAsset: 'portraits/minion_fosa_glaciar.webp',
     threatDialog: 'Mi hoja está forjada en hielo perpetuo.',
   ),
   CampaignEnemy(
@@ -260,7 +260,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/terra_golem.webp',
+    portraitAsset: 'portraits/minion_tectonico_centinela.webp',
     threatDialog: 'La roca aguanta. Tú no.',
   ),
   CampaignEnemy(
@@ -275,7 +275,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/terra_titan.webp',
+    portraitAsset: 'portraits/minion_tectonico_rompehuesos.webp',
     threatDialog: 'Gorgath aplasta a los débiles.',
   ),
   CampaignEnemy(
@@ -290,7 +290,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/terra_hydra.webp',
+    portraitAsset: 'portraits/minion_tectonico_vibora.webp',
     threatDialog: 'Mi veneno es polvo de estrellas.',
   ),
   CampaignEnemy(
@@ -305,7 +305,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/terra_behemoth.webp',
+    portraitAsset: 'portraits/miniboss_krag.webp',
     threatDialog: 'La montaña cae sobre ti.',
     furyDialog: '¡LA TIERRA TIEMBLA! Nada resiste al peso.',
   ),
@@ -321,7 +321,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/terra_warden.webp',
+    portraitAsset: 'portraits/minion_tectonico_golem.webp',
     threatDialog: 'Soy la roca que nunca se rompe.',
   ),
   CampaignEnemy(
@@ -354,7 +354,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/void_specter.webp',
+    portraitAsset: 'portraits/minion_velo_sombra.webp',
     threatDialog: 'La oscuridad todo lo consume.',
   ),
   CampaignEnemy(
@@ -369,7 +369,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_oracle.webp',
+    portraitAsset: 'portraits/minion_velo_acolitos.webp',
     threatDialog: 'Nyxara ve tu final.',
   ),
   CampaignEnemy(
@@ -384,7 +384,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_reaper.webp',
+    portraitAsset: 'portraits/minion_velo_larva.webp',
     threatDialog: 'Nací de las estrellas muertas.',
   ),
   CampaignEnemy(
@@ -399,7 +399,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/void_malakor.webp',
+    portraitAsset: 'portraits/miniboss_morvath.webp',
     threatDialog: 'El Velo se cierra sobre ti.',
     furyDialog: '¡LA NOCHE ETERNA! No hay escape del vacío.',
   ),
@@ -415,7 +415,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_archon.webp',
+    portraitAsset: 'portraits/minion_velo_phantom.webp',
     threatDialog: 'No hay luz que me alcance.',
   ),
   CampaignEnemy(
@@ -448,7 +448,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.5,
     projectilesPerAttack: 1,
     targetCount: 2,
-    portraitAsset: 'portraits/void_archon.webp',
+    portraitAsset: 'portraits/minion_tronco_caballero.webp',
     threatDialog: 'Mi lealtad es al Vacío.',
   ),
   CampaignEnemy(
@@ -463,7 +463,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 6.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_oracle.webp',
+    portraitAsset: 'portraits/minion_tronco_inquisidor.webp',
     threatDialog: 'Azathor exige tu rendición.',
   ),
   CampaignEnemy(
@@ -478,7 +478,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.5,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_specter.webp',
+    portraitAsset: 'portraits/minion_tronco_quimera.webp',
     threatDialog: 'Tres cabezas, un solo hambre.',
   ),
   CampaignEnemy(
@@ -493,7 +493,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 3,
     targetCount: 3,
-    portraitAsset: 'portraits/void_malakor.webp',
+    portraitAsset: 'portraits/miniboss_malphas.webp',
     threatDialog: 'El Trono del Sello Roto no conoce señor salvo Azathor.',
     furyDialog: '¡EL SELLO SE ROMPE! El Vacío lo devora todo.',
   ),
@@ -509,7 +509,7 @@ final List<CampaignEnemy> campaignEnemies = const [
     attackInterval: 5.0,
     projectilesPerAttack: 2,
     targetCount: 2,
-    portraitAsset: 'portraits/void_reaper.webp',
+    portraitAsset: 'portraits/minion_tronco_avanguardia.webp',
     threatDialog: 'Somos el filo de la nada.',
   ),
   CampaignEnemy(

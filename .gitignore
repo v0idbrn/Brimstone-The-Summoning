@@ -50,3 +50,6 @@ app.*.map.json
 # Local SQLite runtime data
 *.db
 *.db-journal
+
+# Asset pipeline scratch space (logs, downloads cache)
+tools/.cache/
