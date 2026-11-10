@@ -13,6 +13,7 @@ import 'presentation/screens/altar/altar_evolution_screen.dart';
 import 'presentation/screens/barracks/barracks_screen.dart';
 import 'presentation/screens/sanctuary/sanctuary_screen.dart';
 import 'presentation/screens/summon/summon_portal_screen.dart';
+import 'presentation/screens/title/title_splash_screen.dart';
 
 /// Clave del Navigator raíz: el guardián de errores la usa para volver
 /// a la raíz (Santuario) desde cualquier pila rota.
@@ -108,7 +109,9 @@ class BrimstoneApp extends StatelessWidget {
         child: WebArcadeFrame(child: child ?? const SizedBox.shrink()),
       ),
       navigatorKey: brimstoneNavigatorKey,
-      home: const HomeShell(),
+      // Puerta cinematográfica: el primer toque desbloquea el audio web y
+      // entrega el control al Santuario con un zoom + fundido.
+      home: const TitleGate(child: HomeShell()),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -119,9 +122,28 @@ class BrimstoneApp extends StatelessWidget {
       scaffoldBackgroundColor: BrimstoneTokens.bgAbyss,
       cardColor: BrimstoneTokens.surfaceBase,
       canvasColor: BrimstoneTokens.surfaceBase,
+      // Every dialog — including legacy Material ones — inherits the gothic
+      // shell: beveled gold rim, Cinzel heading, engraved body copy.
       dialogTheme: DialogThemeData(
         backgroundColor: BrimstoneTokens.surfaceElevated,
         surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(BrimstoneRadii.radiusMD),
+          side: BorderSide(
+            color: BrimstoneTokens.goldPrimary.withValues(alpha: 0.55),
+            width: 1.2,
+          ),
+        ),
+        titleTextStyle: BrimstoneFonts.cinzel(
+          size: 14,
+          weight: FontWeight.w900,
+          color: BrimstoneTokens.goldPrimary,
+          letterSpacing: 1.4,
+        ),
+        contentTextStyle: BrimstoneFonts.sans(
+          size: 12,
+          color: BrimstoneTokens.textPrimary,
+        ),
       ),
       shadowColor: Colors.black,
       dividerColor: BrimstoneAccents.goldMuted.withValues(alpha: 0.3),

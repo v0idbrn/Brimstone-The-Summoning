@@ -382,6 +382,9 @@ class CombatEngine {
       onHit;
   void Function(String)? onReaction;
 
+  /// Fired the moment the boss seal/shield shatters ("RUPTURA DE SELLO").
+  void Function()? onShieldBreak;
+
   /// Fired when a squad skill is successfully invoked. The battle screen uses
   /// it to launch the cinematic hero "cut-in" banner.
   void Function(ManaCard card, int index)? onSkillCast;
@@ -1339,6 +1342,7 @@ class CombatEngine {
   void _triggerShieldBreak() {
     if (bossShieldBroken) return;
     bossShieldBroken = true;
+    onShieldBreak?.call();
     bossBreakTimer = bossBreakDuration;
     // Stun boss: stop attacks for 5s.
     bossStunRemaining = bossBreakDuration;

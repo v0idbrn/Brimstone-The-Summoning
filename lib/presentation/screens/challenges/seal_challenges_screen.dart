@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme/design_tokens.dart';
 import '../../../domain/combat/combat_engine.dart';
 import '../../../domain/combat/combat_models.dart';
 import '../../../domain/meta/seal_challenge_rules.dart';
@@ -8,6 +9,7 @@ import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
 import '../combat/combat_screen.dart';
 import '../meta/widgets.dart';
+import '../../widgets/gothic_modal_frame.dart';
 
 /// Los 10 Desafíos del Sello: pruebas tácticas con mutadores que se evalúan
 /// dentro de [CombatEngine]. La primera victoria de cada prueba otorga
@@ -133,30 +135,33 @@ class _SealChallengesScreenState extends ConsumerState<SealChallengesScreen> {
             if (!mounted) return;
             await showDialog<void>(
               context: context,
-              builder: (_) => AlertDialog(
-                backgroundColor: const Color(0xFF14090D),
-                title: Text(
-                  challenge.title.toUpperCase(),
-                  style: const TextStyle(
-                    color: Color(0xFF4FFFA3),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                  ),
-                ),
-                content: Text(
-                  firstWin
-                      ? 'Sello superado. Primera victoria: '
-                          '+${challenge.rewardShards} esquirlas, '
-                          '+${challenge.rewardGold} oro.'
-                      : 'Sello superado de nuevo. Ya cobraste la recompensa.',
-                  style: const TextStyle(color: Colors.white),
-                ),
+              builder: (_) => GothicModalFrame(
+                title: challenge.title.toUpperCase(),
+                subtitle: 'SELLO SUPERADO',
+                icon: Icons.military_tech,
+                accent: const Color(0xFF4FFFA3),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text(
+                    child: Text(
                       'CONTINUAR',
-                      style: TextStyle(color: Color(0xFFB16EFF)),
+                      style: BrimstoneFonts.cinzel(
+                        size: 11,
+                        weight: FontWeight.w800,
+                        color: BrimstoneTokens.goldPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+                children: [
+                  Text(
+                    firstWin
+                        ? 'Primera victoria: +${challenge.rewardShards} '
+                            'esquirlas, +${challenge.rewardGold} oro.'
+                        : 'Sello superado de nuevo. Ya cobraste la recompensa.',
+                    style: BrimstoneFonts.sans(
+                      size: 12,
+                      color: BrimstoneTokens.textPrimary,
                     ),
                   ),
                 ],

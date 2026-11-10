@@ -20,6 +20,7 @@ import '../../../domain/value_objects/element.dart';
 import '../../../domain/value_objects/orb_level.dart';
 import '../../combat_engine/brimstone_combat_game.dart';
 import '../../controllers/meta_controller.dart';
+import '../../graphics/elemental_vfx.dart';
 import '../../widgets/tcg_card_widget.dart';
 import 'hero_skill_cut_in.dart';
 import '../meta/how_to_play_modal.dart';
@@ -119,6 +120,16 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   // Cinematic hero invocation banner (0.55 s, non-blocking).
   HeroCutInData? _cutIn;
+
+  // Elemental impact barrage that lands with the cut-in (0.70 s).
+  int _barrageToken = 0;
+  Element _barrageElement = Element.igneous;
+
+  // Break shockwave (Bullseye Lv3 / reaction / seal rupture).
+  int _shockToken = 0;
+
+  // Secuencia de muerte del jefe: grietas + brasas + banner dorado.
+  int _shatterToken = 0;
 
   CombatEngine get engine => _engine!;
 
@@ -231,11 +242,14 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
+    // Dynamic score: ritual war drums replace the Sanctuary choir.
+    ProceduralSfxEngine.startAmbient('boss_pulse');
     _initEngine();
   }
 
   @override
   void dispose() {
+    ProceduralSfxEngine.startAmbient('drone');
     _particleCtrl.dispose();
     _mergePulseCtrl.dispose();
     super.dispose();
@@ -289,6 +303,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         case HitKind.bullseye:
           ProceduralSfxEngine.playHitBullseye();
           ref.read(bountyProvider.notifier).increment('bullseye_hits');
+          // Lv3 (streak >= 3) detonates the GPU break shockwave.
+          if ((_engine?.bullseyeStreak ?? 0) >= 3 && mounted) {
+            setState(() => _shockToken++);
+          }
         case HitKind.graze:
           ProceduralSfxEngine.playHitGraze();
         case HitKind.normal:
@@ -307,7 +325,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       ProceduralSfxEngine.playElementalReaction();
       ref.read(bountyProvider.notifier).increment('reactions');
       recordCodexReaction(ref, name);
-      setState(() => _reactionBanner = name);
+      setState(() {
+        _reactionBanner = name;
+        _shockToken++;
+      });
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) setState(() => _reactionBanner = null);
       });
@@ -323,6 +344,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     _engine!.onEnrage = () {
       ProceduralSfxEngine.playBossEnrage();
     };
+    _engine!.onShieldBreak = () {
+      ProceduralSfxEngine.playShieldBreak();
+      if (mounted) setState(() => _shockToken++);
+    };
     // AAA cut-in: fires for manual taps and AUTO battle alike.
     _engine!.onSkillCast = (card, index) {
       if (!mounted) return;
@@ -335,6 +360,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
               .first,
           element: card.element,
         );
+        // Elemental barrage lands while the cut-in band crosses the arena.
+        _barrageElement = card.element;
+        _barrageToken++;
       });
     };
     _engine!.onTrayChanged = () {
@@ -351,15 +379,15 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     setState(() {});
   }
 
-  bool _bossDeathFlash = false;
-
   Future<void> _resolve(bool victory) async {
     if (_resolved) return;
     _resolved = true;
     if (victory) {
-      if (mounted) setState(() => _bossDeathFlash = true);
-      await Future<void>.delayed(const Duration(milliseconds: 650));
-      if (mounted) setState(() => _bossDeathFlash = false);
+      // Slow-mo is already armed by the engine; fire the shatter spectacle and
+      // let the 650 ms sequence breathe before the loot/summary dialog.
+      ProceduralSfxEngine.playShieldBreak();
+      if (mounted) setState(() => _shatterToken++);
+      await Future<void>.delayed(const Duration(milliseconds: 700));
     }
     if (engine.trainingMode) {
       await _showTrainingResult(victory);
@@ -767,6 +795,15 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                 children: [
                   Positioned.fill(
                       child: ClipRect(child: GameWidget(game: game))),
+                  // Live boss afflictions floating over its portrait.
+                  Positioned(
+                    top: 6,
+                    left: 10,
+                    right: 10,
+                    child: IgnorePointer(
+                      child: _BossStatusBar(engine: engine),
+                    ),
+                  ),
                   // HellFire: Dimensional Rift Archway - stone pillars with elemental energy veins
                   Positioned.fill(
                       child:
@@ -806,25 +843,29 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                     child: IgnorePointer(
                         child: _CombatDangerOverlay(engine: engine)),
                   ),
-                  // Boss death flash
-                  if (_bossDeathFlash)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: RadialGradient(
-                              colors: [
-                                Colors.white.withValues(alpha: 0.95),
-                                const Color(0xFFFFD700).withValues(alpha: 0.8),
-                                const Color(0xFFFF2A54).withValues(alpha: 0.6),
-                                Colors.transparent,
-                              ],
-                              radius: 1.2,
-                            ),
-                          ),
-                        ),
-                      ),
+                  // Boss shatter: white flash, light cracks, rising embers
+                  // and the gilded "¡SELLO PURIFICADO!" banner.
+                  Positioned.fill(
+                    child: BossShatterOverlay(
+                      token: _shatterToken,
+                      portraitId: engine.boss.id,
+                      element: engine.boss.element,
                     ),
+                  ),
+                  // Elemental barrage (700 ms) landing with the cut-in.
+                  Positioned.fill(
+                    child: ElementalBarrage(
+                      token: _barrageToken,
+                      element: _barrageElement,
+                    ),
+                  ),
+                  // GPU break shockwave (bullseye Lv3, reaction, seal break).
+                  Positioned.fill(
+                    child: BreakShockwave(
+                      token: _shockToken,
+                      color: _elementColor(_barrageElement),
+                    ),
+                  ),
                   // Cinematic hero invocation cut-in (diagonal band + impact)
                   Positioned.fill(
                     child: HeroSkillCutIn(
@@ -1462,6 +1503,16 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                       color: accent.withValues(alpha: 0.85), width: 1.8),
                 ),
                 child: Stack(alignment: Alignment.center, children: [
+                  // GPU plasma core: fluid turbulence + incandescent centre.
+                  Positioned.fill(
+                    child: ClipOval(
+                      child: PlasmaOrb(
+                        color: color,
+                        glow: accent,
+                        intensity: 0.95,
+                      ),
+                    ),
+                  ),
                   // Specular highlight
                   Positioned(
                       left: orbSize * 0.18,
@@ -1855,6 +1906,127 @@ class _AutoBattleToggle extends StatelessWidget {
 }
 
 // Boss Shield Break Bar (Block 3: Barrera Arcana + ¡BREAK!)
+/// Elegant chips over the boss portrait: burn/aura, petrify, vulnerability and
+/// the BREAK stun, each with its remaining seconds.
+class _BossStatusBar extends StatelessWidget {
+  const _BossStatusBar({required this.engine});
+
+  final CombatEngine engine;
+
+  @override
+  Widget build(BuildContext context) {
+    final chips = <Widget>[];
+
+    void add({
+      required String label,
+      required IconData icon,
+      required Color color,
+      required double seconds,
+    }) {
+      if (seconds <= 0) return;
+      chips.add(
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.62),
+            borderRadius: BorderRadius.circular(BrimstoneRadii.radiusSM),
+            border: Border.all(color: color.withValues(alpha: 0.75), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.32),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 10, color: color),
+              const SizedBox(width: 3),
+              Text(
+                label,
+                style: BrimstoneTypography.labelXS.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 8.5,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                '${seconds.toStringAsFixed(1)}s',
+                style: BrimstoneTypography.labelXS.copyWith(
+                  color: Colors.white70,
+                  fontSize: 8,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (engine.auraRemaining > 0 && engine.aura != null) {
+      final aura = engine.aura!;
+      add(
+        label: 'AURA ${_auraLabel(aura)}',
+        icon: Icons.local_fire_department,
+        color: _auraColor(aura),
+        seconds: engine.auraRemaining,
+      );
+    }
+    add(
+      label: 'QUEMADURA',
+      icon: Icons.whatshot,
+      color: const Color(0xFFFF7A2F),
+      seconds: engine.burnRemaining,
+    );
+    add(
+      label: 'PETRIFICADO',
+      icon: Icons.landscape,
+      color: const Color(0xFF8FB7D9),
+      seconds: engine.petrifyRemaining,
+    );
+    add(
+      label: 'VULNERABLE +30%',
+      icon: Icons.report_gmailerrorred,
+      color: const Color(0xFFFF2A54),
+      seconds: engine.vulnerableRemaining,
+    );
+    add(
+      label: 'ATURDIDO · BREAK x1.5',
+      icon: Icons.flash_on,
+      color: BrimstoneTokens.goldPrimary,
+      seconds: engine.bossStunRemaining,
+    );
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Center(
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 4,
+        runSpacing: 3,
+        children: chips,
+      ),
+    );
+  }
+
+  static String _auraLabel(Element element) => switch (element) {
+        Element.igneous => 'ÍGNEA',
+        Element.abyssal => 'ABISAL',
+        Element.telluric => 'TELÚRICA',
+        Element.empty => 'VACÍO',
+      };
+
+  static Color _auraColor(Element element) => switch (element) {
+        Element.igneous => const Color(0xFFFF5A26),
+        Element.abyssal => const Color(0xFF3FD8FF),
+        Element.telluric => const Color(0xFFB0703B),
+        Element.empty => const Color(0xFFB16EFF),
+      };
+}
+
 class _BossShieldBar extends StatelessWidget {
   final double currentShield;
   final double maxShield;

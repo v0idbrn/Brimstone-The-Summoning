@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
+import '../../../core/theme/design_tokens.dart';
 import '../../../domain/entities/owned_card.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../controllers/meta_controller.dart';
@@ -804,57 +805,336 @@ class _RuneCirclePainter extends CustomPainter {
       oldDelegate.angle != angle;
 }
 
-/// Post-summon card reveal (5 cards for the Gran Ritual, 1 for the Pacto).
-class _RevealDialog extends StatelessWidget {
+/// Post-summon card reveal ceremony.
+///
+/// Every card lands face-down showing a gothic rune back tinted by its rarity
+/// (blue = rare, purple = epic, golden solar burst = legendary 3★+); tapping a
+/// card flips it in real 3D perspective, and "REVELAR TODAS" flips the rest.
+class _RevealDialog extends StatefulWidget {
   final List<OwnedCard> cards;
 
   const _RevealDialog({required this.cards});
 
   @override
+  State<_RevealDialog> createState() => _RevealDialogState();
+}
+
+class _RevealDialogState extends State<_RevealDialog> {
+  late final List<bool> _revealed =
+      List<bool>.filled(widget.cards.length, false);
+
+  bool get _allRevealed => _revealed.every((r) => r);
+
+  void _revealCard(int index) {
+    if (_revealed[index]) return;
+    setState(() => _revealed[index] = true);
+    ProceduralSfxEngine.playSummonReveal(widget.cards[index].stars);
+  }
+
+  void _revealAll() {
+    if (_allRevealed) return;
+    setState(() {
+      for (var i = 0; i < _revealed.length; i++) {
+        _revealed[i] = true;
+      }
+    });
+    final best =
+        widget.cards.map((c) => c.stars).fold<int>(1, (a, b) => a > b ? a : b);
+    ProceduralSfxEngine.playSummonReveal(best);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: const Color(0xFF14090D),
-      title: const Text(
-        '¡INVOCACIÓN COMPLETADA!',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Color(0xFFB16EFF),
-          fontWeight: FontWeight.w900,
-          fontSize: 16,
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 380),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1B0D14), Color(0xFF0A0508)],
+          ),
+          border: Border.all(color: BrimstoneTokens.goldPrimary, width: 1.6),
+          boxShadow: [
+            BoxShadow(
+              color: BrimstoneTokens.goldPrimary.withValues(alpha: 0.25),
+              blurRadius: 24,
+              spreadRadius: 2,
+            ),
+          ],
         ),
-      ),
-      content: SizedBox(
-        width: 320,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Text(
+              '¡INVOCACIÓN COMPLETADA!',
+              textAlign: TextAlign.center,
+              style: BrimstoneFonts.cinzel(
+                size: 15,
+                weight: FontWeight.w900,
+                color: BrimstoneTokens.goldBright,
+                letterSpacing: 1.8,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _allRevealed
+                  ? '${widget.cards.length} carta(s) se han unido a tu colección.'
+                  : 'Toca cada carta para revelar su sello.',
+              textAlign: TextAlign.center,
+              style: BrimstoneFonts.sans(
+                size: 10.5,
+                color: BrimstoneTokens.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 12),
             Wrap(
               alignment: WrapAlignment.center,
               spacing: 8,
-              runSpacing: 8,
+              runSpacing: 10,
               children: [
-                for (final c in cards)
-                  SizedBox(
-                    width: 76,
-                    height: 104,
-                    child: TcgCardWidget.fromOwnedCard(card: c, raised: true),
+                for (var i = 0; i < widget.cards.length; i++)
+                  GachaFlipCard(
+                    card: widget.cards[i],
+                    revealed: _revealed[i],
+                    onTap: () => _revealCard(i),
                   ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              '${cards.length} carta(s) se han unido a tu colección.',
-              style: const TextStyle(color: Colors.white54, fontSize: 11),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: _allRevealed ? null : _revealAll,
+                    style: TextButton.styleFrom(
+                      foregroundColor: BrimstoneTokens.goldPrimary,
+                      disabledForegroundColor:
+                          BrimstoneTokens.textMuted.withValues(alpha: 0.5),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        side: BorderSide(
+                          color: BrimstoneTokens.goldPrimary
+                              .withValues(alpha: _allRevealed ? 0.25 : 0.75),
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      'REVELAR TODAS',
+                      style: BrimstoneFonts.cinzel(
+                        size: 10.5,
+                        weight: FontWeight.w800,
+                        color: BrimstoneTokens.goldPrimary,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: BrimstoneTokens.textPrimary,
+                  ),
+                  child: const Text('Aceptar'),
+                ),
+              ],
             ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Aceptar'),
-        ),
-      ],
     );
   }
+}
+
+/// One gacha card: 3D Y-axis flip between its rune back and the real TCG card.
+class GachaFlipCard extends StatelessWidget {
+  const GachaFlipCard({
+    super.key,
+    required this.card,
+    required this.revealed,
+    required this.onTap,
+  });
+
+  final OwnedCard card;
+  final bool revealed;
+  final VoidCallback onTap;
+
+  static const double width = 82;
+  static const double height = 112;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: revealed ? null : onTap,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: revealed ? math.pi : 0),
+        duration: const Duration(milliseconds: 520),
+        curve: Curves.easeInOutCubic,
+        builder: (context, angle, _) {
+          final showFront = angle > math.pi / 2;
+          final transform = Matrix4.identity()
+            ..setEntry(3, 2, 0.0018)
+            ..rotateY(angle);
+          return Transform(
+            alignment: Alignment.center,
+            transform: transform,
+            child: SizedBox(
+              width: width,
+              height: height,
+              child: showFront
+                  ? Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()..rotateY(math.pi),
+                      child: TcgCardWidget.fromOwnedCard(card: card),
+                    )
+                  : GothicCardBack(stars: card.stars),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Rune-sealed card back, tinted by the hidden rarity.
+class GothicCardBack extends StatelessWidget {
+  const GothicCardBack({super.key, required this.stars});
+
+  final int stars;
+
+  Color get _tint {
+    if (stars >= 4) return const Color(0xFFFFD700);
+    if (stars == 3) return const Color(0xFFB16EFF);
+    return const Color(0xFF4C8DFF);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color.lerp(const Color(0xFF14090D), _tint, 0.16)!,
+            const Color(0xFF07040A),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _tint.withValues(alpha: 0.85), width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: _tint.withValues(alpha: 0.35),
+            blurRadius: stars >= 3 ? 14 : 7,
+            spreadRadius: stars >= 3 ? 1.5 : 0,
+          ),
+        ],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(7),
+            child: CustomPaint(painter: GothicCardBackPainter(tint: _tint)),
+          ),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  stars >= 4
+                      ? Icons.wb_sunny
+                      : stars == 3
+                          ? Icons.auto_awesome
+                          : Icons.diamond_outlined,
+                  color: _tint,
+                  size: 22,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  stars >= 4
+                      ? 'LEGENDARIA'
+                      : stars == 3
+                          ? 'ÉPICA'
+                          : 'RARA',
+                  style: BrimstoneFonts.cinzel(
+                    size: 7.5,
+                    weight: FontWeight.w900,
+                    color: _tint,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class GothicCardBackPainter extends CustomPainter {
+  const GothicCardBackPainter({required this.tint});
+
+  final Color tint;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8
+      ..color = tint.withValues(alpha: 0.35);
+    // Rune lattice.
+    for (var i = 0; i < 3; i++) {
+      final inset = 4.0 + i * 5.0;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            inset,
+            inset,
+            size.width - inset * 2,
+            size.height - inset * 2,
+          ),
+          const Radius.circular(5),
+        ),
+        paint,
+      );
+    }
+    // Solar rays for mythic pulls.
+    if (tint == const Color(0xFFFFD700)) {
+      paint.color = tint.withValues(alpha: 0.18);
+      for (var i = 0; i < 12; i++) {
+        final angle = i * math.pi / 6;
+        canvas.drawLine(
+          center,
+          Offset(
+            center.dx + math.cos(angle) * size.width,
+            center.dy + math.sin(angle) * size.height,
+          ),
+          paint,
+        );
+      }
+    }
+    // Central seal diamond.
+    paint
+      ..color = tint.withValues(alpha: 0.5)
+      ..strokeWidth = 1.0;
+    final r = size.shortestSide * 0.20;
+    final diamond = Path()
+      ..moveTo(center.dx, center.dy - r)
+      ..lineTo(center.dx + r, center.dy)
+      ..lineTo(center.dx, center.dy + r)
+      ..lineTo(center.dx - r, center.dy)
+      ..close();
+    canvas.drawPath(diamond, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant GothicCardBackPainter old) => old.tint != tint;
 }

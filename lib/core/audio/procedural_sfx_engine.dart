@@ -3,6 +3,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 
+import '../performance/render_environment.dart';
+import 'wav_player.dart';
+
 /// Procedural audio engine that generates WAV PCM buffers in memory.
 /// No external audio assets required - all sounds synthesized mathematically.
 class ProceduralSfxEngine {
@@ -22,6 +25,15 @@ class ProceduralSfxEngine {
   /// Toggle mute state.
   static void setMuted(bool muted) {
     _muted = muted;
+    if (_muted) {
+      WavPlayback.stopAll();
+    } else {
+      final key = _ambientKey;
+      if (key != null) {
+        _ambientKey = null;
+        startAmbient(key);
+      }
+    }
   }
 
   /// Current mute state.
@@ -42,6 +54,7 @@ class ProceduralSfxEngine {
 
   static void setAmbientVolume(double value) {
     _ambientVolume = value.clamp(0.0, 1.0).toDouble();
+    refreshAmbientVolume();
   }
 
   static void setHapticsEnabled(bool enabled) {
@@ -73,103 +86,160 @@ class ProceduralSfxEngine {
   /// Buffer del pulso del jefe (ambiente de combate).
   static Uint8List bossPulseBuffer() => cached('boss_pulse');
 
+  // --- Ambiente dinámico -------------------------------------------------
+
+  static String? _ambientKey;
+
+  /// Pista ambiental activa (`drone` o `boss_pulse`), o `null`.
+  static String? get currentAmbient => _ambientKey;
+
+  /// Cambia la cama sonora en loop. Idempotente: repetir la misma pista no
+  /// reinicia el audio.
+  static void startAmbient(String name) {
+    if (_ambientKey == name) {
+      WavPlayback.loop(name, cached(name), volume: effectiveAmbientVolume);
+      return;
+    }
+    stopAmbient();
+    _ambientKey = name;
+    if (effectiveAmbientVolume <= 0 || !WavPlayback.supportsLoops) return;
+    WavPlayback.loop(name, cached(name), volume: effectiveAmbientVolume);
+  }
+
+  /// Detiene la cama sonora actual.
+  static void stopAmbient() {
+    final key = _ambientKey;
+    _ambientKey = null;
+    if (key != null) WavPlayback.stopLoop(key);
+  }
+
+  /// Ajusta el volumen del ambiente en caliente sin reiniciar el loop.
+  static void refreshAmbientVolume() {
+    final key = _ambientKey;
+    if (key == null) return;
+    if (effectiveAmbientVolume <= 0) {
+      WavPlayback.stopLoop(key);
+    } else {
+      WavPlayback.loop(key, cached(key), volume: effectiveAmbientVolume);
+    }
+  }
+
+  /// Desbloquea el contexto de audio (primer gesto del usuario).
+  static void unlockAudio() => WavPlayback.unlock();
+
   /// Play orb spawn: short ascending crystalline tone (440Hz -> 660Hz, 60ms).
   static void playOrbSpawn() {
-    _play(cached('orb_spawn'));
+    _play('orb_spawn', cached('orb_spawn'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.selectionClick);
   }
 
-  /// Play orb merge: resonant harmonic chord, base frequency rises by level (Lv2/Lv3, 140ms) + haptic.
+  /// Play orb merge: glassy resonant chord, base frequency rises by level
+  /// (Lv2/Lv3, 140ms) + haptic.
   static void playOrbMerge(int newLevel) {
-    _play(cached('orb_merge_${newLevel <= 2 ? 2 : 3}'));
-    if (!_muted && _sfxVolume > 0) SystemSound.play(SystemSoundType.click);
+    final key = 'orb_merge_${newLevel <= 2 ? 2 : 3}';
+    _play(key, cached(key));
     if (newLevel >= 2 && _hapticsEnabled) HapticFeedback.mediumImpact();
   }
 
   /// Play orb flick: whoosh frequency sweep (220Hz -> 880Hz, 110ms) + haptic selection click.
   static void playOrbFlick() {
-    _play(cached('orb_flick'));
+    _play('orb_flick', cached('orb_flick'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.selectionClick);
   }
 
   /// Play normal hit: percussive impact (90Hz exponential decay).
   static void playHitNormal() {
-    _play(cached('hit_normal'));
+    _play('hit_normal', cached('hit_normal'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.lightImpact);
   }
 
   /// Play bullseye: double metallic bell (880Hz + 1320Hz, 220ms) + heavy haptic.
   static void playHitBullseye() {
-    _play(cached('hit_bullseye'));
+    _play('hit_bullseye', cached('hit_bullseye'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play graze: very short soft click.
   static void playHitGraze() {
-    _play(cached('hit_graze'));
+    _play('hit_graze', cached('hit_graze'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.selectionClick);
   }
 
   /// Play elemental reaction: sub-bass explosion (55Hz) + arcane ring modulation (350ms) + intense vibration.
   static void playElementalReaction() {
-    _play(cached('elemental_reaction'));
+    _play('elemental_reaction', cached('elemental_reaction'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play card skill invoke: gothic 3-note ascending fanfare (300ms).
   static void playCardSkillInvoke() {
-    _play(cached('card_skill_invoke'));
+    _play('card_skill_invoke', cached('card_skill_invoke'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
   }
 
   /// Play counter-flick destroy: sharp metallic clang (1200Hz, 90ms).
   static void playCounterFlickDestroy() {
-    _play(cached('counter_flick_destroy'));
+    _play('counter_flick_destroy', cached('counter_flick_destroy'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
-  /// Play summon reveal: mystical arpeggio sequence, more epic with more stars.
+  /// Play summon reveal: celestial arpeggio (3★) or infernal-celestial
+  /// double choir (4★+) with a long shimmering tail.
   static void playSummonReveal(int stars) {
-    _play(cached('summon_reveal_${stars.clamp(1, 5)}'));
+    final key = 'summon_reveal_${stars.clamp(1, 5)}';
+    _play(key, cached(key));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
+  }
+
+  /// Play the shield-break detonation: sub-bass slam + shattered glass tail.
+  static void playShieldBreak() {
+    _play('hit_shield_break', cached('hit_shield_break'));
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
+  }
+
+  /// Play the title-screen seal opening chord (first user gesture, unlocks web
+  /// audio).
+  static void playTitleOpen() {
+    WavPlayback.unlock();
+    _play('title_open', cached('title_open'));
+    _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play boss enrage: deep ominous rumble + alarm.
   static void playBossEnrage() {
-    _play(cached('boss_enrage'));
+    _play('boss_enrage', cached('boss_enrage'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
 
   /// Play chest open: magical chime with gold coin sound.
   static void playChestOpen() {
-    _play(cached('evolution_success')); // Reuse evolution success sound for now
+    _play('evolution_success', cached('evolution_success'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
   }
 
   /// Play level up: ascending fanfare.
   static void playLevelUp() {
-    _play(cached('card_skill_invoke'));
+    _play('card_skill_invoke', cached('card_skill_invoke'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
   }
 
   /// Play altar evolution success: ascending celestial choir chord.
   static void playEvolutionSuccess() {
-    _play(cached('evolution_success'));
+    _play('evolution_success', cached('evolution_success'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.mediumImpact);
   }
 
   /// Play altar evolution fail: dissonant descending tone.
   static void playEvolutionFail() {
-    _play(cached('evolution_fail'));
+    _play('evolution_fail', cached('evolution_fail'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.lightImpact);
   }
 
   /// Play a heavy UI click sound.
   static void playUIHeavyClick() {
-    _play(cached('ui_heavy_click'));
+    _play('ui_heavy_click', cached('ui_heavy_click'));
     _nativeFeedback(SystemSoundType.click, HapticFeedback.heavyImpact);
   }
-
   // --- Internal synthesis methods ---
 
   /// Generate a WAV file in memory (Uint8List) from PCM samples.
@@ -255,6 +325,9 @@ class ProceduralSfxEngine {
     'boss_enrage',
     'evolution_success',
     'evolution_fail',
+    'hit_shield_break',
+    'title_open',
+    'ui_heavy_click',
     'drone',
     'boss_pulse',
   ];
@@ -304,6 +377,9 @@ class ProceduralSfxEngine {
       'boss_enrage' => _bossEnrage(),
       'evolution_success' => _evolutionSuccess(),
       'evolution_fail' => _evolutionFail(),
+      'hit_shield_break' => _hitShieldBreak(),
+      'title_open' => _titleOpen(),
+      'ui_heavy_click' => _uiHeavyClick(),
       'drone' => generateSanctuaryDroneWav(),
       'boss_pulse' => generateBossPulseWav(),
       _ when name.startsWith('summon_reveal_') => _summonReveal(
@@ -313,14 +389,17 @@ class ProceduralSfxEngine {
     };
   }
 
-  /// Play a cached or generated sound.
-  static void _play(Uint8List wavData) {
+  /// Play a cached or generated sound through the platform bridge and mirror a
+  /// platform click on targets without PCM playback. Silent in widget tests so
+  /// `pumpAndSettle` and golden runs stay deterministic.
+  static void _play(String key, Uint8List wavData) {
     if (_muted || _sfxVolume <= 0) return;
-    // In a real implementation, this would use audioplayers or just_audio
-    // For now we just ensure the buffer is valid.
-    // The actual playback would be triggered via a platform channel or audio plugin.
-    // This is a placeholder - in production you'd use:
-    // await AudioPlayer().play(BytesSource(wavData));
+    if (isWidgetTestEnvironment) return;
+    if (WavPlayback.supported) {
+      WavPlayback.play(key, wavData, volume: effectiveSfxVolume);
+      return;
+    }
+    SystemSound.play(SystemSoundType.click);
   }
 
   // --- Sound generators ---
@@ -344,9 +423,10 @@ class ProceduralSfxEngine {
     return _encodeWav(result);
   }
 
-  /// Orb merge: harmonic chord based on level. Lv2 = major triad, Lv3 = 7th chord.
+  /// Orb merge: glassy three-voice chord. Lv2 = major triad, Lv3 = major 7th
+  /// with a crystal shimmer and a short feedback-delay tail.
   static Uint8List _orbMerge(int level) {
-    const duration = 0.14; // 140ms
+    const duration = 0.18; // 180ms
     final samples = (_sampleRate * duration).round();
     final result = List<double>.filled(samples, 0.0);
 
@@ -357,24 +437,31 @@ class ProceduralSfxEngine {
       _ => 220.0,
     };
 
-    // Chord intervals
+    // Three harmonic voices; the 7th appears on the final merge.
     final intervals = level >= 3
         ? [1.0, 1.25, 1.5, 1.75] // Major 7th
         : [1.0, 1.25, 1.5]; // Major triad
+    // Slight detune per voice gives the "glass choir" beating.
+    const detune = [1.0, 1.0025, 0.9975, 1.004];
 
     for (int i = 0; i < samples; i++) {
       final t = i / _sampleRate;
       final progress = t / duration;
       double sum = 0;
-      for (final interval in intervals) {
-        final freq = baseFreq * interval;
+      for (var v = 0; v < intervals.length; v++) {
+        final freq = baseFreq * intervals[v] * detune[v % detune.length];
         final phase = 2 * math.pi * freq * t;
-        sum += math.sin(phase);
+        // Fundamental + airy 2nd harmonic = crystalline bell.
+        sum += math.sin(phase) * 0.7 + math.sin(phase * 2) * 0.18;
       }
-      final env = _adsrEnvelope(progress, 0.02, 0.4, 0.1, 0.48);
-      result[i] = (sum / intervals.length) * env * 0.35;
+      // Crystal sparkle riding the attack transient.
+      final sparkle = math.sin(2 * math.pi * baseFreq * 5.5 * t) *
+          math.exp(-progress * 22.0) *
+          0.20;
+      final env = _adsrEnvelope(progress, 0.015, 0.42, 0.10, 0.46);
+      result[i] = (sum / intervals.length) * env * 0.34 + sparkle * env;
     }
-    return _encodeWav(result);
+    return _encodeWav(_reverb(result, mix: 0.22, decay: 0.34));
   }
 
   /// Orb flick: whoosh sweep 220Hz -> 880Hz, 110ms, filtered noise + sine.
@@ -439,12 +526,14 @@ class ProceduralSfxEngine {
       final s2 = math.sin(phase2) +
           0.3 * math.sin(3 * phase2) +
           0.15 * math.sin(5 * phase2);
+      // Sub-bass body: the chest-thump under the metallic bell.
+      final sub = math.sin(2 * math.pi * 46 * t) * math.exp(-progress * 7.0);
       // Bell decay: double exponential
       final env =
           math.exp(-progress * 6.0) * 0.7 + math.exp(-progress * 20.0) * 0.3;
-      result[i] = (s1 + s2) * 0.5 * env * 0.35;
+      result[i] = (s1 + s2) * 0.5 * env * 0.35 + sub * 0.30;
     }
-    return _encodeWav(result);
+    return _encodeWav(_reverb(result, mix: 0.26, decay: 0.42, taps: 5));
   }
 
   /// Graze: very short soft click.
@@ -539,7 +628,8 @@ class ProceduralSfxEngine {
     return _encodeWav(result);
   }
 
-  /// Summon reveal: mystical arpeggio, complexity scales with stars.
+  /// Summon reveal: celestial arpeggio (1★-3★) and, from 4★ up, a second
+  /// infernal choir a tritone below that answers the celestial line.
   static Uint8List _summonReveal(int stars) {
     const duration = 0.8; // 800ms
     final samples = (_sampleRate * duration).round();
@@ -578,11 +668,109 @@ class ProceduralSfxEngine {
       // Per-note envelope with overlapping tails
       final env = math.exp(-localProgress * 3.0) * 0.7 +
           math.exp(-localProgress * 12.0) * 0.3;
+      // Infernal answer: a low tritone layer that swells on mythic pulls.
+      final infernal = stars >= 4
+          ? math.sin(2 * math.pi * freq * 0.5 * 1.4142 * t) *
+              (0.16 + 0.10 * math.sin(2 * math.pi * 0.5 * t))
+          : 0.0;
       // Overall envelope
       final overallEnv = 1 - progress * 0.3;
-      result[i] = s * env * shimmer * overallEnv * 0.18;
+      result[i] = s * env * shimmer * overallEnv * 0.18 +
+          infernal * env * overallEnv * 0.22;
+    }
+    final mixed = _reverb(result, mix: 0.30, decay: 0.48, taps: 6);
+    return _encodeWav(mixed);
+  }
+
+  /// Shield break: 42Hz slam + 180Hz body + shattering glass partials.
+  static Uint8List _hitShieldBreak() {
+    const duration = 0.6;
+    final samples = (_sampleRate * duration).round();
+    final result = List<double>.filled(samples, 0.0);
+    final random = math.Random(7);
+
+    for (var i = 0; i < samples; i++) {
+      final t = i / _sampleRate;
+      final progress = t / duration;
+      final slam = math.sin(2 * math.pi * 42 * t) * math.exp(-progress * 5.0);
+      final body = math.sin(2 * math.pi * 180 * t) * math.exp(-progress * 9.0);
+      // Glass shards: high inharmonic partials with fast independent decays.
+      final shard =
+          math.sin(2 * math.pi * (2200 + random.nextDouble() * 2600) * t) *
+              math.exp(-progress * (12.0 + random.nextDouble() * 10.0));
+      final noise =
+          (random.nextDouble() * 2 - 1) * math.exp(-progress * 26.0) * 0.18;
+      result[i] = slam * 0.62 + body * 0.22 + shard * 0.16 + noise;
+    }
+    return _encodeWav(_reverb(result, mix: 0.28, decay: 0.45, taps: 5));
+  }
+
+  /// Title seal opening: massive low major chord with a rising metal scrape.
+  static Uint8List _titleOpen() {
+    const duration = 1.6;
+    final samples = (_sampleRate * duration).round();
+    final result = List<double>.filled(samples, 0.0);
+    const notes = [55.0, 82.5, 110.0, 164.81];
+
+    for (var i = 0; i < samples; i++) {
+      final t = i / _sampleRate;
+      final progress = t / duration;
+      double sum = 0;
+      for (final freq in notes) {
+        final phase = 2 * math.pi * freq * t;
+        sum += math.sin(phase) * 0.6 + math.sin(phase * 2) * 0.15;
+      }
+      // Rising scrape: filtered noise sweeping upward.
+      final scrapeFreq = 300 + progress * 1800;
+      final scrape = math.sin(2 * math.pi * scrapeFreq * t) *
+          math.exp(-progress * 3.0) *
+          0.12;
+      final env = (1 - math.exp(-progress * 10.0)) * math.exp(-progress * 1.1);
+      result[i] = (sum / notes.length) * env * 0.55 + scrape * env;
+    }
+    return _encodeWav(_reverb(result, mix: 0.34, decay: 0.5, taps: 6));
+  }
+
+  /// Heavy UI click: wooden thunk + short metallic edge.
+  static Uint8List _uiHeavyClick() {
+    const duration = 0.09;
+    final samples = (_sampleRate * duration).round();
+    final result = List<double>.filled(samples, 0.0);
+
+    for (var i = 0; i < samples; i++) {
+      final t = i / _sampleRate;
+      final progress = t / duration;
+      final thunk =
+          math.sin(2 * math.pi * 140 * t) * math.exp(-progress * 14.0);
+      final edge =
+          math.sin(2 * math.pi * 2400 * t) * math.exp(-progress * 30.0);
+      result[i] = thunk * 0.6 + edge * 0.2;
     }
     return _encodeWav(result);
+  }
+
+  /// Cheap feedback-delay reverb: [taps] echoes with exponentially decaying
+  /// gain, then a soft clip. Adds spatial depth without any IR asset.
+  static List<double> _reverb(
+    List<double> input, {
+    double mix = 0.2,
+    double decay = 0.4,
+    int delayMs = 45,
+    int taps = 4,
+  }) {
+    final out = List<double>.from(input);
+    final delay = (_sampleRate * delayMs / 1000).round();
+    for (var tap = 1; tap <= taps; tap++) {
+      final offset = delay * tap;
+      final gain = math.pow(decay, tap).toDouble() * mix;
+      for (var i = 0; i + offset < out.length; i++) {
+        out[i + offset] += input[i] * gain;
+      }
+    }
+    for (var i = 0; i < out.length; i++) {
+      out[i] = (out[i] * 0.92).clamp(-1.0, 1.0);
+    }
+    return out;
   }
 
   /// Boss enrage: deep ominous rumble + alarm.
@@ -652,40 +840,67 @@ class ProceduralSfxEngine {
     return _encodeWav(result);
   }
 
-  /// Generate WAV buffer for ambient drone sound (long loop, low frequency).
+  /// Generate WAV buffer for the Sanctuary ambience: a four-second seamless
+  /// loop of a dark four-voice choir (A minor add9) breathing slowly.
+  ///
+  /// Every partial completes a whole number of cycles inside the loop and all
+  /// LFOs run at 0.25 Hz, so the seam never clicks.
   static Uint8List generateSanctuaryDroneWav() {
-    const duration = 4.0; // 4 seconds loop
+    const duration = 4.0; // 4 seconds loop (65 100 samples)
     final samples = (_sampleRate * duration).round();
     final result = List<double>.filled(samples, 0.0);
+    // A1 / E2 / A2 / C#3 — an open minor-ish drone with a raised colour tone.
+    const voices = <double>[55.0, 82.5, 110.0, 137.5];
+    const voiceGains = <double>[0.42, 0.30, 0.20, 0.13];
 
     for (int i = 0; i < samples; i++) {
       final t = i / _sampleRate;
-      // Slow, deep, evolving sine wave (40Hz base, with slow modulation)
-      final freq = 40.0 + 5.0 * math.sin(t * 0.2);
-      final phase = 2 * math.pi * freq * t;
-      // Slow, evolving envelope
-      final env = 0.5 + 0.3 * math.sin(t * 0.5);
-      result[i] = math.sin(phase) * env * 0.1;
+      double sum = 0;
+      for (var v = 0; v < voices.length; v++) {
+        final phase = 2 * math.pi * voices[v] * t;
+        // Two detuned partials per voice = slow choir beating.
+        final chorused =
+            math.sin(phase) * 0.5 + math.sin(phase * 1.0035) * 0.35;
+        // Independent 0.25 Hz swell per voice keeps the loop alive.
+        final swell = 0.55 + 0.45 * math.sin(2 * math.pi * 0.25 * t + v * 0.9);
+        sum += chorused * swell * voiceGains[v];
+      }
+      result[i] = sum * 0.22;
     }
-    return _encodeWav(result);
+    // Feedback tail inside the loop keeps the seam masked without breaking it.
+    return _encodeWav(_reverb(result, mix: 0.16, decay: 0.35, delayMs: 120));
   }
 
-  /// Generate WAV buffer for boss pulse (short, rhythmic, mid-low frequency).
+  /// Generate WAV buffer for the boss ambience: a 2.5 s ritual-drum loop
+  /// (96 BPM) with four strikes, sub-bass body and a metallic skin slap.
   static Uint8List generateBossPulseWav() {
-    const duration = 0.3; // 300ms
+    const duration = 2.5;
     final samples = (_sampleRate * duration).round();
     final result = List<double>.filled(samples, 0.0);
+    // 96 BPM → 0.625 s per beat.
+    const beat = 0.625;
+    final random = math.Random(11);
 
     for (int i = 0; i < samples; i++) {
       final t = i / _sampleRate;
-      // Rhythmic pulse: 80Hz to 150Hz sweeping
-      final freq = 80.0 + (150.0 - 80.0) * (1 - math.sin(t * 5.0) / 2);
-      final phase = 2 * math.pi * freq * t;
-      // Short, sharp envelope
-      final env = math.exp(-t * 10.0);
-      result[i] = math.sin(phase) * env * 0.3;
+      double sum = 0;
+      for (var hit = 0; hit < 4; hit++) {
+        final local = t - hit * beat;
+        if (local < 0) continue;
+        // Accented first and third strikes.
+        final accent = hit.isEven ? 1.0 : 0.62;
+        final env = math.exp(-local * (hit.isEven ? 7.0 : 10.0));
+        final kick = math.sin(2 * math.pi * 58 * local) * env;
+        final body = math.sin(2 * math.pi * 118 * local) * env * 0.4;
+        final slap =
+            math.sin(2 * math.pi * (820 + random.nextDouble() * 380) * local) *
+                math.exp(-local * 34.0) *
+                0.18;
+        sum += (kick * 0.62 + body + slap) * accent;
+      }
+      result[i] = sum * 0.36;
     }
-    return _encodeWav(result);
+    return _encodeWav(_reverb(result, mix: 0.20, decay: 0.35, delayMs: 90));
   }
 
   /// ADSR envelope helper.
@@ -713,11 +928,9 @@ class ProceduralSfxEngine {
 
   // --- Haptic feedback helpers ---
 
-  /// Emite respuesta auditiva y táctil nativa inmediata si el audio no está silenciado.
+  /// Respuesta táctil nativa; el audio lo gestiona [_play] por el puente
+  /// multiplataforma (evita el doble clic del `SystemSound`).
   static void _nativeFeedback(SystemSoundType sound, VoidCallback haptic) {
-    if (!_muted && _sfxVolume > 0) {
-      SystemSound.play(sound);
-    }
     if (_hapticsEnabled) {
       haptic();
     }

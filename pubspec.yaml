@@ -35,6 +35,7 @@ dependencies:
   # Cupertino Icons (for completeness)
   cupertino_icons: ^1.0.8
   sqflite_common_ffi_web: ^1.2.0
+  web: ^1.1.2
 
 dev_dependencies:
   flutter_test:
@@ -61,6 +62,8 @@ flutter:
   shaders:
     - shaders/abyssal_rift.frag
     - shaders/foil_card.frag
+    - shaders/shockwave_break.frag
+    - shaders/orb_plasma.frag
   fonts:
     - family: Cinzel
       fonts:

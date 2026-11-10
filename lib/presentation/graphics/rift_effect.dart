@@ -18,22 +18,36 @@ class BrimstoneShaders {
 
   static const String riftAsset = 'shaders/abyssal_rift.frag';
   static const String foilAsset = 'shaders/foil_card.frag';
+  static const String shockwaveAsset = 'shaders/shockwave_break.frag';
+  static const String plasmaAsset = 'shaders/orb_plasma.frag';
 
   static ui.FragmentProgram? _rift;
   static ui.FragmentProgram? _foil;
+  static ui.FragmentProgram? _shockwave;
+  static ui.FragmentProgram? _plasma;
   static bool _warming = false;
   static bool _warmed = false;
 
   static bool get riftAvailable => _rift != null;
   static bool get foilAvailable => _foil != null;
+  static bool get shockwaveAvailable => _shockwave != null;
+  static bool get plasmaAvailable => _plasma != null;
 
-  /// Preloads both programs once (called from `main()` after the first frame).
+  /// Preloads every program once (called from `main()` after the first frame).
   static Future<void> warmUp() async {
     if (_warmed || _warming || isWidgetTestEnvironment) return;
     _warming = true;
     try {
-      _rift = await _load(riftAsset);
-      _foil = await _load(foilAsset);
+      final loaded = await Future.wait<ui.FragmentProgram?>([
+        _load(riftAsset),
+        _load(foilAsset),
+        _load(shockwaveAsset),
+        _load(plasmaAsset),
+      ]);
+      _rift = loaded[0];
+      _foil = loaded[1];
+      _shockwave = loaded[2];
+      _plasma = loaded[3];
     } finally {
       _warming = false;
       _warmed = true;
@@ -62,6 +76,24 @@ class BrimstoneShaders {
   static ui.FragmentShader? newFoilShader() {
     try {
       return _foil?.fragmentShader();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fresh shader instance bound to the break shockwave program, or `null`.
+  static ui.FragmentShader? newShockwaveShader() {
+    try {
+      return _shockwave?.fragmentShader();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fresh shader instance bound to the orb plasma program, or `null`.
+  static ui.FragmentShader? newPlasmaShader() {
+    try {
+      return _plasma?.fragmentShader();
     } catch (_) {
       return null;
     }
