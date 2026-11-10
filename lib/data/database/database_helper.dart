@@ -10,8 +10,9 @@ import 'database_platform.dart';
 /// contención del archivo. Para tests se puede usar [useInMemory] o un
 /// archivo único por suite con [setOverridePath].
 class DatabaseHelper {
-  /// Schema actual: v8 añade card_mastery (skill_level, mastery_xp), raid_bosses, gacha_state, redeemed_codes.
-  static const int version = 8;
+  /// Schema actual: v9 añade el skin mítico de las cartas 5★, el Coliseo de los
+  /// Arcontes (trofeos/liga) y las Cámaras Elementales (esencias + clears).
+  static const int version = 9;
 
   /// Ruta por defecto para las instancias creadas después de esta llamada.
   static String? _overridePath;
@@ -105,6 +106,9 @@ class DatabaseHelper {
       'challenges_cleared',
       'summoner_gear',
       'player_stats',
+      'archon_progress',
+      'elemental_chamber_clears',
+      'elemental_essences',
     ];
     for (final table in tables) {
       await db.execute('DROP TABLE IF EXISTS $table');
@@ -132,7 +136,12 @@ class DatabaseHelper {
     await db.execute(
       'CREATE TABLE owned_cards(id INTEGER PRIMARY KEY AUTOINCREMENT, '
       'card_id TEXT, level INTEGER DEFAULT 1, stars INTEGER DEFAULT 1, '
-      'skill_level INTEGER DEFAULT 1, mastery_xp INTEGER DEFAULT 0)',
+      'skill_level INTEGER DEFAULT 1, mastery_xp INTEGER DEFAULT 0, '
+      "skin TEXT NOT NULL DEFAULT 'classic', "
+      // v9: overrides de la Ascensión Mítica (+45% ATK/HP, -8 maná). NULL =
+      // la carta sigue usando las estadísticas del catálogo.
+      'mana_override INTEGER, attack_override INTEGER, '
+      'health_override INTEGER)',
     );
     await db.execute(
       'CREATE TABLE player_squad(slot INTEGER PRIMARY KEY, '
@@ -187,6 +196,27 @@ class DatabaseHelper {
       'claimed_free TEXT NOT NULL DEFAULT \'\', '
       'claimed_premium TEXT NOT NULL DEFAULT \'\', '
       'premium_unlocked INTEGER NOT NULL DEFAULT 0)',
+    );
+    // v9: Coliseo de los Arcontes (progreso de liga persistente).
+    await db.execute(
+      'CREATE TABLE archon_progress(id TEXT PRIMARY KEY, '
+      'trophies INTEGER NOT NULL DEFAULT 0, '
+      'wins INTEGER NOT NULL DEFAULT 0, '
+      'losses INTEGER NOT NULL DEFAULT 0, '
+      'streak INTEGER NOT NULL DEFAULT 0, '
+      'best_streak INTEGER NOT NULL DEFAULT 0)',
+    );
+    // v9: Cámaras Elementales superadas por dificultad.
+    await db.execute(
+      'CREATE TABLE elemental_chamber_clears(chamber_id TEXT NOT NULL, '
+      'difficulty TEXT NOT NULL, cleared_at INTEGER NOT NULL, '
+      'first_clear INTEGER NOT NULL DEFAULT 0, '
+      'PRIMARY KEY(chamber_id, difficulty))',
+    );
+    // v9: Esencias elementales acumuladas por elemento.
+    await db.execute(
+      'CREATE TABLE elemental_essences(element TEXT PRIMARY KEY, '
+      'amount INTEGER NOT NULL DEFAULT 0)',
     );
     // v8: Maestría de Criaturas (Skill Level 1-5, Mastery Rank 1-10).
     await db.execute(
@@ -485,6 +515,11 @@ class DatabaseHelper {
       await db.insert('cards', c);
     }
 
+    await db.insert(
+      'archon_progress',
+      const {'id': 'archon_1'},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
     await db.insert('player_profile', {
       'id': 'player_1',
       'gold': 500,

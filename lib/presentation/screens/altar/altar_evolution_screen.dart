@@ -2,9 +2,12 @@ import 'package:flutter/material.dart' hide Element;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
+import '../../../core/theme/design_tokens.dart';
 import '../../../domain/entities/owned_card.dart';
 import '../../../domain/meta/meta_rules.dart';
+import '../../../domain/meta/mythic_ascension.dart';
 import '../../../domain/meta/rune_system.dart';
+import '../../../domain/value_objects/card_skin.dart';
 import '../../../domain/value_objects/element.dart';
 import '../../../domain/value_objects/rarity.dart';
 import '../../controllers/meta_controller.dart';
@@ -56,7 +59,7 @@ class _AltarEvolutionScreenState extends ConsumerState<AltarEvolutionScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
         setState(() {});
@@ -111,6 +114,7 @@ class _AltarEvolutionScreenState extends ConsumerState<AltarEvolutionScreen>
             Tab(
                 icon: Icon(Icons.auto_awesome, size: 18),
                 text: 'FORJA DE ALMAS'),
+            Tab(icon: Icon(Icons.diamond, size: 18), text: 'ASCENSIÓN'),
           ],
         ),
       ),
@@ -139,6 +143,8 @@ class _AltarEvolutionScreenState extends ConsumerState<AltarEvolutionScreen>
                 _RuneSynthesisTab(allCards: allCards),
                 // Tab 3: Soul Crafting
                 _SoulCraftingTab(allCards: allCards),
+                // Tab 4: 5★ Primordial Ascension
+                _MythicAscensionTab(allCards: allCards),
               ],
             ),
           ],
@@ -1448,6 +1454,344 @@ class _EmptyState extends StatelessWidget {
                 textAlign: TextAlign.center),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// ============================================================
+/// TAB 4: 5★ PRIMORDIAL ASCENSION - the mythic ceiling above 4★
+/// ============================================================
+class _MythicAscensionTab extends ConsumerWidget {
+  final List<OwnedCard> allCards;
+
+  const _MythicAscensionTab({required this.allCards});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileProvider);
+    final candidates = [
+      for (final card in allCards)
+        if (MythicAscension.canAscend(card.stars)) card,
+    ];
+    final mythic = [
+      for (final card in allCards)
+        if (card.isMythic) card,
+    ];
+    final affordable = profile.shards >= MythicAscension.shardCost &&
+        profile.gold >= MythicAscension.goldCost;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF14121E), Color(0xFF07060C)],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: const Color(0xFFE6E9F5).withValues(alpha: 0.55),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.diamond,
+                        color: Color(0xFFE6E9F5), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'ASCENSIÓN PRIMORDIAL 5\u2605',
+                        style: BrimstoneFonts.cinzel(
+                          size: 13,
+                          weight: FontWeight.w900,
+                          color: const Color(0xFFE6E9F5),
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sacrificá ${MythicAscension.shardCost} esquirlas y '
+                  '${MythicAscension.goldCost} oro para despertar la forma '
+                  'mítica: '
+                  '+${((MythicAscension.statMultiplier - 1) * 100).round()}% '
+                  'ATK/HP, -${MythicAscension.manaReduction} maná y '
+                  '${MythicAscension.passiveLabel}.',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Esquirlas: ${profile.shards}  ·  Oro: ${profile.gold}',
+                  style: TextStyle(
+                    color: affordable
+                        ? const Color(0xFF4FFFA3)
+                        : const Color(0xFFFF8A6A),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (candidates.isEmpty && mythic.isEmpty)
+            const _EmptyState(
+              icon: Icons.diamond_outlined,
+              title: 'SIN CARTAS 4\u2605',
+              subtitle:
+                  'Evolucioná una carta hasta 4 estrellas para ascenderla.',
+            ),
+          for (final card in candidates) ...[
+            _MythicCandidateTile(
+              card: card,
+              affordable: affordable,
+              onAscend: () => _confirmAscension(context, ref, card),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (mythic.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'SKINS MÍTICAS',
+              style: BrimstoneFonts.cinzel(
+                size: 12,
+                weight: FontWeight.w900,
+                color: const Color(0xFFFFC93C),
+                letterSpacing: 1.3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final card in mythic)
+              _MythicSkinPicker(
+                card: card,
+                onPick: (skin) async {
+                  await ref
+                      .read(collectionProvider.notifier)
+                      .setSkin(card.instanceId, skin);
+                },
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmAscension(
+    BuildContext context,
+    WidgetRef ref,
+    OwnedCard card,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF100A14),
+        title: Text(
+          '¿ASCENDER A 5\u2605?',
+          style: BrimstoneFonts.cinzel(
+            size: 14,
+            weight: FontWeight.w900,
+            color: const Color(0xFFE6E9F5),
+          ),
+        ),
+        content: Text(
+          '${card.name} despertará su forma primordial. '
+          'La ascensión consume ${MythicAscension.shardCost} esquirlas y '
+          '${MythicAscension.goldCost} oro.',
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('CANCELAR'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('ASCENDER'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final ok = await ref
+        .read(collectionProvider.notifier)
+        .ascendMythic(card.instanceId);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF14121E),
+        content: Text(
+          ok
+              ? '${card.name} asciende: ¡SELLO PRIMORDIAL ABIERTO!'
+              : 'No alcanzan las esquirlas o el oro.',
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
+class _MythicCandidateTile extends StatelessWidget {
+  final OwnedCard card;
+  final bool affordable;
+  final VoidCallback onAscend;
+
+  const _MythicCandidateTile({
+    required this.card,
+    required this.affordable,
+    required this.onAscend,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF120E1A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE6E9F5).withValues(alpha: 0.30),
+        ),
+      ),
+      child: Row(
+        children: [
+          TcgCardWidget.fromOwnedCard(card: card, width: 58, height: 80),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  card.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                  ),
+                ),
+                Text(
+                  '4\u2605 \u2192 5\u2605  ·  ATK ${card.baseAttack} \u2192 '
+                  '${MythicAscension.attackAfter(card.baseAttack)}  ·  '
+                  'HP ${card.baseHealth} \u2192 '
+                  '${MythicAscension.healthAfter(card.baseHealth)}',
+                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  MythicAscension.passiveLabel,
+                  style: const TextStyle(
+                    color: Color(0xFFB16EFF),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          FilledButton(
+            onPressed: affordable ? onAscend : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB0102C),
+              disabledBackgroundColor: const Color(0xFF2A2030),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            ),
+            child: Text(
+              'ASCENDER',
+              style: BrimstoneFonts.cinzel(
+                size: 9,
+                weight: FontWeight.w900,
+                color: affordable ? Colors.white : Colors.white38,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MythicSkinPicker extends StatelessWidget {
+  final OwnedCard card;
+  final ValueChanged<CardSkin> onPick;
+
+  const _MythicSkinPicker({required this.card, required this.onPick});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C0A12),
+        borderRadius: BorderRadius.circular(12),
+        border:
+            Border.all(color: const Color(0xFFE6E9F5).withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          TcgCardWidget.fromOwnedCard(card: card, width: 54, height: 74),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  card.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final skin in CardSkin.values)
+                      GestureDetector(
+                        onTap: () => onPick(skin),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            color: card.skin == skin
+                                ? const Color(0xFFB0102C)
+                                : const Color(0xFF1A1420),
+                            border: Border.all(
+                              color: const Color(0xFFE6E9F5)
+                                  .withValues(alpha: 0.35),
+                              width: 0.7,
+                            ),
+                          ),
+                          child: Text(
+                            skin.label,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -965,3 +965,189 @@ class _ShatterPainter extends CustomPainter {
       old.element != element ||
       old.portraitAsset != portraitAsset;
 }
+
+// ─────────────────────────────────────────────────────────── arcane beam
+
+/// Plasma lightning discharge (`arcane_beam.frag`) between two points.
+///
+/// Used for the predictive aim laser of a level-3 orb, the electric chains that
+/// bind the boss during BREAK and the discharge of an Awakened summon. Falls
+/// back to a layered gradient stroke when runtime effects are unavailable.
+class ArcaneBeam extends StatefulWidget {
+  const ArcaneBeam({
+    super.key,
+    required this.start,
+    required this.end,
+    required this.color,
+    this.progress = 1.0,
+    this.thickness = 26,
+    this.animate = true,
+    this.glow = 1.0,
+  });
+
+  final Offset start;
+  final Offset end;
+  final Color color;
+
+  /// 0→1 ignition; the bolt head travels with it.
+  final double progress;
+  final double thickness;
+  final bool animate;
+  final double glow;
+
+  @override
+  State<ArcaneBeam> createState() => _ArcaneBeamState();
+}
+
+class _ArcaneBeamState extends State<ArcaneBeam>
+    with SingleTickerProviderStateMixin {
+  AnimationController? _ctrl;
+  ui.FragmentShader? _shader;
+
+  bool get _canAnimate => widget.animate && !isWidgetTestEnvironment;
+
+  @override
+  void initState() {
+    super.initState();
+    _shader = BrimstoneShaders.newArcaneBeamShader();
+    if (_canAnimate) {
+      _ctrl = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 900),
+      )..repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final delta = widget.end - widget.start;
+    final length = delta.distance;
+    if (length < 1) return const SizedBox.shrink();
+    final angle = math.atan2(delta.dy, delta.dx);
+
+    Widget paint(double seconds) => CustomPaint(
+          size: Size(length, widget.thickness),
+          painter: _ArcaneBeamPainter(
+            color: widget.color,
+            progress: widget.progress.clamp(0.0, 1.0),
+            seconds: seconds,
+            glow: widget.glow,
+            shader: _shader,
+          ),
+        );
+
+    final controller = _ctrl;
+    final child = controller == null
+        ? paint(0.35)
+        : AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) => paint(controller.value * 0.9),
+          );
+
+    return IgnorePointer(
+      child: Transform.translate(
+        offset: widget.start,
+        child: Transform.rotate(angle: angle, child: child),
+      ),
+    );
+  }
+}
+
+class _ArcaneBeamPainter extends CustomPainter {
+  _ArcaneBeamPainter({
+    required this.color,
+    required this.progress,
+    required this.seconds,
+    required this.glow,
+    required this.shader,
+  });
+
+  final Color color;
+  final double progress;
+  final double seconds;
+  final double glow;
+  final ui.FragmentShader? shader;
+
+  final Paint _paint = Paint();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final shader = this.shader;
+    if (shader != null) {
+      try {
+        shader
+          ..setFloat(0, size.width)
+          ..setFloat(1, size.height)
+          ..setFloat(2, seconds)
+          ..setFloat(3, progress)
+          ..setFloat(4, color.r)
+          ..setFloat(5, color.g)
+          ..setFloat(6, color.b)
+          ..setFloat(7, color.a * glow.clamp(0.0, 1.0));
+        _paint
+          ..shader = shader
+          ..blendMode = BlendMode.plus;
+        canvas.drawRect(rect, _paint);
+        _paint.blendMode = BlendMode.srcOver;
+        return;
+      } catch (_) {
+        _paint.shader = null;
+      }
+    }
+
+    // Canvas fallback: wobbling stroke + white core + glowing head.
+    final midY = size.height / 2;
+    final path = Path()..moveTo(0, midY);
+    const segments = 18;
+    for (var i = 1; i <= segments; i++) {
+      final t = i / segments;
+      final wobble = math.sin(t * 20 + seconds * 26) * size.height * 0.16 +
+          math.sin(t * 41 - seconds * 17) * size.height * 0.07;
+      path.lineTo(size.width * t, midY + wobble);
+    }
+    final end = size.width * progress;
+    _paint
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = math.max(2.0, size.height * 0.30)
+      ..color = color.withValues(alpha: 0.35 * glow)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, size.height * 0.18);
+    canvas.drawPath(path, _paint);
+    _paint
+      ..maskFilter = null
+      ..strokeWidth = math.max(1.4, size.height * 0.12)
+      ..color = color.withValues(alpha: 0.9)
+      ..shader = LinearGradient(
+        colors: [
+          color.withValues(alpha: 0.0),
+          Colors.white.withValues(alpha: 0.95),
+          color.withValues(alpha: 0.9),
+        ],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(rect);
+    canvas.drawPath(path, _paint);
+    _paint
+      ..shader = null
+      ..style = PaintingStyle.fill
+      ..color = Colors.white.withValues(alpha: 0.95);
+    canvas.drawCircle(
+      Offset(end.clamp(0, size.width), midY),
+      math.max(2.0, size.height * 0.22),
+      _paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArcaneBeamPainter old) =>
+      old.seconds != seconds ||
+      old.progress != progress ||
+      old.color != color ||
+      old.glow != glow;
+}

@@ -90,10 +90,10 @@ void main() {
   });
 
   group('Puente de audio WAV', () {
-    test('en la VM usa el backend silencioso y no rompe', () {
+    test('en la VM enruta al sink nativo y no rompe sin handler', () {
       final wav = ProceduralSfxEngine.bufferFor('hit_normal');
-      expect(WavPlayback.supported, isFalse);
-      expect(WavPlayback.supportsLoops, isFalse);
+      expect(WavPlayback.supported, isTrue);
+      expect(WavPlayback.supportsLoops, isTrue);
       expect(() => WavPlayback.unlock(), returnsNormally);
       expect(() => WavPlayback.play('hit_normal', wav), returnsNormally);
       expect(() => WavPlayback.loop('drone', wav), returnsNormally);

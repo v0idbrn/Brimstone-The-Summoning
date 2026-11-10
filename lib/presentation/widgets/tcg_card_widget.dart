@@ -5,6 +5,7 @@ import 'package:flutter/material.dart' hide Element;
 import '../../core/theme/design_tokens.dart';
 import '../../domain/combat/combat_models.dart';
 import '../../domain/entities/owned_card.dart';
+import '../../domain/value_objects/card_skin.dart';
 import '../../domain/value_objects/element.dart';
 import '../../domain/value_objects/rarity.dart';
 import '../graphics/art_registry.dart';
@@ -46,6 +47,7 @@ class TcgCardWidget extends StatefulWidget {
     this.width,
     this.height,
     this.raised = false,
+    this.skin = CardSkin.classic,
   });
 
   final String cardId;
@@ -64,6 +66,9 @@ class TcgCardWidget extends StatefulWidget {
   final double? width;
   final double? height;
   final bool raised;
+
+  /// Visual chassis of a 5★ mythic card (ignored below 5★).
+  final CardSkin skin;
 
   /// Factory helper for domain [OwnedCard].
   factory TcgCardWidget.fromOwnedCard({
@@ -97,6 +102,7 @@ class TcgCardWidget extends StatefulWidget {
       width: width,
       height: height,
       raised: raised,
+      skin: card.skin,
     );
   }
 
@@ -167,21 +173,37 @@ class _TcgCardWidgetState extends State<TcgCardWidget>
     super.dispose();
   }
 
-  int get _starRank => widget.stars.clamp(1, 4);
+  int get _starRank => widget.stars.clamp(1, 5);
 
-  /// Evolution palette: bronze → frost silver → imperial gold → mythic crimson.
+  bool get _isMythic => _starRank >= 5;
+
+  /// Evolution palette: bronze → frost silver → imperial gold → mythic
+  /// crimson → obsidian & prismatic platinum.
   List<Color> get _frameColors => switch (_starRank) {
         1 => const [Color(0xFFB07B4A), Color(0xFF6E4626), Color(0xFF3A2313)],
         2 => const [Color(0xFFEAF7FF), Color(0xFF8FD8F5), Color(0xFF3B7FA8)],
         3 => const [Color(0xFFFFF0B8), Color(0xFFD4AF37), Color(0xFF8C6D1F)],
-        _ => const [Color(0xFFFFD700), Color(0xFFFF2A54), Color(0xFF3A0512)],
+        4 => const [Color(0xFFFFD700), Color(0xFFFF2A54), Color(0xFF3A0512)],
+        _ => const [Color(0xFFF2F4FF), Color(0xFF9AA0C0), Color(0xFF05050B)],
       };
 
   Color get _primary => switch (_starRank) {
         1 => const Color(0xFFB07B4A),
         2 => const Color(0xFF8FD8F5),
         3 => const Color(0xFFD4AF37),
-        _ => const Color(0xFFFFC93C),
+        4 => const Color(0xFFFFC93C),
+        _ => const Color(0xFFE6E9F5),
+      };
+
+  /// Star glyph: diamonds for the 5★ primordial crown.
+  IconData get _starIcon => _isMythic ? Icons.diamond : Icons.star;
+
+  Color get _starColor => switch (_starRank) {
+        1 => const Color(0xFFB07B4A),
+        2 => const Color(0xFF8FD8F5),
+        3 => const Color(0xFFD4AF37),
+        4 => const Color(0xFFFFD700),
+        _ => const Color(0xFFB0102C),
       };
 
   Color get _elementColor => BrimstoneElements.forElement(widget.element);
@@ -219,6 +241,7 @@ class _TcgCardWidgetState extends State<TcgCardWidget>
     final cardWidth = widget.width ?? 112.0;
     final cardHeight = widget.height ?? 160.0;
     final showFoil = _starRank >= 3;
+    final mythic = _isMythic;
     final elevation = isReady ? 8.0 : (widget.raised ? 4.0 : 0.0);
 
     final shadows = <BoxShadow>[
@@ -246,424 +269,545 @@ class _TcgCardWidgetState extends State<TcgCardWidget>
       child: GestureDetector(
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
-        child: Container(
-          width: cardWidth,
-          height: cardHeight,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(9),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF22111A), Color(0xFF0E0609), Color(0xFF050203)],
+        child: _SkinGrade(
+          skin: widget.skin,
+          enabled: mythic,
+          child: Container(
+            width: cardWidth,
+            height: cardHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(9),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF22111A),
+                  Color(0xFF0E0609),
+                  Color(0xFF050203)
+                ],
+              ),
+              boxShadow: shadows,
             ),
-            boxShadow: shadows,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(9),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final w = constraints.maxWidth;
-                final h = constraints.maxHeight;
-                final ribbonH = h * 0.27;
-                final scale = (w / 112.0).clamp(0.55, 1.25);
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final w = constraints.maxWidth;
+                  final h = constraints.maxHeight;
+                  final ribbonH = h * 0.27;
+                  final scale = (w / 112.0).clamp(0.55, 1.25);
 
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // 1. Painted illustration (upper 74%) with grade.
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: ribbonH,
-                      child: Image.asset(
-                        _portraitAssetPath,
-                        fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
-                        filterQuality: FilterQuality.medium,
-                        errorBuilder: (_, __, ___) => DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Color.lerp(const Color(0xFF1A0A0F),
-                                    _elementColor, 0.25)!,
-                                const Color(0xFF0A0407),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // 2. Illustration vignette + elemental grade.
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: ribbonH,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            radius: 1.0,
-                            colors: [
-                              Colors.transparent,
-                              const Color(0xFF06030A).withValues(alpha: 0.55),
-                            ],
-                            stops: const [0.55, 1.0],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: ribbonH,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              _elementColor.withValues(alpha: 0.10),
-                              Colors.transparent,
-                              _elementColor.withValues(alpha: 0.16),
-                            ],
-                            stops: const [0.0, 0.5, 1.0],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // 3. Frosted dark-glass ribbon with gold fillet.
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      height: ribbonH,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              const Color(0xFF1B0E16).withValues(alpha: 0.94),
-                              const Color(0xFF07030A).withValues(alpha: 0.98),
-                            ],
-                          ),
-                          border: Border(
-                            top: BorderSide(
-                              color: _primary.withValues(alpha: 0.75),
-                              width: 1.1,
-                            ),
-                          ),
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 5 * scale,
-                            vertical: 3 * scale,
-                          ),
-                          // Squashed cards (mini tiles) shrink the ribbon content
-                          // instead of overflowing it.
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: SizedBox(
-                              width: (w - 10 * scale).clamp(1.0, 400.0),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Text(
-                                    widget.name.toUpperCase(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        BrimstoneTypography.cardName.copyWith(
-                                      fontSize: 10.5 * scale,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  SizedBox(height: 2 * scale),
-                                  Row(
-                                    children: [
-                                      // Metallic sword ATK emblem.
-                                      Icon(
-                                        Icons.colorize,
-                                        size: 10 * scale,
-                                        color: _primary,
-                                      ),
-                                      SizedBox(width: 2 * scale),
-                                      Text(
-                                        '${widget.attack}',
-                                        style: TextStyle(
-                                          fontFamily: BrimstoneFonts.body,
-                                          fontSize: 10 * scale,
-                                          fontWeight: FontWeight.w900,
-                                          color: const Color(0xFFFFC93C),
-                                          fontFeatures: const [
-                                            FontFeature.tabularFigures(),
-                                          ],
-                                          shadows: const [
-                                            Shadow(
-                                                color: Colors.black,
-                                                blurRadius: 3),
-                                          ],
-                                        ),
-                                      ),
-                                      if (widget.runeName != null &&
-                                          widget.runeName!.isNotEmpty) ...[
-                                        SizedBox(width: 3 * scale),
-                                        Flexible(
-                                          child: Container(
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 3 * scale,
-                                              vertical: 0.5,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF2A153A),
-                                              borderRadius:
-                                                  BorderRadius.circular(3),
-                                              border: Border.all(
-                                                color: const Color(0xFFB16EFF)
-                                                    .withValues(alpha: 0.7),
-                                                width: 0.7,
-                                              ),
-                                            ),
-                                            child: Text(
-                                              widget.runeName!,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontFamily: BrimstoneFonts.body,
-                                                color: const Color(0xFFE5D4FF),
-                                                fontSize: 6.5 * scale,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                      const Spacer(),
-                                      if (widget.inCombat)
-                                        Text(
-                                          '${widget.currentMana}/${widget.maxMana}',
-                                          style: TextStyle(
-                                            fontFamily: BrimstoneFonts.body,
-                                            fontSize: 9 * scale,
-                                            fontWeight: isReady
-                                                ? FontWeight.w900
-                                                : FontWeight.w600,
-                                            color: isReady
-                                                ? const Color(0xFFFFD700)
-                                                : Colors.white70,
-                                            fontFeatures: const [
-                                              FontFeature.tabularFigures(),
-                                            ],
-                                          ),
-                                        ),
-                                    ],
-                                  ),
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // 1. Painted illustration (upper 74%) with grade.
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: ribbonH,
+                        child: Image.asset(
+                          _portraitAssetPath,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                          filterQuality: FilterQuality.medium,
+                          errorBuilder: (_, __, ___) => DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Color.lerp(const Color(0xFF1A0A0F),
+                                      _elementColor, 0.25)!,
+                                  const Color(0xFF0A0407),
                                 ],
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    // 4. Header: jewel, stars, level, leader.
-                    Positioned(
-                      top: 4 * scale,
-                      left: 4 * scale,
-                      right: 4 * scale,
-                      child: Row(
-                        children: [
-                          _JewelSigil(
-                            color: _elementColor,
-                            glow: _elementGlow,
-                            icon: _elementIcon,
-                            size: 15 * scale,
+                      // 2. Illustration vignette + elemental grade.
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: ribbonH,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: RadialGradient(
+                              radius: 1.0,
+                              colors: [
+                                Colors.transparent,
+                                const Color(0xFF06030A).withValues(alpha: 0.55),
+                              ],
+                              stops: const [0.55, 1.0],
+                            ),
                           ),
-                          SizedBox(width: 3 * scale),
-                          Flexible(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                for (var i = 0; i < widget.stars; i++)
-                                  Icon(
-                                    Icons.star,
-                                    size: 8.5 * scale,
-                                    color: _primary,
-                                    shadows: [
-                                      Shadow(
-                                        color: _primary.withValues(alpha: 0.8),
-                                        blurRadius: 3,
-                                      ),
-                                    ],
-                                  ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: ribbonH,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                _elementColor.withValues(alpha: 0.10),
+                                Colors.transparent,
+                                _elementColor.withValues(alpha: 0.16),
+                              ],
+                              stops: const [0.0, 0.5, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // 3. Frosted dark-glass ribbon with gold fillet.
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: ribbonH,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                const Color(0xFF1B0E16).withValues(alpha: 0.94),
+                                const Color(0xFF07030A).withValues(alpha: 0.98),
                               ],
                             ),
+                            border: Border(
+                              top: BorderSide(
+                                color: _primary.withValues(alpha: 0.75),
+                                width: 1.1,
+                              ),
+                            ),
                           ),
-                          const SizedBox(width: 3),
-                          Container(
+                          child: Padding(
                             padding: EdgeInsets.symmetric(
-                              horizontal: 3 * scale,
-                              vertical: 0.5,
+                              horizontal: 5 * scale,
+                              vertical: 3 * scale,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(3),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.22),
-                                width: 0.7,
-                              ),
-                            ),
-                            child: Text(
-                              'Nv.${widget.level}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontFamily: BrimstoneFonts.body,
-                                color: Colors.white70,
-                                fontSize: 7 * scale,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          if (widget.isLeader) ...[
-                            const SizedBox(width: 2),
-                            Flexible(
-                              child: Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 3 * scale,
-                                  vertical: 0.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFFFFD700),
-                                      Color(0xFFFF5A26)
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(3),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x66FF5A26),
-                                      blurRadius: 4,
+                            // Squashed cards (mini tiles) shrink the ribbon content
+                            // instead of overflowing it.
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: SizedBox(
+                                width: (w - 10 * scale).clamp(1.0, 400.0),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(
+                                      widget.name.toUpperCase(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style:
+                                          BrimstoneTypography.cardName.copyWith(
+                                        fontSize: 10.5 * scale,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2 * scale),
+                                    Row(
+                                      children: [
+                                        // Metallic sword ATK emblem.
+                                        Icon(
+                                          Icons.colorize,
+                                          size: 10 * scale,
+                                          color: _primary,
+                                        ),
+                                        SizedBox(width: 2 * scale),
+                                        Text(
+                                          '${widget.attack}',
+                                          style: TextStyle(
+                                            fontFamily: BrimstoneFonts.body,
+                                            fontSize: 10 * scale,
+                                            fontWeight: FontWeight.w900,
+                                            color: const Color(0xFFFFC93C),
+                                            fontFeatures: const [
+                                              FontFeature.tabularFigures(),
+                                            ],
+                                            shadows: const [
+                                              Shadow(
+                                                  color: Colors.black,
+                                                  blurRadius: 3),
+                                            ],
+                                          ),
+                                        ),
+                                        if (widget.runeName != null &&
+                                            widget.runeName!.isNotEmpty) ...[
+                                          SizedBox(width: 3 * scale),
+                                          Flexible(
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 3 * scale,
+                                                vertical: 0.5,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF2A153A),
+                                                borderRadius:
+                                                    BorderRadius.circular(3),
+                                                border: Border.all(
+                                                  color: const Color(0xFFB16EFF)
+                                                      .withValues(alpha: 0.7),
+                                                  width: 0.7,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                widget.runeName!,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontFamily:
+                                                      BrimstoneFonts.body,
+                                                  color:
+                                                      const Color(0xFFE5D4FF),
+                                                  fontSize: 6.5 * scale,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        const Spacer(),
+                                        if (widget.inCombat)
+                                          Text(
+                                            '${widget.currentMana}/${widget.maxMana}',
+                                            style: TextStyle(
+                                              fontFamily: BrimstoneFonts.body,
+                                              fontSize: 9 * scale,
+                                              fontWeight: isReady
+                                                  ? FontWeight.w900
+                                                  : FontWeight.w600,
+                                              color: isReady
+                                                  ? const Color(0xFFFFD700)
+                                                  : Colors.white70,
+                                              fontFeatures: const [
+                                                FontFeature.tabularFigures(),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                                child: Text(
-                                  'LÍDER',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontFamily: BrimstoneFonts.body,
-                                    color: Colors.black,
-                                    fontSize: 6.2 * scale,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.4,
-                                  ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // 4. Header: jewel, stars, level, leader.
+                      Positioned(
+                        top: 4 * scale,
+                        left: 4 * scale,
+                        right: 4 * scale,
+                        child: Row(
+                          children: [
+                            _JewelSigil(
+                              color: _elementColor,
+                              glow: _elementGlow,
+                              icon: _elementIcon,
+                              size: 15 * scale,
+                            ),
+                            SizedBox(width: 3 * scale),
+                            Flexible(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (var i = 0; i < widget.stars; i++)
+                                    Icon(
+                                      _starIcon,
+                                      size: (_isMythic ? 9.5 : 8.5) * scale,
+                                      color: _starColor,
+                                      shadows: [
+                                        Shadow(
+                                          color:
+                                              _starColor.withValues(alpha: 0.8),
+                                          blurRadius: 3,
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 3 * scale,
+                                vertical: 0.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.6),
+                                borderRadius: BorderRadius.circular(3),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.22),
+                                  width: 0.7,
+                                ),
+                              ),
+                              child: Text(
+                                'Nv.${widget.level}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: BrimstoneFonts.body,
+                                  color: Colors.white70,
+                                  fontSize: 7 * scale,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
+                            if (widget.isLeader) ...[
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 3 * scale,
+                                    vertical: 0.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFFFFD700),
+                                        Color(0xFFFF5A26)
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(3),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Color(0x66FF5A26),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    'LÍDER',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: BrimstoneFonts.body,
+                                      color: Colors.black,
+                                      fontSize: 6.2 * scale,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                    // 5. Combat liquid mana (bottom + side edges).
-                    if (widget.inCombat && manaFrac > 0)
+                      // 5. Combat liquid mana (bottom + side edges).
+                      if (widget.inCombat && manaFrac > 0)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: CustomPaint(
+                              painter: _ManaLiquidPainter(
+                                fraction: manaFrac,
+                                color: _elementColor,
+                                glow: _elementGlow,
+                                ready: isReady,
+                                pulse: pulse,
+                              ),
+                            ),
+                          ),
+                        ),
+                      // 6. Holographic foil (3★/4★).
+                      if (showFoil)
+                        Positioned.fill(
+                          child: FoilSheen(
+                            tint: _starRank >= 4
+                                ? const Color(0xFFFF2A54)
+                                : const Color(0xFFFFE9A3),
+                            intensity: _starRank >= 4 ? 0.62 : 0.30,
+                            animate: widget.raised || widget.inCombat,
+                            borderRadius: 9,
+                          ),
+                        ),
+                      // 7. Ornate metallic frame on top of everything.
                       Positioned.fill(
                         child: IgnorePointer(
                           child: CustomPaint(
-                            painter: _ManaLiquidPainter(
-                              fraction: manaFrac,
-                              color: _elementColor,
-                              glow: _elementGlow,
+                            painter: _AaaFramePainter(
+                              colors: _frameColors,
+                              primary: isReady
+                                  ? Color.lerp(const Color(0xFFFFD700),
+                                      Colors.white, pulse)!
+                                  : _primary,
+                              elementColor: _elementColor,
+                              rank: _starRank,
                               ready: isReady,
                               pulse: pulse,
                             ),
                           ),
                         ),
                       ),
-                    // 6. Holographic foil (3★/4★).
-                    if (showFoil)
-                      Positioned.fill(
-                        child: FoilSheen(
-                          tint: _starRank >= 4
-                              ? const Color(0xFFFF2A54)
-                              : const Color(0xFFFFE9A3),
-                          intensity: _starRank >= 4 ? 0.62 : 0.30,
-                          animate: widget.raised || widget.inCombat,
-                          borderRadius: 9,
-                        ),
-                      ),
-                    // 7. Ornate metallic frame on top of everything.
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: CustomPaint(
-                          painter: _AaaFramePainter(
-                            colors: _frameColors,
-                            primary: isReady
-                                ? Color.lerp(const Color(0xFFFFD700),
-                                    Colors.white, pulse)!
-                                : _primary,
-                            elementColor: _elementColor,
-                            rank: _starRank,
-                            ready: isReady,
-                            pulse: pulse,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // 8. ¡INVOCAR! ignition banner.
-                    if (isReady)
-                      Positioned(
-                        left: 4,
-                        right: 4,
-                        bottom: ribbonH * 0.42,
-                        child: Center(
+                      // 7b. 5★ primordial crown + passive seal.
+                      if (mythic)
+                        Positioned(
+                          top: 2 * scale,
+                          right: 3 * scale,
                           child: Container(
                             padding: EdgeInsets.symmetric(
-                              horizontal: 10 * scale,
-                              vertical: 2.5 * scale,
+                              horizontal: 3 * scale,
+                              vertical: 0.5,
                             ),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [Color(0xFFFF2A54), Color(0xFFFFD700)],
+                                colors: [Color(0xFFF2F4FF), Color(0xFFB0102C)],
                               ),
-                              borderRadius: BorderRadius.circular(5),
-                              border: Border.all(color: Colors.white, width: 1),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFFFD700)
-                                      .withValues(alpha: 0.85),
-                                  blurRadius: 10,
-                                  spreadRadius: 1,
-                                ),
-                              ],
+                              borderRadius: BorderRadius.circular(2),
+                              border: Border.all(
+                                color: const Color(0xFF05050B),
+                                width: 0.6,
+                              ),
                             ),
                             child: Text(
-                              '¡INVOCAR!',
+                              'MÍTICA',
                               style: TextStyle(
-                                fontFamily: BrimstoneFonts.display,
-                                color: Colors.black,
-                                fontSize: 8.5 * scale,
+                                fontFamily: BrimstoneFonts.body,
+                                color: const Color(0xFF0A0206),
+                                fontSize: 6 * scale,
                                 fontWeight: FontWeight.w900,
-                                letterSpacing: 0.8,
+                                letterSpacing: 0.4,
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                );
-              },
+                      // 8. ¡INVOCAR! ignition banner.
+                      if (isReady)
+                        Positioned(
+                          left: 4,
+                          right: 4,
+                          bottom: ribbonH * 0.42,
+                          child: Center(
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10 * scale,
+                                vertical: 2.5 * scale,
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFF2A54),
+                                    Color(0xFFFFD700)
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(5),
+                                border:
+                                    Border.all(color: Colors.white, width: 1),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFFD700)
+                                        .withValues(alpha: 0.85),
+                                    blurRadius: 10,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                '¡INVOCAR!',
+                                style: TextStyle(
+                                  fontFamily: BrimstoneFonts.display,
+                                  color: Colors.black,
+                                  fontSize: 8.5 * scale,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Calibrated grade applied to the mythic 5★ chassis.
+///
+/// * [CardSkin.abyssal] pushes the plate spectral purple/carmine.
+/// * [CardSkin.celestial] warms it into gold/platinum while lifting the blacks.
+class _SkinGrade extends StatelessWidget {
+  const _SkinGrade({
+    required this.skin,
+    required this.enabled,
+    required this.child,
+  });
+
+  final CardSkin skin;
+  final bool enabled;
+  final Widget child;
+
+  static const List<double> _abyssal = <double>[
+    0.80,
+    0.10,
+    0.34,
+    0.0,
+    0.0,
+    0.06,
+    0.52,
+    0.30,
+    0.0,
+    0.0,
+    0.22,
+    0.06,
+    0.96,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+  ];
+
+  static const List<double> _celestial = <double>[
+    1.14,
+    0.10,
+    0.00,
+    0.0,
+    12.0,
+    0.06,
+    1.04,
+    0.00,
+    0.0,
+    6.0,
+    0.00,
+    0.06,
+    0.86,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled || skin.isClassic) return child;
+    return ColorFiltered(
+      colorFilter: ColorFilter.matrix(
+        skin == CardSkin.abyssal ? _abyssal : _celestial,
+      ),
+      child: child,
     );
   }
 }

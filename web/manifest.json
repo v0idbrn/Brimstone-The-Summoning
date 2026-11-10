@@ -1,12 +1,12 @@
 {
-    "name": "brimstone_summoning",
-    "short_name": "brimstone_summoning",
+    "name": "Brimstone: The Summoning",
+    "short_name": "Brimstone",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#08060C",
+    "theme_color": "#08060C",
+    "description": "Roguelite de fusión elemental y sellos abisales. Invocá, fusioná esferas y purificá la Grieta.",
+    "orientation": "portrait",
     "prefer_related_applications": false,
     "icons": [
         {

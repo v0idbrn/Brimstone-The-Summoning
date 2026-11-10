@@ -49,6 +49,15 @@ jobs:
           # Set app name and portrait orientation
           sed -i 's/android:label="[^"]*"/android:label="Brimstone: The Summoning"/' android/app/src/main/AndroidManifest.xml
           sed -i '/android:name="io.flutter.embedding.android.FlutterActivity"/a\            android:screenOrientation="portrait"' android/app/src/main/AndroidManifest.xml
+          # Restore the native PCM sink (AudioTrack) that flutter create overwrites.
+          mkdir -p android/app/src/main/kotlin/com/brimstone/brimstone_summoning
+          cp tools/android/MainActivity.kt android/app/src/main/kotlin/com/brimstone/brimstone_summoning/MainActivity.kt
+
+      - name: Regenerate native + PWA icons
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 tools/build_app_icons.py
+          python3 tools/build_app_icons.py --check
 
       - name: Build release APK
         run: flutter build apk --release --split-debug-info=build/symbols

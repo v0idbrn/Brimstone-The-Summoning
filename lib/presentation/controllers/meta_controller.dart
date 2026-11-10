@@ -6,7 +6,9 @@ import '../../data/database/database_helper.dart';
 import '../../data/repositories/player_repository.dart';
 import '../../domain/entities/owned_card.dart';
 import '../../domain/meta/meta_rules.dart';
+import '../../domain/meta/mythic_ascension.dart';
 import '../../domain/meta/rune_system.dart';
+import '../../domain/value_objects/card_skin.dart';
 
 final playerRepositoryProvider = Provider<PlayerRepository>((ref) {
   return PlayerRepository(DatabaseHelper());
@@ -253,6 +255,49 @@ class CollectionController extends Notifier<CollectionState> {
       squad: state.squad,
     );
     await ref.read(playerRepositoryProvider).updateOwnedCard(evolved);
+    return true;
+  }
+
+  /// 5★ Primordial Ascension: 1 200 esquirlas + 2 500 oro, +45 % ATK/HP,
+  /// -8 maná y pasiva mítica de escuadrón. False si no procede o no alcanza.
+  Future<bool> ascendMythic(int instanceId) async {
+    final card = _card(instanceId);
+    if (!MythicAscension.canAscend(card.stars)) return false;
+    final ok = await ref.read(profileProvider.notifier).spend(
+          shards: MythicAscension.shardCost,
+          gold: MythicAscension.goldCost,
+        );
+    if (!ok) return false;
+    final ascended = card.copyWith(
+      stars: MythicAscension.ascensionStars + 1,
+      attack: MythicAscension.attackAfter(card.baseAttack),
+      health: MythicAscension.healthAfter(card.baseHealth),
+      baseManaCost: MythicAscension.manaAfter(card.baseManaCost),
+    );
+    state = CollectionState(
+      owned: [
+        for (final c in state.owned)
+          if (c.instanceId == instanceId) ascended else c,
+      ],
+      squad: state.squad,
+    );
+    await ref.read(playerRepositoryProvider).updateOwnedCard(ascended);
+    return true;
+  }
+
+  /// Re-skins a mythic card (Barracks visual selector).
+  Future<bool> setSkin(int instanceId, CardSkin skin) async {
+    final card = _card(instanceId);
+    if (!card.isMythic) return false;
+    final updated = card.copyWith(skin: skin);
+    state = CollectionState(
+      owned: [
+        for (final c in state.owned)
+          if (c.instanceId == instanceId) updated else c,
+      ],
+      squad: state.squad,
+    );
+    await ref.read(playerRepositoryProvider).updateOwnedCard(updated);
     return true;
   }
 

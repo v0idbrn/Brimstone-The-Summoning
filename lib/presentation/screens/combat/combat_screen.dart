@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart' hide Element;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/procedural_sfx_engine.dart';
@@ -20,8 +21,13 @@ import '../../../domain/value_objects/element.dart';
 import '../../../domain/value_objects/orb_level.dart';
 import '../../combat_engine/brimstone_combat_game.dart';
 import '../../controllers/meta_controller.dart';
+import '../../../domain/combat/verlet_sparks.dart';
+import '../../graphics/combat_sparks.dart';
+import '../../graphics/dynamic_camera.dart';
 import '../../graphics/elemental_vfx.dart';
 import '../../widgets/tcg_card_widget.dart';
+import '../../widgets/overdrive_bar.dart';
+import '../../widgets/gothic_modal_frame.dart';
 import 'hero_skill_cut_in.dart';
 import '../meta/how_to_play_modal.dart';
 import '../sanctuary/settings_modal.dart';
@@ -130,6 +136,13 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   // Secuencia de muerte del jefe: grietas + brasas + banner dorado.
   int _shatterToken = 0;
+
+  // Studio Edition: cinematic camera + bouncing Verlet sparks.
+  final DynamicCombatCamera _camera = DynamicCombatCamera();
+  final VerletSparkPool _sparks = VerletSparkPool(capacity: 96);
+  late final Ticker _fxTicker;
+  Duration _fxElapsed = Duration.zero;
+  final ValueNotifier<double> _fxClock = ValueNotifier<double>(0);
 
   CombatEngine get engine => _engine!;
 
@@ -243,6 +256,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
     // Dynamic score: ritual war drums replace the Sanctuary choir.
+    _fxTicker = createTicker(_onFxTick)..start();
     ProceduralSfxEngine.startAmbient('boss_pulse');
     _initEngine();
   }
@@ -250,6 +264,8 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   @override
   void dispose() {
     ProceduralSfxEngine.startAmbient('drone');
+    _fxTicker.dispose();
+    _fxClock.dispose();
     _particleCtrl.dispose();
     _mergePulseCtrl.dispose();
     super.dispose();
@@ -262,6 +278,31 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       _resolved = false;
       _initEngine();
     }
+  }
+
+  /// 60 fps driver for the cinematic camera, the bouncing sparks and the
+  /// OVERDRIVE rail (they must animate even while the game is slow-mo'd).
+  void _onFxTick(Duration elapsed) {
+    final dt = ((elapsed - _fxElapsed).inMicroseconds / 1e6).clamp(0.0, 0.05);
+    _fxElapsed = elapsed;
+    if (dt <= 0 || _engine == null) return;
+    _camera.tick(
+      dt,
+      aiming: _aimingLevelThree,
+      bossBroken: engine.bossShieldBroken || engine.overdriveActive,
+    );
+    _sparks.update(dt, floorY: CombatEngine.trayY - 34);
+    _fxClock.value = _fxClock.value + dt;
+  }
+
+  /// True while a level-3 orb is dragged above the tray: the aim laser ignites
+  /// and the camera leans into the targets.
+  bool get _aimingLevelThree {
+    final slot = _draggedSlot;
+    if (slot == null || _engine == null) return false;
+    final orb = engine.tray[slot];
+    if (orb == null || orb.level != OrbLevel.three) return false;
+    return engine.dragY < CombatEngine.trayY - 120;
   }
 
   Future<void> _initEngine() async {
@@ -315,6 +356,21 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
           break;
       }
       _addBurst(x, y, _elementColor(element));
+      final crit = kind == HitKind.bullseye;
+      if (crit || kind == HitKind.normal || kind == HitKind.graze) {
+        _sparks.burst(
+          x: x,
+          y: y,
+          random: engine.random,
+          count: crit ? 18 : 8,
+          speed: crit ? 340 : 210,
+          baseAngle: -math.pi / 2,
+          spreadRadians: math.pi * 1.4,
+          life: crit ? 0.7 : 0.5,
+          size: crit ? 2.8 : 2.0,
+        );
+        if (crit) _camera.punch();
+      }
 
       // HellFire: Spawn 3 mana orb particles flying from hit target to matching-element squad cards
       _spawnManaOrbParticles(x, y, element);
@@ -346,6 +402,11 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     };
     _engine!.onShieldBreak = () {
       ProceduralSfxEngine.playShieldBreak();
+      if (mounted) setState(() => _shockToken++);
+    };
+    _engine!.onOverdriveStart = () {
+      ProceduralSfxEngine.playLevelUp();
+      _camera.punch(0.1);
       if (mounted) setState(() => _shockToken++);
     };
     // AAA cut-in: fires for manual taps and AUTO battle alike.
@@ -794,7 +855,23 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
               child: Stack(
                 children: [
                   Positioned.fill(
-                      child: ClipRect(child: GameWidget(game: game))),
+                    child: AnimatedBuilder(
+                      animation: _fxClock,
+                      builder: (context, _) => Transform.scale(
+                        scale: _camera.scale,
+                        alignment: Alignment.bottomCenter,
+                        child: ClipRect(child: GameWidget(game: game)),
+                      ),
+                    ),
+                  ),
+                  // Peripheral vignette that closes in with the tactical zoom.
+                  Positioned.fill(
+                    child: AnimatedBuilder(
+                      animation: _fxClock,
+                      builder: (context, _) =>
+                          CombatVignette(strength: _camera.vignette),
+                    ),
+                  ),
                   // Live boss afflictions floating over its portrait.
                   Positioned(
                     top: 6,
@@ -804,6 +881,19 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                       child: _BossStatusBar(engine: engine),
                     ),
                   ),
+                  if (engine.scoreTarget != null)
+                    Positioned(
+                      top: 44,
+                      left: 12,
+                      right: 12,
+                      child: IgnorePointer(
+                        child: AnimatedBuilder(
+                          animation: _fxClock,
+                          builder: (context, _) =>
+                              _DuelScoreboard(engine: engine),
+                        ),
+                      ),
+                    ),
                   // HellFire: Dimensional Rift Archway - stone pillars with elemental energy veins
                   Positioned.fill(
                       child:
@@ -866,6 +956,46 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                       color: _elementColor(_barrageElement),
                     ),
                   ),
+                  // Verlet sparks with gravity + stone-lip bounce.
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _fxClock,
+                        builder: (context, _) => CustomPaint(
+                          painter: SparkPoolPainter(
+                            pool: _sparks,
+                            color: _elementColor(_barrageElement),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Arcane beam shader: predictive aim + BREAK chains.
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final s =
+                              constraints.maxWidth / CombatEngine.layoutWidth;
+                          final dy = (constraints.maxHeight -
+                                  CombatEngine.layoutHeight * s) /
+                              2;
+                          return Transform.translate(
+                            offset: Offset(0, dy),
+                            child: Transform.scale(
+                              scale: s,
+                              alignment: Alignment.topLeft,
+                              child: _ArcaneField(
+                                engine: engine,
+                                aiming: _aimingLevelThree,
+                                color: _elementColor(_barrageElement),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
                   // Cinematic hero invocation cut-in (diagonal band + impact)
                   Positioned.fill(
                     child: HeroSkillCutIn(
@@ -922,6 +1052,16 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                       ),
                     ),
                 ],
+              ),
+            ),
+
+            // OVERDRIVE rail: frenesi meter under the arena.
+            AnimatedBuilder(
+              animation: _fxClock,
+              builder: (context, _) => OverdriveBar(
+                fraction: engine.overdriveFraction,
+                active: engine.overdriveActive,
+                remaining: engine.overdriveRemaining,
               ),
             ),
 
@@ -2966,5 +3106,124 @@ class _SummaryRow extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                   fontSize: 13))
         ]));
+  }
+}
+
+/// Electric chains + predictive aim laser, drawn in engine coordinates.
+class _ArcaneField extends StatelessWidget {
+  const _ArcaneField({
+    required this.engine,
+    required this.aiming,
+    required this.color,
+  });
+
+  final CombatEngine engine;
+  final bool aiming;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final beams = <Widget>[];
+    if (aiming) {
+      beams.add(
+        ArcaneBeam(
+          start: Offset(engine.dragX, engine.dragY),
+          end: const Offset(
+              CombatEngine.bossScreenX, CombatEngine.bossScreenY - 30),
+          color: color,
+          thickness: 34,
+          progress: 0.92,
+        ),
+      );
+    }
+    if (engine.bossShieldBroken) {
+      for (var i = 0; i < engine.targets.length; i++) {
+        final target = engine.targets[i];
+        beams.add(
+          ArcaneBeam(
+            start: const Offset(
+                CombatEngine.bossScreenX, CombatEngine.bossScreenY),
+            end: Offset(
+              target.xAt(engine.time, engine.effectiveAngularSpeed(target)),
+              target.yAt(engine.time, engine.effectiveAngularSpeed(target)),
+            ),
+            color: i.isEven ? color : const Color(0xFFE5D4FF),
+            thickness: 13,
+            glow: 0.75,
+          ),
+        );
+      }
+    }
+    if (beams.isEmpty) return const SizedBox.shrink();
+    return SizedBox(
+      width: CombatEngine.layoutWidth,
+      height: CombatEngine.layoutHeight,
+      child: Stack(clipBehavior: Clip.none, children: beams),
+    );
+  }
+}
+
+/// Live damage race HUD for an Archon Colosseum duel.
+class _DuelScoreboard extends StatelessWidget {
+  const _DuelScoreboard({required this.engine});
+
+  final CombatEngine engine;
+
+  @override
+  Widget build(BuildContext context) {
+    final target = engine.scoreTarget ?? 0;
+    final score = engine.damageTotal;
+    final ratio = target <= 0 ? 0.0 : (score / target).clamp(0.0, 1.0);
+    final remaining =
+        (engine.duelDuration - engine.time).clamp(0.0, engine.duelDuration);
+    final winning = score >= target;
+    final accent = winning ? const Color(0xFF4FFFA3) : const Color(0xFFFFC93C);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: accent.withValues(alpha: 0.55)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Text(
+                'TU PUNTAJE $score',
+                style: BrimstoneFonts.cinzel(
+                  size: 9,
+                  weight: FontWeight.w900,
+                  color: accent,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'OBJETIVO $target',
+                style: BrimstoneFonts.cinzel(
+                  size: 9,
+                  weight: FontWeight.w900,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${remaining.toStringAsFixed(0)}s',
+                style: BrimstoneFonts.sans(
+                  size: 9,
+                  color: remaining <= 10
+                      ? const Color(0xFFFF5A26)
+                      : Colors.white54,
+                  weight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          MetallicProgressBar(value: ratio, color: accent, height: 5),
+        ],
+      ),
+    );
   }
 }

@@ -14,6 +14,7 @@ import '../value_objects/element.dart';
 import '../value_objects/orb_level.dart';
 import 'combat_math.dart';
 import 'combat_models.dart';
+import 'overdrive.dart';
 
 /// Relic-derived combat modifiers for a rift run.
 class CombatModifiers {
@@ -315,6 +316,28 @@ class CombatEngine {
   /// coste, sin guardar progreso.
   final bool trainingMode;
 
+  /// Coliseo de los Arcontes: puntaje de daño a superar en [duelDuration].
+  /// Null en un combate normal (se gana matando al jefe).
+  final int? scoreTarget;
+
+  /// Duración del duelo de coliseo (45 s).
+  final double duelDuration;
+
+  // OVERDRIVE (Frenesí Abisal): medidor 0→1 y ventana de 6 s de furia.
+  double overdriveCharge = 0;
+  double overdriveRemaining = 0;
+  double _overdriveRefillTimer = 0;
+  int _overdriveRefillIndex = 0;
+
+  bool get overdriveActive => overdriveRemaining > 0;
+
+  /// Medidor normalizado (1.0 = listo para detonar).
+  double get overdriveFraction => OverdriveRules.clampCharge(overdriveCharge);
+
+  /// Multiplicador de daño mientras arde el frenesí.
+  double get overdriveDamageMult =>
+      overdriveActive ? OverdriveRules.damageMult : 1.0;
+
   /// Racha de Bullseyes consecutivos (se corta al fallar o raspar).
   int bullseyeStreak = 0;
 
@@ -385,6 +408,9 @@ class CombatEngine {
   /// Fired the moment the boss seal/shield shatters ("RUPTURA DE SELLO").
   void Function()? onShieldBreak;
 
+  /// Fired when the frenzy meter hits 100 % and the 6 s OVERDRIVE begins.
+  void Function()? onOverdriveStart;
+
   /// Fired when a squad skill is successfully invoked. The battle screen uses
   /// it to launch the cinematic hero "cut-in" banner.
   void Function(ManaCard card, int index)? onSkillCast;
@@ -412,6 +438,8 @@ class CombatEngine {
     Map<String, int> summonerGear = const {},
     this.mutators = const [],
     this.trainingMode = false,
+    this.scoreTarget,
+    this.duelDuration = 45.0,
   })  : modifiers = modifiers ?? const CombatModifiers(),
         _talentTree = TalentTree(talentLevels),
         _gearLoadout = GearLoadout(summonerGear),
@@ -595,6 +623,7 @@ class CombatEngine {
     if (velocityY < CombatMath.flickSpeedThreshold) {
       final orb = tray[slot]!;
       final vy = velocityY.abs().clamp(280.0, 2000.0).toDouble();
+      final flickFlight = CombatMath.durationForFlickSpeed(-vy);
       projectiles.add(
         OrbProjectile(
           id: _nextId('proj'),
@@ -604,7 +633,10 @@ class CombatEngine {
           startY: trayY,
           targetX: dragX,
           targetY: bossScreenY,
-          flightDuration: CombatMath.durationForFlickSpeed(-vy),
+          // OVERDRIVE: every throw flies at (at least) maximum speed.
+          flightDuration: overdriveActive
+              ? math.min(flickFlight, OverdriveRules.projectileFlight)
+              : flickFlight,
         ),
       );
       tray[slot] = null;
@@ -712,6 +744,8 @@ class CombatEngine {
     );
     tray[a] = null;
     onTrayChanged?.call();
+    // Player merges feed the OVERDRIVE meter exactly like auto-battle merges.
+    addOverdrive(OverdriveRules.gainPerMerge);
     trauma = (trauma + 0.25).clamp(0.0, 1.0);
     final mergeX = CombatEngine.layoutWidth / 5 * (b + 0.5);
     final mergeY = (CombatEngine.trayY + CombatEngine.layoutHeight) / 2;
@@ -756,6 +790,7 @@ class CombatEngine {
     tickEnrage(scaled);
     _tickMutators(scaled);
     _tickTexts(scaled);
+    _tickOverdrive(scaled);
 
     // Block 3: Tick boss shield break timer.
     if (bossShieldBroken) {
@@ -767,9 +802,23 @@ class CombatEngine {
 
     if (bossHp <= 0) {
       finished = true;
-      victory = true;
+      victory = scoreTarget == null || damageTotal >= scoreTarget!;
       slowMoRemaining = 0.30;
-      onVictory?.call();
+      if (victory) {
+        onVictory?.call();
+      } else {
+        onDefeat?.call();
+      }
+    } else if (scoreTarget != null && time >= duelDuration) {
+      // Coliseo: el reloj manda, no la vida del guardián.
+      finished = true;
+      victory = damageTotal >= scoreTarget!;
+      slowMoRemaining = 0.30;
+      if (victory) {
+        onVictory?.call();
+      } else {
+        onDefeat?.call();
+      }
     } else if (playerHp <= 0) {
       // Corazón de Fénix: revive una vez con 30% de vida y esferas Nivel 3.
       if (modifiers.phoenixRevive && !_phoenixUsed) {
@@ -798,6 +847,62 @@ class CombatEngine {
       victory = false;
       onDefeat?.call();
     }
+  }
+
+  // ---------------------------------------------------------- OVERDRIVE
+
+  /// Adds charge to the frenzy meter; detonates the 6 s window at 100 %.
+  void addOverdrive(double amount) {
+    if (finished || overdriveActive || amount <= 0) return;
+    overdriveCharge = OverdriveRules.clampCharge(overdriveCharge + amount);
+    if (OverdriveRules.shouldActivate(overdriveCharge)) _startOverdrive();
+  }
+
+  void _startOverdrive() {
+    overdriveCharge = 1.0;
+    overdriveRemaining = OverdriveRules.duration;
+    _overdriveRefillTimer = 0;
+    _overdriveRefillIndex = 0;
+    trauma = 1.0;
+    texts.add(
+      FloatingText(
+        id: _nextId('txt'),
+        text: '¡FRENESÍ ABISAL!',
+        x: bossScreenX,
+        y: bossScreenY - 220,
+        kind: FloatingTextKind.skill,
+      ),
+    );
+    onOverdriveStart?.call();
+  }
+
+  void _tickOverdrive(double s) {
+    if (overdriveRemaining <= 0) return;
+    overdriveRemaining = math.max(0, overdriveRemaining - s);
+    _overdriveRefillTimer += s;
+    while (_overdriveRefillTimer >= OverdriveRules.refillInterval) {
+      _overdriveRefillTimer -= OverdriveRules.refillInterval;
+      _refillTrayForFrenzy();
+    }
+    if (overdriveRemaining == 0) {
+      overdriveCharge = 0;
+      _overdriveRefillTimer = 0;
+      _overdriveRefillIndex = 0;
+    }
+  }
+
+  /// Frenzy refill: every 0.15 s the tray snaps to a fresh 3★/2★ pattern.
+  void _refillTrayForFrenzy() {
+    _overdriveRefillIndex++;
+    for (var i = 0; i < tray.length; i++) {
+      final level = OverdriveRules.refillLevelFor(_overdriveRefillIndex + i);
+      tray[i] = CombatOrb(
+        id: _nextId('orb'),
+        element: Element.values[random.nextInt(4)],
+        level: level >= 3 ? OrbLevel.three : OrbLevel.two,
+      );
+    }
+    onTrayChanged?.call();
   }
 
   /// Block 3: Auto-Battle AI tick.
@@ -884,6 +989,7 @@ class CombatEngine {
     );
     tray[j] = null;
     mergesToThree++;
+    addOverdrive(OverdriveRules.gainPerMerge);
     onMerge?.call(newLevel, _trayX(i), trayY, orb1.element);
   }
 
@@ -902,7 +1008,9 @@ class CombatEngine {
         startY: trayY,
         targetX: target.xAt(time, effectiveAngularSpeed(target)),
         targetY: target.yAt(time, effectiveAngularSpeed(target)),
-        flightDuration: 0.85,
+        flightDuration: overdriveActive
+            ? OverdriveRules.projectileFlight
+            : OverdriveRules.normalFlight,
       ),
     );
   }
@@ -1052,6 +1160,11 @@ class CombatEngine {
     var mult = CombatMath.hitMultiplier(kind, orb.level);
     if (vulnerableRemaining > 0) mult *= 1.3;
     registerDamage(orb: orb, target: target, multiplier: mult, kind: kind);
+    addOverdrive(
+      kind == HitKind.bullseye
+          ? OverdriveRules.gainPerBullseye
+          : OverdriveRules.gainPerHit,
+    );
 
     final mana = CombatMath.hitMana(kind, orb.level) *
         modifiers.manaSpeedMult *
@@ -1182,6 +1295,7 @@ class CombatEngine {
     }
     slowMoRemaining = 0.30;
     trauma = (trauma + 0.7).clamp(0.0, 1.0);
+    addOverdrive(OverdriveRules.gainPerReaction);
   }
 
   void addManaToAllCards(double amount) {
@@ -1261,7 +1375,8 @@ class CombatEngine {
         weaknessMult *
         breakMult *
         shieldDamageMult *
-        breakCritMult;
+        breakCritMult *
+        overdriveDamageMult;
     // Anti-cheat: NaN/infinitos/negativos se descartan; los valores inyectados
     // por encima del techo legal se recortan y quedan registrados.
     final dmg = sanityGuard.sanitize(rawDamage);

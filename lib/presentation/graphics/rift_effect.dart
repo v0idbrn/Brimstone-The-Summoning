@@ -20,11 +20,13 @@ class BrimstoneShaders {
   static const String foilAsset = 'shaders/foil_card.frag';
   static const String shockwaveAsset = 'shaders/shockwave_break.frag';
   static const String plasmaAsset = 'shaders/orb_plasma.frag';
+  static const String arcaneBeamAsset = 'shaders/arcane_beam.frag';
 
   static ui.FragmentProgram? _rift;
   static ui.FragmentProgram? _foil;
   static ui.FragmentProgram? _shockwave;
   static ui.FragmentProgram? _plasma;
+  static ui.FragmentProgram? _arcaneBeam;
   static bool _warming = false;
   static bool _warmed = false;
 
@@ -32,6 +34,7 @@ class BrimstoneShaders {
   static bool get foilAvailable => _foil != null;
   static bool get shockwaveAvailable => _shockwave != null;
   static bool get plasmaAvailable => _plasma != null;
+  static bool get arcaneBeamAvailable => _arcaneBeam != null;
 
   /// Preloads every program once (called from `main()` after the first frame).
   static Future<void> warmUp() async {
@@ -43,11 +46,13 @@ class BrimstoneShaders {
         _load(foilAsset),
         _load(shockwaveAsset),
         _load(plasmaAsset),
+        _load(arcaneBeamAsset),
       ]);
       _rift = loaded[0];
       _foil = loaded[1];
       _shockwave = loaded[2];
       _plasma = loaded[3];
+      _arcaneBeam = loaded[4];
     } finally {
       _warming = false;
       _warmed = true;
@@ -94,6 +99,15 @@ class BrimstoneShaders {
   static ui.FragmentShader? newPlasmaShader() {
     try {
       return _plasma?.fragmentShader();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fresh shader instance bound to the arcane beam program, or `null`.
+  static ui.FragmentShader? newArcaneBeamShader() {
+    try {
+      return _arcaneBeam?.fragmentShader();
     } catch (_) {
       return null;
     }

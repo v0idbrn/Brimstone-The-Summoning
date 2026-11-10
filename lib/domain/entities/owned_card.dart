@@ -1,3 +1,4 @@
+import '../value_objects/card_skin.dart';
 import '../value_objects/element.dart';
 import '../value_objects/rarity.dart';
 
@@ -16,6 +17,9 @@ class OwnedCard {
   final int skillLevel; // 1-5
   final int masteryXp; // 0-999 (each 100 XP = 1 Mastery Rank, max 10)
 
+  /// Chasis visual elegido (solo relevante en cartas 5★ míticas).
+  final CardSkin skin;
+
   const OwnedCard({
     required this.instanceId,
     required this.catalogId,
@@ -29,7 +33,11 @@ class OwnedCard {
     required this.stars,
     required this.skillLevel,
     required this.masteryXp,
+    this.skin = CardSkin.classic,
   });
+
+  /// True for the 5★ Primordial form.
+  bool get isMythic => stars >= 5;
 
   /// Mastery Rank 1-10 (each 100 XP = 1 rank).
   int get masteryRank => ((masteryXp ~/ 100) + 1).clamp(1, 10);
@@ -50,6 +58,8 @@ class OwnedCard {
     int? health,
     int? skillLevel,
     int? masteryXp,
+    int? baseManaCost,
+    CardSkin? skin,
   }) =>
       OwnedCard(
         instanceId: instanceId,
@@ -57,12 +67,13 @@ class OwnedCard {
         name: name,
         element: element,
         rarity: rarity,
-        baseManaCost: baseManaCost,
+        baseManaCost: baseManaCost ?? this.baseManaCost,
         baseAttack: attack ?? baseAttack,
         baseHealth: health ?? baseHealth,
         level: level ?? this.level,
         stars: stars ?? this.stars,
         skillLevel: skillLevel ?? this.skillLevel,
         masteryXp: masteryXp ?? this.masteryXp,
+        skin: skin ?? this.skin,
       );
 }

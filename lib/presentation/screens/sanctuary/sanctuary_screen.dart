@@ -27,6 +27,8 @@ import 'summoner_profile_modal.dart';
 import 'talent_tree_modal.dart';
 import '../challenges/seal_challenges_screen.dart';
 import '../training/training_arena_screen.dart';
+import '../arena_pvp/archon_colosseum_screen.dart';
+import '../dungeons/elemental_chambers_screen.dart';
 import '../raids/abyssal_raid_screen.dart';
 import '../shop/brimstone_shop_modal.dart';
 import '../../../domain/meta/summoner_titles.dart';
@@ -56,6 +58,8 @@ class _MetaActionsPanel extends StatelessWidget {
     required this.onCodex,
     required this.onBounties,
     required this.onBackup,
+    required this.onColosseum,
+    required this.onChambers,
   });
 
   final VoidCallback onTalentTree;
@@ -68,6 +72,8 @@ class _MetaActionsPanel extends StatelessWidget {
   final VoidCallback onCodex;
   final VoidCallback onBounties;
   final VoidCallback onBackup;
+  final VoidCallback onColosseum;
+  final VoidCallback onChambers;
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +88,8 @@ class _MetaActionsPanel extends StatelessWidget {
       _MetaAction('Códice', Icons.menu_book, onCodex),
       _MetaAction('Juramentos', Icons.military_tech, onBounties),
       _MetaAction('Backup', Icons.backup, onBackup),
+      _MetaAction('Coliseo', Icons.workspace_premium, onColosseum),
+      _MetaAction('Cámaras', Icons.travel_explore, onChambers),
     ];
 
     return Container(
@@ -263,6 +271,24 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const SealChallengesScreen()),
     );
+  }
+
+  Future<void> _openColosseum() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ArchonColosseumScreen(),
+      ),
+    );
+    if (mounted) await _loadMeta();
+  }
+
+  Future<void> _openChambers() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ElementalChambersScreen(),
+      ),
+    );
+    if (mounted) await _loadMeta();
   }
 
   Future<void> _openTraining() async {
@@ -570,6 +596,8 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
               onMerchant: _openMerchant,
               onCodex: _openCodex,
               onBounties: _openBounties,
+              onColosseum: _openColosseum,
+              onChambers: _openChambers,
               onBackup: _openBackup,
             ),
             const SizedBox(height: 12),

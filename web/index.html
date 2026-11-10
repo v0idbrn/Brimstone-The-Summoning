@@ -1,46 +1,150 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
+  <!-- Replace $FLUTTER_BASE_HREF with the --base-href value at build time. -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Brimstone: The Summoning — roguelite de fusión elemental y sellos abisales.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#08060C">
 
-  <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="brimstone_summoning">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Brimstone">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
-
-  <title>brimstone_summoning</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="preload" as="image" href="icons/Icon-192.png">
+
+  <title>Brimstone: The Summoning</title>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #08060C;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Dark ritual preloader: kills Flutter Web's white flash for good. */
+    #brimstone-loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background:
+        radial-gradient(circle at 50% 42%, #2A0A12 0%, #12070C 38%, #08060C 72%),
+        #08060C;
+      font-family: Georgia, "Times New Roman", serif;
+      transition: opacity 420ms ease-out;
+      z-index: 9999;
+    }
+    #brimstone-loader.is-gone {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .sigil {
+      position: relative;
+      width: 116px;
+      height: 116px;
+      display: grid;
+      place-items: center;
+    }
+    .ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        rgba(200, 162, 75, 0) 0deg,
+        rgba(200, 162, 75, 0.15) 90deg,
+        #F5DE9C 190deg,
+        #C81A3A 290deg,
+        rgba(200, 162, 75, 0) 360deg
+      );
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+      mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+      animation: brimstone-spin 2.4s linear infinite;
+      filter: drop-shadow(0 0 8px rgba(200, 26, 58, 0.55));
+    }
+    .ring-outer {
+      position: absolute;
+      inset: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(200, 162, 75, 0.30);
+      box-shadow: inset 0 0 18px rgba(255, 106, 24, 0.22);
+      animation: brimstone-pulse 2.4s ease-in-out infinite;
+    }
+    .core {
+      width: 34px;
+      height: 46px;
+      background: radial-gradient(circle at 50% 32%, #FFE7A8 0%, #FF7E24 42%, #C81A3A 78%, #5A0714 100%);
+      clip-path: polygon(50% 0%, 64% 26%, 60% 44%, 78% 58%, 58% 100%, 40% 82%, 22% 58%, 40% 42%, 36% 22%);
+      filter: drop-shadow(0 0 12px rgba(255, 106, 24, 0.75));
+      animation: brimstone-flicker 1.6s ease-in-out infinite alternate;
+    }
+    .wordmark {
+      margin: 4px 0 0;
+      font-size: 20px;
+      letter-spacing: 7px;
+      color: #E9D9A8;
+      text-shadow: 0 0 14px rgba(255, 106, 24, 0.35);
+    }
+    .tagline {
+      margin: 0;
+      font-size: 9px;
+      letter-spacing: 4px;
+      color: rgba(233, 217, 168, 0.55);
+    }
+    @keyframes brimstone-spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes brimstone-pulse {
+      0%, 100% { opacity: 0.55; }
+      50% { opacity: 1; }
+    }
+    @keyframes brimstone-flicker {
+      from { transform: scale(0.94) translateY(1px); }
+      to { transform: scale(1.04) translateY(-2px); }
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="brimstone-loader" role="status" aria-live="polite" aria-label="Cargando Brimstone">
+    <div class="sigil">
+      <div class="ring"></div>
+      <div class="ring-outer"></div>
+      <div class="core"></div>
+    </div>
+    <p class="wordmark">BRIMSTONE</p>
+    <p class="tagline">CRÓNICAS DEL SELLO ROTO</p>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <script>
+    (function () {
+      var loader = document.getElementById('brimstone-loader');
+      function dismiss() {
+        if (!loader || loader.classList.contains('is-gone')) return;
+        loader.classList.add('is-gone');
+        setTimeout(function () {
+          if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 460);
+      }
+      window.addEventListener('flutter-first-frame', dismiss);
+      window.addEventListener('load', function () {
+        // Safety net: never trap the player behind the curtain.
+        setTimeout(dismiss, 9000);
+      });
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

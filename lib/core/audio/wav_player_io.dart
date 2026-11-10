@@ -1,23 +1,63 @@
-import 'dart:typed_data';
+import 'package:flutter/services.dart';
 
 /// IO (Android / iOS / desktop) audio backend.
 ///
-/// The procedural WAV buffers are fully synthesized on this side, but PCM
-/// playback needs a native sink. No pure-Dart sink exists, and the project
-/// ships without native audio plugins, so the engine keeps its platform
-/// `SystemSound` + haptics feedback here and reports `supported = false`.
+/// Ships zero pub dependencies: the synthesized WAV bytes travel over a
+/// [MethodChannel] to a native sink registered by the host app. On Android that
+/// sink is `MainActivity`'s `AudioTrack` engine (see `android/.../MainActivity.kt`);
+/// on desktop/iOS there is no handler, so every call degrades to a silent no-op
+/// (`MissingPluginException` / `PlatformException` are swallowed).
 ///
-/// Everything below is a no-op with the exact same contract as the web bridge,
-/// so `ProceduralSfxEngine` can call it unconditionally.
-const bool wavPlaybackSupported = false;
-const bool wavLoopSupported = false;
+/// The web build never compiles this file (conditional import picks
+/// `wav_player_web.dart`), so `package:flutter/services.dart` here costs nothing
+/// on the browser bundle.
+const MethodChannel _channel = MethodChannel('com.brimstone.summoning/audio');
 
-void unlockAudio() {}
+/// True: the buffers are handed to a native sink that can actually sound them
+/// when a handler is registered. The bridge cannot know synchronously whether
+/// the host app registered it, so it optimistically reports support and stays
+/// silent when the call bounces.
+const bool wavPlaybackSupported = true;
+const bool wavLoopSupported = true;
 
-void playWav(String key, Uint8List wav, double volume) {}
+bool _unlocked = false;
 
-void loopWav(String key, Uint8List wav, double volume) {}
+Future<Object?> _invoke(String method, [Map<String, Object?>? args]) async {
+  try {
+    return await _channel.invokeMethod<Object?>(method, args);
+  } catch (_) {
+    // MissingPluginException (tests, desktop, iOS without handler) and any
+    // platform error must never reach the game loop.
+    return null;
+  }
+}
 
-void stopLoopWav(String key) {}
+void unlockAudio() {
+  if (_unlocked) return;
+  _unlocked = true;
+  _invoke('unlock');
+}
 
-void stopAllWav() {}
+void playWav(String key, Uint8List wav, double volume) {
+  _invoke('play', {
+    'key': key,
+    'bytes': wav,
+    'volume': volume.clamp(0.0, 1.0),
+  });
+}
+
+void loopWav(String key, Uint8List wav, double volume) {
+  _invoke('loop', {
+    'key': key,
+    'bytes': wav,
+    'volume': volume.clamp(0.0, 1.0),
+  });
+}
+
+void stopLoopWav(String key) {
+  _invoke('stopLoop', {'key': key});
+}
+
+void stopAllWav() {
+  _invoke('stopAll');
+}

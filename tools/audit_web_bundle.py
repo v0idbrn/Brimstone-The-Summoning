@@ -28,6 +28,13 @@ REQUIRED = [
     "/assets/shaders/foil_card.frag",
     "/assets/shaders/shockwave_break.frag",
     "/assets/shaders/orb_plasma.frag",
+    "/assets/shaders/arcane_beam.frag",
+    "/manifest.json",
+    "/favicon.png",
+    "/icons/Icon-192.png",
+    "/icons/Icon-512.png",
+    "/icons/Icon-maskable-192.png",
+    "/icons/Icon-maskable-512.png",
 ]
 
 
@@ -59,27 +66,34 @@ def audit(base_url: str) -> int:
             checked += 1
             print(f"OK  {path:<46} {len(body):>8} B  {content_type}")
 
-    # Every bundled asset must be served with the exact on-disk size.
+    # Every bundled asset (engine assets, PWA manifest and generated icons) must
+    # be served with the exact on-disk size.
     asset_root = os.path.join(BUILD_DIR, "assets")
-    for root, _dirs, files in os.walk(asset_root):
-        for name in sorted(files):
-            local = os.path.join(root, name)
-            rel = "/" + os.path.relpath(local, BUILD_DIR).replace(os.sep, "/")
-            url = base_url.rstrip("/") + rel
-            expected = os.path.getsize(local)
-            try:
-                status, body, _ = fetch(url)
-            except urllib.error.HTTPError as error:
-                failures.append(f"{rel}: HTTP {error.code}")
-                continue
-            except Exception as error:  # noqa: BLE001
-                failures.append(f"{rel}: {error}")
-                continue
-            checked += 1
-            if status != 200:
-                failures.append(f"{rel}: HTTP {status}")
-            elif len(body) != expected:
-                failures.append(f"{rel}: {len(body)} B served, {expected} B on disk")
+    roots = [asset_root] + [
+        os.path.join(BUILD_DIR, extra) for extra in ("icons",)
+    ]
+    for base_root in roots:
+        for root, _dirs, files in os.walk(base_root):
+            for name in sorted(files):
+                local = os.path.join(root, name)
+                rel = "/" + os.path.relpath(local, BUILD_DIR).replace(os.sep, "/")
+                url = base_url.rstrip("/") + rel
+                expected = os.path.getsize(local)
+                try:
+                    status, body, _ = fetch(url)
+                except urllib.error.HTTPError as error:
+                    failures.append(f"{rel}: HTTP {error.code}")
+                    continue
+                except Exception as error:  # noqa: BLE001
+                    failures.append(f"{rel}: {error}")
+                    continue
+                checked += 1
+                if status != 200:
+                    failures.append(f"{rel}: HTTP {status}")
+                elif len(body) != expected:
+                    failures.append(
+                        f"{rel}: {len(body)} B served, {expected} B on disk"
+                    )
 
     print()
     print(f"Checked {checked} URLs under {BUILD_DIR}")

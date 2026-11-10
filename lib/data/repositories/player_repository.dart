@@ -4,7 +4,10 @@ import 'package:sqflite_common/sqlite_api.dart';
 
 import 'package:brimstone_summoning/core/security/integrity_signer.dart';
 
+import 'package:brimstone_summoning/domain/arena/archon_league.dart';
 import 'package:brimstone_summoning/domain/entities/owned_card.dart';
+import 'package:brimstone_summoning/domain/meta/elemental_chambers.dart';
+import 'package:brimstone_summoning/domain/value_objects/card_skin.dart';
 import 'package:brimstone_summoning/domain/meta/rune_system.dart';
 import 'package:brimstone_summoning/domain/meta/summoner_titles.dart';
 import 'package:brimstone_summoning/domain/meta/talent_rules.dart';
@@ -52,9 +55,12 @@ class PlayerRepository {
     final gear = await loadGearLevels();
     final activeTitle = await loadActiveTitle();
     final stats = await loadStats();
+    final archon = await loadArchonProgress();
+    final chambers = await loadChamberClears();
+    final essences = await loadEssences();
 
     final payload = <String, dynamic>{
-      'formatVersion': 2,
+      'formatVersion': 3,
       'profile': {
         'gold': profile[0],
         'shards': profile[1],
@@ -77,6 +83,7 @@ class PlayerRepository {
             'stars': c.stars,
             'skillLevel': c.skillLevel,
             'masteryXp': c.masteryXp,
+            'skin': c.skin.name,
           },
       ],
       'squad': squad,
@@ -96,6 +103,21 @@ class PlayerRepository {
       'gear': gear,
       'activeTitle': activeTitle,
       'stats': stats.toMap(),
+      'archon': {
+        'trophies': archon.trophies,
+        'wins': archon.wins,
+        'losses': archon.losses,
+        'streak': archon.streak,
+        'bestStreak': archon.bestStreak,
+      },
+      'chambers': {
+        for (final entry in chambers.entries)
+          entry.key: {
+            'clearedAt': entry.value.clearedAt,
+            'firstWin': entry.value.firstClear
+          },
+      },
+      'essences': essences,
     };
     // Sello de integridad: cualquier edición posterior del JSON deja de cuadrar.
     payload[IntegritySigner.signatureKey] = signer.sign(payload);
@@ -110,10 +132,10 @@ class PlayerRepository {
     bool allowUnsignedLegacy = false,
   }) async {
     final version = _asInt(data['formatVersion'], 1);
-    if (version != 1 && version != 2) {
+    if (version < 1 || version > 3) {
       throw FormatException('Formato de backup no reconocido.');
     }
-    // v2 exige sello válido: un JSON editado a mano (oro, estrellas, niveles)
+    // v2+ exige sello válido: un JSON editado a mano (oro, estrellas, niveles)
     // no puede entrar al perfil. v1 (legado) no tiene sello por diseño.
     if (version >= 2) {
       final signature = data[IntegritySigner.signatureKey];
@@ -137,7 +159,10 @@ class PlayerRepository {
     final gear = _asMap(data['gear']);
     final stats = _asMap(data['stats']);
     final activeTitle =
-        version == 2 ? _asNullableStr(data['activeTitle']) : null;
+        version >= 2 ? _asNullableStr(data['activeTitle']) : null;
+    final archon = _asMap(data['archon']);
+    final chambers = _asMap(data['chambers']);
+    final essences = _asMap(data['essences']);
 
     final db = await _db.db;
     await db.transaction((txn) async {
@@ -163,6 +188,45 @@ class PlayerRepository {
       await txn.delete('summoner_gear');
       await txn.delete('player_stats');
       await txn.delete('chapters_cleared');
+      await txn.delete('elemental_chamber_clears');
+      await txn.delete('elemental_essences');
+
+      await txn.insert(
+        'archon_progress',
+        {
+          'id': 'archon_1',
+          'trophies': _asInt(archon['trophies'], 0),
+          'wins': _asInt(archon['wins'], 0),
+          'losses': _asInt(archon['losses'], 0),
+          'streak': _asInt(archon['streak'], 0),
+          'best_streak': _asInt(archon['bestStreak'], 0),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      for (final entry in chambers.entries) {
+        final value = entry.value;
+        if (value is! Map) continue;
+        final key = entry.key;
+        final separator = key.indexOf(':');
+        if (separator <= 0) continue;
+        await txn.insert(
+          'elemental_chamber_clears',
+          {
+            'chamber_id': key.substring(0, separator),
+            'difficulty': key.substring(separator + 1),
+            'cleared_at': _asInt(value['clearedAt'], 0),
+            'first_clear': _asInt(value['firstWin'], 1) == 0 ? 0 : 1,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      for (final entry in essences.entries) {
+        await txn.insert(
+          'elemental_essences',
+          {'element': entry.key, 'amount': _asInt(entry.value, 0)},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
 
       final validIds = <int>{};
       for (final raw in collection) {
@@ -179,6 +243,16 @@ class PlayerRepository {
             'stars': _asInt(raw['stars'], 1),
             'skill_level': _asInt(raw['skillLevel'], 1),
             'mastery_xp': _asInt(raw['masteryXp'], 0),
+            'skin': _asStr(raw['skin'], CardSkin.classic.name),
+            'mana_override': raw['baseManaCost'] == null
+                ? null
+                : _asInt(raw['baseManaCost'], 100),
+            'attack_override': raw['baseAttack'] == null
+                ? null
+                : _asInt(raw['baseAttack'], 10),
+            'health_override': raw['baseHealth'] == null
+                ? null
+                : _asInt(raw['baseHealth'], 15),
           },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
@@ -441,8 +515,12 @@ class PlayerRepository {
     final db = await _db.db;
     final rows = await db.rawQuery('''
       SELECT o.id AS instance_id, c.id AS catalog_id, c.name, c.element,
-             c.rarity, c.base_mana_cost, c.attack, c.health, o.level, o.stars,
-             o.skill_level, o.mastery_xp
+             c.rarity,
+             COALESCE(o.mana_override, c.base_mana_cost) AS base_mana_cost,
+             COALESCE(o.attack_override, c.attack) AS attack,
+             COALESCE(o.health_override, c.health) AS health,
+             o.level, o.stars,
+             o.skill_level, o.mastery_xp, o.skin
       FROM owned_cards o
       LEFT JOIN cards c ON c.id = o.card_id
       ORDER BY o.id DESC
@@ -468,6 +546,10 @@ class PlayerRepository {
           stars: (row['stars'] as int?) ?? 1,
           skillLevel: (row['skill_level'] as int?) ?? 1,
           masteryXp: (row['mastery_xp'] as int?) ?? 0,
+          skin: CardSkin.values.firstWhere(
+            (s) => s.name == (row['skin'] as String?),
+            orElse: () => CardSkin.classic,
+          ),
         ),
     ];
   }
@@ -554,10 +636,37 @@ class PlayerRepository {
         'stars': card.stars,
         'skill_level': card.skillLevel,
         'mastery_xp': card.masteryXp,
+        'skin': card.skin.name,
+        'mana_override': card.baseManaCost,
+        'attack_override': card.baseAttack,
+        'health_override': card.baseHealth,
       },
       where: 'id = ?',
       whereArgs: [card.instanceId],
     );
+  }
+
+  /// Suma XP de maestría a una carta (tope 999) y devuelve el total nuevo.
+  Future<int> addMasteryXp(int instanceId, int amount) async {
+    if (amount <= 0) return 0;
+    final db = await _db.db;
+    final rows = await db.query(
+      'owned_cards',
+      columns: ['mastery_xp'],
+      where: 'id = ?',
+      whereArgs: [instanceId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return 0;
+    final current = (rows.first['mastery_xp'] as int?) ?? 0;
+    final next = (current + amount).clamp(0, 999);
+    await db.update(
+      'owned_cards',
+      {'mastery_xp': next},
+      where: 'id = ?',
+      whereArgs: [instanceId],
+    );
+    return next;
   }
 
   // -------------------------------------------------- desmantelamiento
@@ -1429,5 +1538,132 @@ class PlayerRepository {
   /// Otorga la carta de recompensa por código canjeado.
   Future<void> grantPromoCard(String cardId) async {
     await insertSummonedCard(cardId);
+  }
+
+  // ------------------------------------------------- coliseo de los arcontes
+
+  /// Progreso de liga del Coliseo (una sola fila `archon_1`).
+  Future<ArchonProgress> loadArchonProgress() async {
+    final db = await _db.db;
+    final rows = await db.query(
+      'archon_progress',
+      where: "id = 'archon_1'",
+      limit: 1,
+    );
+    if (rows.isEmpty) return ArchonProgress.empty;
+    final row = rows.first;
+    return ArchonProgress(
+      trophies: (row['trophies'] as int?) ?? 0,
+      wins: (row['wins'] as int?) ?? 0,
+      losses: (row['losses'] as int?) ?? 0,
+      streak: (row['streak'] as int?) ?? 0,
+      bestStreak: (row['best_streak'] as int?) ?? 0,
+    );
+  }
+
+  Future<void> saveArchonProgress(ArchonProgress progress) async {
+    final db = await _db.db;
+    await db.insert(
+      'archon_progress',
+      {
+        'id': 'archon_1',
+        'trophies': progress.trophies,
+        'wins': progress.wins,
+        'losses': progress.losses,
+        'streak': progress.streak,
+        'best_streak': progress.bestStreak,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // --------------------------------------------------- cámaras elementales
+
+  /// Claves `chamberId:dificultad` ya superadas → datos del clear.
+  Future<Map<String, ChamberClear>> loadChamberClears() async {
+    final db = await _db.db;
+    final rows = await db.query('elemental_chamber_clears');
+    return {
+      for (final row in rows)
+        ChamberRules.clearKey(
+          ElementalChambers.byId((row['chamber_id'] as String?) ?? ''),
+          ChamberDifficulty.values.firstWhere(
+            (d) => d.name == row['difficulty'],
+            orElse: () => ChamberDifficulty.normal,
+          ),
+        ): ChamberClear(
+          clearedAt: (row['cleared_at'] as int?) ?? 0,
+          firstClear: ((row['first_clear'] as int?) ?? 1) == 1,
+        ),
+    };
+  }
+
+  /// Registra la victoria y devuelve `true` si era la primera vez.
+  Future<bool> recordChamberClear(
+    ElementalChamber chamber,
+    ChamberDifficulty difficulty,
+  ) async {
+    final db = await _db.db;
+    final key = ChamberRules.clearKey(chamber, difficulty);
+    final existing = await db.query(
+      'elemental_chamber_clears',
+      where: 'chamber_id = ? AND difficulty = ?',
+      whereArgs: [chamber.id, difficulty.name],
+      limit: 1,
+    );
+    final first = existing.isEmpty;
+    await db.insert(
+      'elemental_chamber_clears',
+      {
+        'chamber_id': chamber.id,
+        'difficulty': difficulty.name,
+        'cleared_at': DateTime.now().millisecondsSinceEpoch,
+        'first_clear': first ? 1 : 0,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    // Touch the key so callers can assert the write in tests.
+    assert(key.isNotEmpty);
+    return first;
+  }
+
+  Future<Map<String, int>> loadEssences() async {
+    final db = await _db.db;
+    final rows = await db.query('elemental_essences');
+    return {
+      for (final row in rows)
+        (row['element'] as String?) ?? '': (row['amount'] as int?) ?? 0,
+    };
+  }
+
+  Future<int> loadEssence(Element element) async {
+    final db = await _db.db;
+    final rows = await db.query(
+      'elemental_essences',
+      where: 'element = ?',
+      whereArgs: [element.name],
+      limit: 1,
+    );
+    if (rows.isEmpty) return 0;
+    return (rows.first['amount'] as int?) ?? 0;
+  }
+
+  Future<void> addEssence(Element element, int amount) async {
+    if (amount == 0) return;
+    final db = await _db.db;
+    final current = await loadEssence(element);
+    await db.insert(
+      'elemental_essences',
+      {'element': element.name, 'amount': (current + amount).clamp(0, 1 << 30)},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<bool> spendEssence(Element element, int amount) async {
+    if (amount <= 0) return false;
+    final current = await loadEssence(element);
+    if (current < amount) return false;
+    await addEssence(element, -amount);
+    return true;
   }
 }

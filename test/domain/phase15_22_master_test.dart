@@ -92,7 +92,7 @@ void main() {
   // =========================================================== MÓDULO 0
   group('Módulo 0 — SQLite sin bloqueos', () {
     test('el esquema actual es v8', () {
-      expect(DatabaseHelper.version, 8);
+      expect(DatabaseHelper.version, 9);
     });
 
     test('crea las 15 tablas del esquema v7', () async {
@@ -1569,9 +1569,9 @@ void main() {
   });
 
   group('Módulo 5 — Backup V2', () {
-    test('exportBackup usa formatVersion 2', () async {
+    test('exportBackup usa formatVersion 3', () async {
       final data = await freshRepo().exportBackup();
-      expect(data['formatVersion'], 2);
+      expect(data['formatVersion'], 3);
     });
 
     test('el backup incluye talentos, desafíos, gear, título y stats',

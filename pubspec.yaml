@@ -64,6 +64,7 @@ flutter:
     - shaders/foil_card.frag
     - shaders/shockwave_break.frag
     - shaders/orb_plasma.frag
+    - shaders/arcane_beam.frag
   fonts:
     - family: Cinzel
       fonts:

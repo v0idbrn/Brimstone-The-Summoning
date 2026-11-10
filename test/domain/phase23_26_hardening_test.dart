@@ -294,7 +294,7 @@ void main() {
       final helper = DatabaseHelper();
       DatabaseHelper.useInMemory();
       final repo = PlayerRepository(DatabaseHelper());
-      expect(DatabaseHelper.version, 8);
+      expect(DatabaseHelper.version, 9);
       expect(await repo.loadProfile(), isNotEmpty);
       await helper.close();
     });
