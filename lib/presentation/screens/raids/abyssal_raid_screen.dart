@@ -151,7 +151,7 @@ class _AbyssalRaidScreenState extends ConsumerState<AbyssalRaidScreen> {
       body: PaintedBackdrop(
         asset: ArtRegistry.raid,
         tint: const Color(0xFF8B4FD9),
-        darkness: 0.7,
+        darkness: 0.35,
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(

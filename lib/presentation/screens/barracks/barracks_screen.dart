@@ -67,7 +67,7 @@ class _BarracksScreenState extends ConsumerState<BarracksScreen> {
       body: PaintedBackdrop(
         asset: ArtRegistry.metaScenes['barracks']!,
         tint: const Color(0xFF4FFFA3),
-        darkness: 0.72,
+        darkness: 0.35,
         child: Column(
           children: [
             const CurrencyBar(),

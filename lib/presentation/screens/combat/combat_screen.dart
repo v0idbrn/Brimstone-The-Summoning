@@ -1055,37 +1055,47 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
               ),
             ),
 
-            // OVERDRIVE rail: frenesi meter under the arena.
-            AnimatedBuilder(
-              animation: _fxClock,
-              builder: (context, _) => OverdriveBar(
-                fraction: engine.overdriveFraction,
-                active: engine.overdriveActive,
-                remaining: engine.overdriveRemaining,
+            // ZONE 3+4: BOTTOM BAR - fixed height so Column reserves space before Expanded.
+            // OverdriveBar(22) + SquadCards(118) + OrbsTray(104) + mutators(~20) = ~264px
+            SizedBox(
+              height: 280,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // OVERDRIVE rail: frenesi meter under the arena.
+                  AnimatedBuilder(
+                    animation: _fxClock,
+                    builder: (context, _) => OverdriveBar(
+                      fraction: engine.overdriveFraction,
+                      active: engine.overdriveActive,
+                      remaining: engine.overdriveRemaining,
+                    ),
+                  ),
+
+                  // ZONE 3: SQUAD CARDS (118px)
+                  SizedBox(height: 118, child: _buildSquadCards()),
+
+                  // ZONE 4: ORBS TRAY (104px) - HP bar + FUSIONAR integrated above, 5 orbs fully visible
+                  SizedBox(height: 104, child: _buildOrbsTray()),
+
+                  // Seal mutators label
+                  if (widget.mutators.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4, right: 8),
+                      child: Align(
+                        alignment: Alignment.bottomRight,
+                        child: Text(
+                          widget.mutators.map((m) => m.label).join(' · '),
+                          style: const TextStyle(
+                              color: Colors.white24,
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-
-            // ZONE 3: SQUAD CARDS (118px)
-            SizedBox(height: 118, child: _buildSquadCards()),
-
-            // ZONE 4: ORBS TRAY + PLAYER HP (115px)
-            SizedBox(height: 115, child: _buildOrbsTray()),
-
-            // Seal mutators label
-            if (widget.mutators.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4, right: 8),
-                child: Align(
-                  alignment: Alignment.bottomRight,
-                  child: Text(
-                    widget.mutators.map((m) => m.label).join(' · '),
-                    style: const TextStyle(
-                        color: Colors.white24,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
           ],
         ),
       ),

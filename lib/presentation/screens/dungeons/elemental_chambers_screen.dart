@@ -237,7 +237,7 @@ class _ElementalChambersScreenState
       body: PaintedBackdrop(
         asset: ArtRegistry.metaScenes['altar']!,
         tint: const Color(0xFFFFC93C),
-        darkness: 0.8,
+        darkness: 0.4,
         child: _loading
             ? const Center(
                 child: CircularProgressIndicator(color: Color(0xFFFFC93C)),

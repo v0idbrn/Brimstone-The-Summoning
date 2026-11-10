@@ -119,7 +119,7 @@ class _TitleSplashScreenState extends State<TitleSplashScreen>
             const PaintedBackdrop(
               asset: ArtRegistry.sanctuary,
               tint: Color(0xFFC8A24B),
-              darkness: 0.86,
+              darkness: 0.4,
               embers: true,
               fog: true,
               alignment: Alignment.center,

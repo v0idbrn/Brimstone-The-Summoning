@@ -655,7 +655,7 @@ class _ChapterBackground extends StatelessWidget {
       child: PaintedBackdrop(
         asset: ArtRegistry.chapterBackground(chapterNumber),
         tint: _color,
-        darkness: 0.8,
+        darkness: 0.4,
         embers: false,
         child: DecoratedBox(
           decoration: BoxDecoration(

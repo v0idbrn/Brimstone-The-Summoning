@@ -488,7 +488,7 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen> {
       body: PaintedBackdrop(
         asset: ArtRegistry.sanctuaryBlur,
         tint: BrimstoneAccents.voidPurple,
-        darkness: 0.66,
+        darkness: 0.35,
         child: ListView(
           padding: const EdgeInsets.all(14),
           children: [

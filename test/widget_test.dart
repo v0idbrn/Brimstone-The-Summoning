@@ -263,10 +263,18 @@ Override _fakeRepoOverride() =>
     playerRepositoryProvider.overrideWithValue(_FakePlayerRepository());
 
 /// Wraps a screen in ProviderScope with the fake repository.
+/// Does NOT add Scaffold - screens are already full-page Scaffolds.
 Widget _screen(Widget child) => ProviderScope(
       overrides: [_fakeRepoOverride()],
-      // Los modales se muestran de verdad dentro de un sheet/dialog (que aportan
-      // Material); el Scaffold reproduce ese ancestro en los smoke tests.
+      child: MaterialApp(
+        theme: ThemeData.dark(),
+        home: child,
+      ),
+    );
+
+/// Wraps a modal/widget in ProviderScope WITH a Scaffold ancestor (for Material widgets like ListTile).
+Widget _screenWithScaffold(Widget child) => ProviderScope(
+      overrides: [_fakeRepoOverride()],
       child: MaterialApp(
         theme: ThemeData.dark(),
         home: Scaffold(body: child),
@@ -324,6 +332,18 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
       await tester.pumpWidget(_screen(widget));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    Future<void> pumpModal(WidgetTester tester, Widget widget) async {
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+      await tester.pumpWidget(_screenWithScaffold(widget));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
     }
@@ -412,47 +432,47 @@ void main() {
 
     testWidgets('TalentTreeModal renderiza talentos y armadura',
         (tester) async {
-      await pumpMobile(tester, const TalentTreeModal());
+      await pumpModal(tester, const TalentTreeModal());
       expect(find.text('TALENTOS'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('SummonerProfileModal muestra métricas y títulos',
         (tester) async {
-      await pumpMobile(tester, const SummonerProfileModal());
+      await pumpModal(tester, const SummonerProfileModal());
       expect(find.text('PERFIL DEL INVOCADOR'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('SettingsModal incluye el Modo Gama Baja', (tester) async {
-      await pumpMobile(tester, const SettingsModal());
+      await pumpModal(tester, const SettingsModal());
       expect(find.text('AJUSTES'), findsOneWidget);
       expect(find.text('Modo Gama Baja'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('CodexModal renderiza el códice abisal', (tester) async {
-      await pumpMobile(tester, const CodexModal());
+      await pumpModal(tester, const CodexModal());
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('BountiesModal renderiza los juramentos', (tester) async {
-      await pumpMobile(tester, const BountiesModal());
+      await pumpModal(tester, const BountiesModal());
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('MerchantModal renderiza el mercader', (tester) async {
-      await pumpMobile(tester, const MerchantModal());
+      await pumpModal(tester, const MerchantModal());
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('BackupRestoreModal renderiza el respaldo', (tester) async {
-      await pumpMobile(tester, const BackupRestoreModal());
+      await pumpModal(tester, const BackupRestoreModal());
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('HowToPlayModal renderiza la ayuda', (tester) async {
-      await pumpMobile(tester, const HowToPlayModal());
+      await pumpModal(tester, const HowToPlayModal());
       expect(tester.takeException(), isNull);
     });
 

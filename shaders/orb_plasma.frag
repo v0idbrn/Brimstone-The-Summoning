@@ -2,10 +2,11 @@
 #include <flutter/runtime_effect.glsl>
 
 // ──────────────────────────────────────────────────────────────────────────
-// BRIMSTONE — orb_plasma.frag
+// BRIMSTONE — orb_plasma.frag (LEVIATHAN EDITION)
 // Living elemental plasma sphere: rotating fluid turbulence, incandescent core
-// and spherical rim refraction. Used by the five tray orbs and the orbs in
-// flight. uTime is seconds; the painter never re-allocates the program.
+// and spherical rim refraction. 
+// uTint.rgb = pure elemental color (fully saturated), uTint.a = intensity
+// WHITE CORE REDUCED TO 15%, 85% PURE ELEMENTAL COLOR
 // ──────────────────────────────────────────────────────────────────────────
 
 uniform vec2 uSize;   // 0,1
@@ -67,7 +68,7 @@ void main() {
   float flow = fbm(swirl * 2.6 + vec2(t * 0.35, -t * 0.28));
   float veins = fbm(swirl * 5.1 - vec2(t * 0.55, t * 0.41));
 
-  // Hot core, cooler mantle, refracting rim.
+  // Hot core (REDUCED TO 15%), cooler mantle, refracting rim.
   float core = exp(-r * 3.4);
   float mantle = smoothstep(0.15, 0.95, flow);
   float rim = smoothstep(0.62, 1.0, r) * (0.55 + 0.45 * veins);
@@ -77,7 +78,8 @@ void main() {
   float refraction = fbm((p + refractDir * 0.35) * 4.0 + vec2(t * 0.2));
 
   vec3 tint = uTint.rgb;
-  vec3 hot = mix(vec3(1.0, 0.97, 0.90), tint, 0.45);
+  // LEVIATHAN: White core only 15%, 85% pure elemental color
+  vec3 hot = mix(vec3(1.0, 0.97, 0.90), tint, 0.15);  // Was 0.45 -> now 0.15
   vec3 color = tint * (0.55 + mantle * 0.85);
   color = mix(color, hot, core * 0.9);
   color += tint * veins * 0.55;

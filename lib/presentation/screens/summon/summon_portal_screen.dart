@@ -201,7 +201,7 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
       body: PaintedBackdrop(
         asset: ArtRegistry.portalBlur,
         tint: const Color(0xFF8B4FD9),
-        darkness: 0.64,
+        darkness: 0.35,
         child: Column(
           children: [
             const CurrencyBar(),

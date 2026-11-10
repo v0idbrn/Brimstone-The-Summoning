@@ -121,7 +121,7 @@ class _AltarEvolutionScreenState extends ConsumerState<AltarEvolutionScreen>
       body: PaintedBackdrop(
         asset: ArtRegistry.metaScenes['altar']!,
         tint: const Color(0xFFFFC93C),
-        darkness: 0.7,
+        darkness: 0.35,
         child: Stack(
           fit: StackFit.expand,
           children: [

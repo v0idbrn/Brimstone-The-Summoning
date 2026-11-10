@@ -1,0 +1,917 @@
+{
+  "summary": {
+    "total": 84,
+    "critical": 0,
+    "high": 0,
+    "medium": 84,
+    "low": 0
+  },
+  "findings": [
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\main.dart",
+      "line": 84,
+      "description": "Potential darkening pattern 'Colors.black*': foregroundColor: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\main.dart",
+      "line": 148,
+      "description": "Potential darkening pattern 'Colors.black*': shadowColor: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\main.dart",
+      "line": 417,
+      "description": "Potential darkening pattern 'Colors.black*': Colors.black.withValues(alpha: 0.55),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\main.dart",
+      "line": 495,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.85),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\main.dart",
+      "line": 768,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.5),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\combat_engine\\boss_actor_component.dart",
+      "line": 288,
+      "description": "Potential darkening pattern 'Colors.black*': _shadowPaint.color = Colors.black.withValues(alpha: 0.55);",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\combat_engine\\combat_hud_overlay.dart",
+      "line": 101,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.55),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\combat_engine\\combat_hud_overlay.dart",
+      "line": 187,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.85),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\combat_engine\\combat_hud_overlay.dart",
+      "line": 294,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.8),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\combat_engine\\combat_hud_overlay.dart",
+      "line": 383,
+      "description": "Potential darkening pattern 'Colors.black*': shadows: [Shadow(color: Colors.black, blurRadius: 4)],",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\combat_engine\\floating_combat_text.dart",
+      "line": 50,
+      "description": "Potential darkening pattern 'Colors.black*': shadows: [Shadow(color: Colors.black, blurRadius: 4)],",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\combat_engine\\merge_tray_component.dart",
+      "line": 204,
+      "description": "Potential darkening pattern 'Colors.black*': Color.lerp(base, Colors.black, 0.75)!,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\combat_engine\\merge_tray_component.dart",
+      "line": 338,
+      "description": "Potential darkening pattern 'Colors.black*': ..color = Colors.black.withValues(alpha: 0.78)",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\combat_engine\\orb_projectile_25d.dart",
+      "line": 135,
+      "description": "Potential darkening pattern 'Colors.black*': Color.lerp(color, Colors.black, 0.7)!,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\graphics\\elemental_vfx.dart",
+      "line": 703,
+      "description": "Potential darkening pattern 'Colors.black*': Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\graphics\\painted_backdrop.dart",
+      "line": 69,
+      "description": "Potential darkening pattern 'Colors.black*': ColoredBox(color: Colors.black.withValues(alpha: darkness)),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\gothic_modal_frame.dart",
+      "line": 284,
+      "description": "Potential darkening pattern 'Colors.black*': Color.lerp(color, Colors.black, 0.35)!,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\interactive_pressable.dart",
+      "line": 111,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.3),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\overdrive_bar.dart",
+      "line": 120,
+      "description": "Potential darkening pattern 'Colors.black*': ..color = Colors.black.withValues(alpha: active ? 0.18 : 0.30)",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 249,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.55),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 441,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 549,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.6),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 597,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 721,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 842,
+      "description": "Potential darkening pattern 'Colors.black*': Color.lerp(color, Colors.black, 0.6)!",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 903,
+      "description": "Potential darkening pattern 'Colors.black*': ..color = Colors.black.withValues(alpha: 0.65),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 935,
+      "description": "Potential darkening pattern 'Colors.black*': ..color = Colors.black.withValues(alpha: 0.65),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 945,
+      "description": "Potential darkening pattern 'Colors.black*': ..color = Colors.black.withValues(alpha: 0.7);",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\altar\\altar_evolution_screen.dart",
+      "line": 86,
+      "description": "Potential darkening pattern 'Colors.black*': shadowColor: Colors.black87,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\altar\\altar_evolution_screen.dart",
+      "line": 753,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.5),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\altar\\altar_evolution_screen.dart",
+      "line": 963,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\altar\\altar_evolution_screen.dart",
+      "line": 1361,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black87,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\altar\\altar_evolution_screen.dart",
+      "line": 1395,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\altar\\altar_evolution_screen.dart",
+      "line": 1404,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.4),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\arena_pvp\\archon_colosseum_screen.dart",
+      "line": 549,
+      "description": "Potential darkening pattern 'Colors.black*': Color.lerp(color, Colors.black, 0.65)!,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\barracks\\barracks_screen.dart",
+      "line": 670,
+      "description": "Potential darkening pattern 'Colors.black*': ? Colors.black",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\barracks\\barracks_screen.dart",
+      "line": 682,
+      "description": "Potential darkening pattern 'Colors.black*': ? Colors.black54",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\barracks\\barracks_screen.dart",
+      "line": 805,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 1020,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.85),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 1480,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.5),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 1654,
+      "description": "Potential darkening pattern 'Colors.black*': Color.lerp(color, Colors.black, 0.75)!",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 1708,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.78),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 1784,
+      "description": "Potential darkening pattern 'Colors.black*': Color.lerp(color, Colors.black, 0.7)!",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 1804,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.9),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 1849,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.8),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 1914,
+      "description": "Potential darkening pattern 'Colors.black*': size: 12, color: Colors.black),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 1918,
+      "description": "Potential darkening pattern 'Colors.black*': color: canMerge ? Colors.black : Colors.white38,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 2001,
+      "description": "Potential darkening pattern 'Colors.black*': color: selected ? Colors.black : Colors.white70,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 2101,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.62),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 2271,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 2491,
+      "description": "Potential darkening pattern 'Colors.black*': shadows: [Shadow(color: Colors.black, blurRadius: 2)])),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 2574,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.75),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 2622,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.7),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 3214,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.62),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\hero_skill_cut_in.dart",
+      "line": 233,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\loot_chest_modal.dart",
+      "line": 420,
+      "description": "Potential darkening pattern 'Colors.black*': foregroundColor: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\raids\\abyssal_raid_screen.dart",
+      "line": 377,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\raids\\abyssal_raid_screen.dart",
+      "line": 407,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\rift\\rift_map_screen.dart",
+      "line": 531,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.5),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\rift\\rift_map_screen.dart",
+      "line": 851,
+      "description": "Potential darkening pattern 'Colors.black*': Shadow(color: Colors.black.withValues(alpha: 0.8), blurRadius: 2)",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\sanctuary\\battle_pass_modal.dart",
+      "line": 209,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\sanctuary\\battle_pass_modal.dart",
+      "line": 490,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\sanctuary\\battle_pass_modal.dart",
+      "line": 512,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\sanctuary\\codex_modal.dart",
+      "line": 295,
+      "description": "Potential darkening pattern 'Colors.black*': ? Colors.black",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\shop\\brimstone_shop_modal.dart",
+      "line": 457,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\story\\story_scene_modal.dart",
+      "line": 149,
+      "description": "Potential darkening pattern 'Colors.black*': foregroundColor: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\summon\\summon_portal_screen.dart",
+      "line": 516,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\summon\\summon_portal_screen.dart",
+      "line": 608,
+      "description": "Potential darkening pattern 'Colors.black*': const Icon(Icons.card_giftcard, color: Colors.black, size: 28),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\summon\\summon_portal_screen.dart",
+      "line": 617,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\summon\\summon_portal_screen.dart",
+      "line": 626,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black87,",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\summon\\summon_portal_screen.dart",
+      "line": 633,
+      "description": "Potential darkening pattern 'Colors.black*': const Icon(Icons.arrow_forward_ios, color: Colors.black, size: 18),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\core\\theme\\design_tokens.dart",
+      "line": 212,
+      "description": "Potential darkening pattern 'Colors.black*': shadows: [Shadow(color: Colors.black, blurRadius: 4)],",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\core\\theme\\design_tokens.dart",
+      "line": 382,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.4),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\core\\theme\\design_tokens.dart",
+      "line": 390,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.5),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 1,
+      "category": "CODE_DARKENING",
+      "severity": "MEDIUM",
+      "file": "lib\\core\\theme\\design_tokens.dart",
+      "line": 403,
+      "description": "Potential darkening pattern 'Colors.black*': color: Colors.black.withValues(alpha: 0.6),",
+      "evidence": {
+        "pattern": "Colors.black*"
+      }
+    },
+    {
+      "horror_id": 4,
+      "category": "GESTURES",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\widgets\\tcg_card_widget.dart",
+      "line": 271,
+      "description": "HitTestBehavior.opaque may swallow events needed by children: behavior: HitTestBehavior.opaque,",
+      "evidence": {}
+    },
+    {
+      "horror_id": 4,
+      "category": "GESTURES",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\combat\\combat_screen.dart",
+      "line": 843,
+      "description": "HitTestBehavior.opaque may swallow events needed by children: behavior: HitTestBehavior.opaque,",
+      "evidence": {}
+    },
+    {
+      "horror_id": 4,
+      "category": "GESTURES",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\rift\\rift_map_screen.dart",
+      "line": 142,
+      "description": "HitTestBehavior.opaque may swallow events needed by children: behavior: HitTestBehavior.opaque,",
+      "evidence": {}
+    },
+    {
+      "horror_id": 4,
+      "category": "GESTURES",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\title\\title_splash_screen.dart",
+      "line": 112,
+      "description": "HitTestBehavior.opaque may swallow events needed by children: behavior: HitTestBehavior.opaque,",
+      "evidence": {}
+    },
+    {
+      "horror_id": 5,
+      "category": "OVERFLOW",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\sanctuary\\backup_restore_modal.dart",
+      "line": null,
+      "description": "Column without scroll wrapper in screen/modal - potential vertical overflow",
+      "evidence": {}
+    },
+    {
+      "horror_id": 5,
+      "category": "OVERFLOW",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\rift\\abyssal_event_modal.dart",
+      "line": null,
+      "description": "Column without scroll wrapper in screen/modal - potential vertical overflow",
+      "evidence": {}
+    },
+    {
+      "horror_id": 5,
+      "category": "OVERFLOW",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\rift\\relic_draft_modal.dart",
+      "line": null,
+      "description": "Column without scroll wrapper in screen/modal - potential vertical overflow",
+      "evidence": {}
+    },
+    {
+      "horror_id": 5,
+      "category": "OVERFLOW",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\rift\\rift_map_screen.dart",
+      "line": null,
+      "description": "Column without scroll wrapper in screen/modal - potential vertical overflow",
+      "evidence": {}
+    },
+    {
+      "horror_id": 5,
+      "category": "OVERFLOW",
+      "severity": "MEDIUM",
+      "file": "lib\\presentation\\screens\\endless\\endless_abyss_screen.dart",
+      "line": null,
+      "description": "Column without scroll wrapper in screen/modal - potential vertical overflow",
+      "evidence": {}
+    }
+  ]
+}

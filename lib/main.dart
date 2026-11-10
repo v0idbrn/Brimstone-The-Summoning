@@ -399,10 +399,11 @@ class WebArcadeFrame extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             // Panoramic abyss outside the cabinet: painted scene + embers.
+            // LEVIATHAN: Reduced darkness so the backdrop is VISIBLE and vibrant
             PaintedBackdrop(
               asset: ArtRegistry.sanctuaryBlur,
               tint: BrimstoneAccents.voidPurple,
-              darkness: 0.82,
+              darkness: 0.35,
               fog: false,
             ),
             // Deep ambient glow pulled toward the cabinet.
@@ -539,52 +540,9 @@ class _GothicBezel extends StatelessWidget {
               padding: const EdgeInsets.all(9),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(19),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    child,
-                    // Glass sheen + inner vignette (non-interactive).
-                    const IgnorePointer(child: _ScreenGlass()),
-                  ],
-                ),
+                child: child,
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Static glass glaze over the cabinet screen: top sheen, bevel light and an
-/// inner vignette so the UI reads as a lit CRT behind curved glass.
-class _ScreenGlass extends StatelessWidget {
-  const _ScreenGlass();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.05),
-            Colors.transparent,
-            Colors.black.withValues(alpha: 0.16),
-          ],
-          stops: const [0.0, 0.32, 1.0],
-        ),
-        border: Border.all(
-          color: Colors.black.withValues(alpha: 0.55),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.6),
-            blurRadius: 18,
-            spreadRadius: 0,
-            offset: Offset.zero,
           ),
         ],
       ),

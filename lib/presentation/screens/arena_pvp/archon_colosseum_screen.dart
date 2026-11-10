@@ -252,7 +252,7 @@ class _ArchonColosseumScreenState extends ConsumerState<ArchonColosseumScreen> {
       body: PaintedBackdrop(
         asset: ArtRegistry.metaScenes['rift']!,
         tint: const Color(0xFFE7BE5A),
-        darkness: 0.78,
+        darkness: 0.4,
         child: _loading
             ? const Center(
                 child: CircularProgressIndicator(color: Color(0xFFE7BE5A)),
