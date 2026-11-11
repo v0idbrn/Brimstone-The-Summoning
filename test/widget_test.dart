@@ -5,6 +5,9 @@ import 'package:brimstone_summoning/domain/campaign/campaign_enemies.dart';
 import 'package:brimstone_summoning/domain/combat/combat_engine.dart';
 import 'package:brimstone_summoning/domain/combat/combat_models.dart';
 import 'package:brimstone_summoning/data/repositories/player_repository.dart';
+import 'package:brimstone_summoning/domain/meta/abyssal_expeditions.dart';
+import 'package:brimstone_summoning/domain/meta/covenant_order.dart';
+import 'package:brimstone_summoning/domain/meta/battle_log.dart';
 import 'package:brimstone_summoning/domain/meta/rune_system.dart';
 import 'package:brimstone_summoning/domain/meta/summoner_titles.dart';
 import 'package:brimstone_summoning/domain/entities/owned_card.dart';
@@ -257,6 +260,43 @@ class _FakePlayerRepository extends PlayerRepository {
 
   @override
   Future<void> setActiveBanner(String bannerId) async {}
+
+  @override
+  Future<(int, int, String?)> loadTowerProgress() async => (0, 0, null);
+
+  @override
+  Future<int> saveTowerBestFloor(int floor) async => floor;
+
+  @override
+  Future<void> saveTowerSweep(int epochMs, String dayKey) async {}
+
+  @override
+  Future<List<ExpeditionSlot>> loadExpeditionSlots() async => [];
+
+  @override
+  Future<void> startExpedition(
+      String missionId, List<int> instanceIds, int nowEpochMs) async {}
+
+  @override
+  Future<void> clearExpedition(String missionId) async {}
+
+  @override
+  Future<GuildState> loadGuild() async => GuildState.empty;
+
+  @override
+  Future<void> saveGuild(GuildState g) async {}
+
+  @override
+  Future<List<BattleLogEntry>> loadBattleLog() async => [];
+
+  @override
+  Future<void> saveBattleLog(BattleLogEntry entry) async {}
+
+  @override
+  Future<void> saveSetting(String key, String value) async {}
+
+  @override
+  Future<String?> loadSetting(String key) async => null;
 }
 
 Override _fakeRepoOverride() =>

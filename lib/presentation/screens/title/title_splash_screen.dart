@@ -109,7 +109,8 @@ class _TitleSplashScreenState extends State<TitleSplashScreen>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+      // Translucent: el sello tap no se traga los gestos de la pila decorativa.
+      behavior: HitTestBehavior.translucent,
       onTap: widget.onUnseal,
       child: Scaffold(
         backgroundColor: BrimstoneTokens.bgAbyss,

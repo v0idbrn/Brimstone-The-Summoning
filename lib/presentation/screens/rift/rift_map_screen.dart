@@ -139,7 +139,8 @@ class _RiftMapScreenState extends ConsumerState<RiftMapScreen>
               final layouts =
                   _RiftMapPainter.computeLayouts(run, constraints.biggest);
               return GestureDetector(
-                behavior: HitTestBehavior.opaque,
+                // Translucent: el hover/pan no traga los taps de los nodos hijos.
+                behavior: HitTestBehavior.translucent,
                 onTapUp: (d) =>
                     _onNodeTap(context, d.localPosition, constraints.biggest),
                 onPanUpdate: (d) => setState(() => _hoveredNodeId =
@@ -984,41 +985,43 @@ class BloodAltarModal extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF3FD8FF), width: 2),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('HOGUERA / ALTAR DE CURACIÓN',
-              style: TextStyle(
-                  color: Color(0xFF3FD8FF),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          const Text('Elige tu bendición:',
-              style: TextStyle(color: Colors.white70, fontSize: 13)),
-          const SizedBox(height: 16),
-          _AltarOption(
-            icon: Icons.favorite,
-            color: Colors.redAccent,
-            title: 'Curación (45% HP)',
-            subtitle: 'Recupera 45% de tu vida máxima',
-            onTap: onHeal,
-          ),
-          _AltarOption(
-            icon: Icons.auto_awesome,
-            color: const Color(0xFFFFD700),
-            title: 'Sacrificio',
-            subtitle: 'Pierde 12% HP → Ganas 150 oro + Reliquia',
-            onTap: () => onSacrifice(availableRelics.take(1).toList()),
-            disabled: availableRelics.isEmpty,
-          ),
-          _AltarOption(
-            icon: Icons.bolt,
-            color: const Color(0xFFB16EFF),
-            title: 'Canalización de Maná',
-            subtitle: 'La próxima batalla inicia con 50% de maná',
-            onTap: onManaBoost,
-          ),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('HOGUERA / ALTAR DE CURACIÓN',
+                style: TextStyle(
+                    color: Color(0xFF3FD8FF),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            const Text('Elige tu bendición:',
+                style: TextStyle(color: Colors.white70, fontSize: 13)),
+            const SizedBox(height: 16),
+            _AltarOption(
+              icon: Icons.favorite,
+              color: Colors.redAccent,
+              title: 'Curación (45% HP)',
+              subtitle: 'Recupera 45% de tu vida máxima',
+              onTap: onHeal,
+            ),
+            _AltarOption(
+              icon: Icons.auto_awesome,
+              color: const Color(0xFFFFD700),
+              title: 'Sacrificio',
+              subtitle: 'Pierde 12% HP → Ganas 150 oro + Reliquia',
+              onTap: () => onSacrifice(availableRelics.take(1).toList()),
+              disabled: availableRelics.isEmpty,
+            ),
+            _AltarOption(
+              icon: Icons.bolt,
+              color: const Color(0xFFB16EFF),
+              title: 'Canalización de Maná',
+              subtitle: 'La próxima batalla inicia con 50% de maná',
+              onTap: onManaBoost,
+            ),
+          ],
+        ),
       ),
     );
   }

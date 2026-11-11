@@ -36,32 +36,34 @@ class RelicDraftModal extends StatelessWidget {
         color: Color(0xFF14090D),
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'RELIQUIA ABISAL',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFFB16EFF),
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 2,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'RELIQUIA ABISAL',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFFB16EFF),
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Elige una reliquia para tu incursión',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-          for (final id in offerings) ...[
-            _RelicCard(meta: RelicCatalog.byId(id), onPick: () => onPick(id)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
+            const Text(
+              'Elige una reliquia para tu incursión',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            for (final id in offerings) ...[
+              _RelicCard(meta: RelicCatalog.byId(id), onPick: () => onPick(id)),
+              const SizedBox(height: 8),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

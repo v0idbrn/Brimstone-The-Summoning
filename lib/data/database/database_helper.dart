@@ -2,6 +2,10 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite_common/sqflite.dart';
 
 import 'database_platform.dart';
+import '../../domain/entities/card_role.dart';
+import '../../domain/meta/abyssal_expeditions.dart';
+import '../../domain/meta/summoner_artifact.dart';
+import '../../domain/value_objects/element.dart';
 
 /// SQLite schema owner for Brimstone: The Summoning.
 ///
@@ -10,9 +14,11 @@ import 'database_platform.dart';
 /// contención del archivo. Para tests se puede usar [useInMemory] o un
 /// archivo único por suite con [setOverridePath].
 class DatabaseHelper {
-  /// Schema actual: v9 añade el skin mítico de las cartas 5★, el Coliseo de los
-  /// Arcontes (trofeos/liga) y las Cámaras Elementales (esencias + clears).
-  static const int version = 9;
+  /// Schema actual: v10 añade el Leviatán — Torre de Obsidiana (50 pisos +
+  /// barrido diario), Expediciones Abisales (startTimeEpochMs), Artefactos del
+  /// Invocador, Orden del Pacto (buffs + insignias), historial de batallas
+  /// (15 últimas), idioma ES/EN y roles/facciones en el catálogo de 40 cartas.
+  static const int version = 10;
 
   /// Ruta por defecto para las instancias creadas después de esta llamada.
   static String? _overridePath;
@@ -109,6 +115,12 @@ class DatabaseHelper {
       'archon_progress',
       'elemental_chamber_clears',
       'elemental_essences',
+      'tower_progress',
+      'expedition_slots',
+      'summoner_artifacts',
+      'guild_state',
+      'battle_log',
+      'app_settings',
     ];
     for (final table in tables) {
       await db.execute('DROP TABLE IF EXISTS $table');
@@ -120,7 +132,9 @@ class DatabaseHelper {
     await db.execute(
       'CREATE TABLE cards(id TEXT PRIMARY KEY, name TEXT, element TEXT, '
       'rarity TEXT, base_mana_cost INTEGER, attack INTEGER, health INTEGER, '
-      'stars INTEGER, active_skill TEXT)',
+      'stars INTEGER, active_skill TEXT, '
+      "role TEXT NOT NULL DEFAULT 'destructor', "
+      "faction TEXT NOT NULL DEFAULT 'ordenDeLaCeniza')",
     );
     await db.execute(
       'CREATE TABLE relics(id TEXT PRIMARY KEY, name TEXT, description TEXT, '
@@ -251,6 +265,61 @@ class DatabaseHelper {
       'CREATE TABLE redeemed_codes('
       'code TEXT PRIMARY KEY, '
       'redeemed_at INTEGER NOT NULL)',
+    );
+    // v10 — Torre de Obsidiana (50 pisos + barrido rápido diario).
+    await db.execute(
+      'CREATE TABLE tower_progress('
+      "id TEXT PRIMARY KEY DEFAULT 'tower_1', "
+      'best_floor INTEGER NOT NULL DEFAULT 0, '
+      'last_sweep_epoch_ms INTEGER NOT NULL DEFAULT 0, '
+      'last_sweep_day TEXT)',
+    );
+    // v10 — Expediciones Abisales (3 misiones por startTimeEpochMs).
+    await db.execute(
+      'CREATE TABLE expedition_slots('
+      'mission_id TEXT PRIMARY KEY, '
+      'card_instance_ids TEXT NOT NULL, '
+      'started_epoch_ms INTEGER NOT NULL DEFAULT 0)',
+    );
+    // v10 — Artefactos del Invocador (6 fabricables/equipables).
+    await db.execute(
+      'CREATE TABLE summoner_artifacts('
+      'id TEXT PRIMARY KEY, '
+      'crafted INTEGER NOT NULL DEFAULT 0, '
+      'equipped TEXT)',
+    );
+    // v10 — Orden del Pacto (gremios offline).
+    await db.execute(
+      'CREATE TABLE guild_state('
+      "id TEXT PRIMARY KEY DEFAULT 'guild_1', "
+      'order_name TEXT, '
+      'order_level INTEGER NOT NULL DEFAULT 0, '
+      'contributions_today INTEGER NOT NULL DEFAULT 0, '
+      'day_key TEXT, '
+      'badges INTEGER NOT NULL DEFAULT 0)',
+    );
+    // v10 — Historial de batallas (últimas 15, con breakdown por carta).
+    await db.execute(
+      'CREATE TABLE battle_log('
+      'id INTEGER PRIMARY KEY AUTOINCREMENT, '
+      'epoch_ms INTEGER NOT NULL, '
+      'enemy_id TEXT NOT NULL, '
+      'enemy_name TEXT NOT NULL, '
+      'victory INTEGER NOT NULL, '
+      'damage_total INTEGER NOT NULL, '
+      'max_hit INTEGER NOT NULL, '
+      'bullseyes INTEGER NOT NULL, '
+      'counterflicks INTEGER NOT NULL DEFAULT 0, '
+      'merges_to_three INTEGER NOT NULL DEFAULT 0, '
+      'mvp_card_id TEXT, '
+      'breakdown_json TEXT, '
+      'player_hp_left INTEGER NOT NULL DEFAULT 0)',
+    );
+    // v10 — Ajustes de app (idioma ES/EN persistido).
+    await db.execute(
+      'CREATE TABLE app_settings('
+      'key TEXT PRIMARY KEY, '
+      'value TEXT)',
     );
 
     // Seed initial raid bosses.
@@ -514,6 +583,69 @@ class DatabaseHelper {
     for (final c in cards) {
       await db.insert('cards', c);
     }
+
+    // v10 — Roles y facciones del Leviatán para las 20 cartas clásicas.
+    for (final entry in classicCardRoles.entries) {
+      final seed = cards.firstWhere((m) => m['id'] == entry.key);
+      final element = Element.values.firstWhere(
+        (e) => e.name == seed['element'],
+      );
+      await db.update(
+        'cards',
+        {
+          'role': entry.value.name,
+          'faction': factionForElement(element).name,
+        },
+        where: 'id = ?',
+        whereArgs: [entry.key],
+      );
+    }
+    // v10 — Las 20 criaturas nuevas de la expansión Leviatán (5 por elemento).
+    for (final b in leviathanCreatures) {
+      await db.insert('cards', {
+        'id': b.id,
+        'name': b.name,
+        'element': b.element.name,
+        'rarity': b.rarity.name,
+        'base_mana_cost': b.baseManaCost,
+        'attack': b.attack,
+        'health': b.health,
+        'stars': b.stars,
+        'active_skill': b.activeSkill,
+        'role': b.role.name,
+        'faction': b.faction.name,
+      });
+    }
+    // v10 — Semillas de los subsistemas del Leviatán.
+    await db.insert(
+      'tower_progress',
+      const {'id': 'tower_1'},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    for (final m in expeditionMissions) {
+      await db.insert(
+        'expedition_slots',
+        {'mission_id': m.id, 'card_instance_ids': '[]'},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    for (final a in summonerArtifacts) {
+      await db.insert(
+        'summoner_artifacts',
+        {'id': a.id, 'crafted': 0},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await db.insert(
+      'guild_state',
+      const {'id': 'guild_1'},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    await db.insert(
+      'app_settings',
+      const {'key': 'language', 'value': 'es'},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
 
     await db.insert(
       'archon_progress',

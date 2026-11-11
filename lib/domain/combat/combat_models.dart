@@ -76,11 +76,15 @@ class CombatOrb {
   /// elemento del mismo nivel y detona cualquier aura activa.
   final bool prismatic;
 
+  /// Carta que "cargó" esta esfera (Pilar 10: aporte de daño por carta).
+  final String? sourceCardId;
+
   const CombatOrb({
     required this.id,
     required this.element,
     required this.level,
     this.prismatic = false,
+    this.sourceCardId,
   });
 }
 
@@ -125,6 +129,7 @@ class OrbProjectile {
   final String id;
   final Element element;
   final OrbLevel level;
+  final String? sourceCardId;
   final double startX;
   final double startY;
   double targetX;
@@ -136,6 +141,7 @@ class OrbProjectile {
     required this.id,
     required this.element,
     required this.level,
+    this.sourceCardId,
     required this.startX,
     required this.startY,
     required this.targetX,
@@ -305,6 +311,69 @@ class BossConfig {
     shieldHp: 300, // 25% of maxHp
     threatDialog: 'El Trono del Sello Roto espera a su cadáver, invocador.',
     furyDialog: '¡EL SELLO ESTÁ ROTO! Cambio de elemento ahora.',
+  );
+
+  // ── ACTO II — EL CONTINENTE SUMERGIDO (Leviatán, Capítulos VI–X) ──
+
+  static const BossConfig chapterVI = BossConfig(
+    id: 'chapter_vi',
+    name: 'Kaelith, Reina Ahogada',
+    element: Element.abyssal,
+    maxHp: 1400,
+    attackInterval: 4.5,
+    attackDamage: 24,
+    projectilesPerAttack: 3,
+    shieldHp: 350, // 25% of maxHp
+    threatDialog: 'Las mareas cantan tu hundimiento, invocador.',
+    furyDialog: '¡LA MAREA ETERNA TE ARRASTRA!',
+  );
+  static const BossConfig chapterVII = BossConfig(
+    id: 'chapter_vii',
+    name: 'Astreon, Vigía Ciego',
+    element: Element.empty,
+    maxHp: 1600,
+    attackInterval: 4.2,
+    attackDamage: 26,
+    projectilesPerAttack: 3,
+    shieldHp: 400, // 25% of maxHp
+    threatDialog: 'Ciego ante la luz, veo tu oscuridad.',
+    furyDialog: '¡LAS ESTRELLAS SE APAGAN CONTIGO!',
+  );
+  static const BossConfig chapterVIII = BossConfig(
+    id: 'chapter_viii',
+    name: 'Malakor Renacido, Pontífice del Fuego',
+    element: Element.igneous,
+    maxHp: 1800,
+    attackInterval: 4.0,
+    attackDamage: 28,
+    projectilesPerAttack: 4,
+    shieldHp: 450, // 25% of maxHp
+    threatDialog: 'Muerte no fue suficiente para detener mi misa.',
+    furyDialog: '¡EL FUEGO PONTIFICIO PURIFICA TODO PECADO!',
+  );
+  static const BossConfig chapterIX = BossConfig(
+    id: 'chapter_ix',
+    name: 'Chronos-Vex, Devorador de Eras',
+    element: Element.telluric,
+    maxHp: 2000,
+    attackInterval: 3.8,
+    attackDamage: 30,
+    projectilesPerAttack: 4,
+    shieldHp: 500, // 25% of maxHp
+    threatDialog: 'Devoré milenios. Tú eres un bocardo.',
+    furyDialog: '¡TU FUTURO YA ESTÁ DIGERIDO!',
+  );
+  static const BossConfig chapterX = BossConfig(
+    id: 'chapter_x',
+    name: 'Samael, Creador de la Grieta',
+    element: Element.empty,
+    maxHp: 2400,
+    attackInterval: 3.5,
+    attackDamage: 32,
+    projectilesPerAttack: 4,
+    shieldHp: 600, // 25% of maxHp
+    threatDialog: 'Yo abrí la Grieta. Con tu sangre la sellaré.',
+    furyDialog: '¡TRES FASES, TRES MUERTES, UN SOLO DIOS!',
   );
 
   /// Gólem de Pruebas Abisal: maniquí de la Arena de Entrenamiento.

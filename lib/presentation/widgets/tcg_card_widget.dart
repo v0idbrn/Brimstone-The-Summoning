@@ -268,7 +268,8 @@ class _TcgCardWidgetState extends State<TcgCardWidget>
       offset: Offset(0, isReady ? -elevation : 0),
       child: GestureDetector(
         onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
+        // Translucent: los gestos internos (preview, drag) no se tragan.
+        behavior: HitTestBehavior.translucent,
         child: _SkinGrade(
           skin: widget.skin,
           enabled: mythic,

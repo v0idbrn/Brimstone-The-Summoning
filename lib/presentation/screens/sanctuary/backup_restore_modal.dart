@@ -20,50 +20,55 @@ class BackupRestoreModal extends ConsumerWidget {
         'Backup / Restaurar',
         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Exportar / importar todo el progreso (oro, esquirlas, colección, '
-            'runas, escuadrón, juramentos y récord del Abismo).',
-            style: TextStyle(color: Colors.white54, fontSize: 12, height: 1.4),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _export(context, ref),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF4FFFA3),
-                    side: const BorderSide(color: Color(0xFF4FFFA3)),
-                  ),
-                  child: const Text(
-                    'COPIAR BACKUP',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => _import(context, ref),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFFFC93C),
-                    side: const BorderSide(color: Color(0xFFFFC93C)),
-                  ),
-                  child: const Text(
-                    'PEGAR Y RESTAURAR',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Exportar / importar todo el progreso (oro, esquirlas, colección, '
+              'runas, escuadrón, juramentos y récord del Abismo).',
+              style:
+                  TextStyle(color: Colors.white54, fontSize: 12, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _export(context, ref),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF4FFFA3),
+                      side: const BorderSide(color: Color(0xFF4FFFA3)),
+                    ),
+                    child: const Text(
+                      'COPIAR BACKUP',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _import(context, ref),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFFFC93C),
+                      side: const BorderSide(color: Color(0xFFFFC93C)),
+                    ),
+                    child: const Text(
+                      'PEGAR Y RESTAURAR',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w800, fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
       actions: [
         TextButton(

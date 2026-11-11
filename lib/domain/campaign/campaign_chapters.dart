@@ -102,7 +102,96 @@ final List<CampaignChapter> campaignChapters = const [
     rewardShards: 1800,
     previousChapterId: 'chapter_velo',
   ),
+  // ── ACTO II — EL CONTINENTE SUMERGIDO (Leviatán) ──
+  CampaignChapter(
+    number: 6,
+    id: 'chapter_coral',
+    name: 'Las Ruinas de Coral Negro',
+    bossTitle: 'Kaelith, Reina Ahogada',
+    boss: BossConfig.chapterVI,
+    rewardGold: 4200,
+    rewardShards: 2200,
+    previousChapterId: 'chapter_tronco',
+  ),
+  CampaignChapter(
+    number: 7,
+    id: 'chapter_observatorio',
+    name: 'El Observatorio Estelar Roto',
+    bossTitle: 'Astreon, Vigía Ciego',
+    boss: BossConfig.chapterVII,
+    rewardGold: 5000,
+    rewardShards: 2600,
+    previousChapterId: 'chapter_coral',
+  ),
+  CampaignChapter(
+    number: 8,
+    id: 'chapter_catedral',
+    name: 'La Catedral de Hueso y Ceniza',
+    bossTitle: 'Malakor Renacido, Pontífice del Fuego',
+    boss: BossConfig.chapterVIII,
+    rewardGold: 6000,
+    rewardShards: 3200,
+    previousChapterId: 'chapter_observatorio',
+  ),
+  CampaignChapter(
+    number: 9,
+    id: 'chapter_laberinto',
+    name: 'El Laberinto del Tiempo Partido',
+    bossTitle: 'Chronos-Vex, Devorador de Eras',
+    boss: BossConfig.chapterIX,
+    rewardGold: 7200,
+    rewardShards: 4000,
+    previousChapterId: 'chapter_catedral',
+  ),
+  CampaignChapter(
+    number: 10,
+    id: 'chapter_corazon',
+    name: 'El Corazón del Dios Caído',
+    bossTitle: 'Samael, Creador de la Grieta',
+    boss: BossConfig.chapterX,
+    rewardGold: 10000,
+    rewardShards: 6000,
+    previousChapterId: 'chapter_laberinto',
+  ),
 ];
+
+/// Modo Pesadilla (New Game+) para capítulos ya limpiados (Etapa III).
+///
+/// Escala las estadísticas del jefe x2.2 y multiplica las recompensas x2.5.
+/// Puramente matemático: no persiste estado, el caller decide qué capítulos
+/// se pueden replayar en Pesadilla.
+class NightmareMode {
+  const NightmareMode._();
+
+  /// Multiplicador de HP/daño/proyectiles-equivalentes del jefe.
+  static const double bossStatMult = 2.2;
+
+  /// Multiplicador de recompensas (oro, esquirlas, XP).
+  static const double rewardMult = 2.5;
+
+  /// Prefijo de id para el jefe escalado ('nightmare_chapter_x').
+  static String scaledBossId(String baseId) => 'nightmare_$baseId';
+
+  /// Escala [boss] a Pesadilla.
+  static BossConfig scale(BossConfig boss) => BossConfig(
+        id: scaledBossId(boss.id),
+        name: 'Pesadilla: ${boss.name}',
+        element: boss.element,
+        maxHp: (boss.maxHp * bossStatMult).roundToDouble(),
+        attackInterval: boss.attackInterval,
+        attackDamage: boss.attackDamage * bossStatMult,
+        projectilesPerAttack: boss.projectilesPerAttack,
+        shieldHp: boss.shieldHp * bossStatMult,
+        threatDialog: boss.threatDialog,
+        furyDialog: boss.furyDialog,
+      );
+
+  /// Recompensas escaladas de un capítulo en Pesadilla.
+  static (int gold, int shards) scaledRewards(CampaignChapter c) => (
+        (c.rewardGold * rewardMult).round(),
+        (c.rewardShards * rewardMult).round(),
+      );
+}
 
 /// Busca un capítulo por [id]. Retorna null si no existe.
 CampaignChapter? chapterById(String id) {

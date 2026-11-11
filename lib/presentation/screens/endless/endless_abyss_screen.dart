@@ -239,65 +239,68 @@ class _EndlessAbyssScreenState extends ConsumerState<EndlessAbyssScreen> {
         ),
       ),
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 10),
-            Text(
-              _runActive && !_victory && !_defeat
-                  ? 'Oleada $_wave — En combate'
-                  : _victory
-                      ? '¡Oleada $_wave superada!'
-                      : 'Derrota en oleada $_wave',
-              style: TextStyle(
-                color: _victory
-                    ? const Color(0xFF4FFFA3)
-                    : _defeat
-                        ? Colors.redAccent
-                        : Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_runActive && !_victory && !_defeat)
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFB16EFF),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              Text(
+                _runActive && !_victory && !_defeat
+                    ? 'Oleada $_wave — En combate'
+                    : _victory
+                        ? '¡Oleada $_wave superada!'
+                        : 'Derrota en oleada $_wave',
+                style: TextStyle(
+                  color: _victory
+                      ? const Color(0xFF4FFFA3)
+                      : _defeat
+                          ? Colors.redAccent
+                          : Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
                 ),
-                icon: const Icon(Icons.local_fire_department),
-                label: const Text('DESCENDER AL ABISMO'),
-                onPressed: () => _enterCombat(),
               ),
-            if (_victory && _blessing == null) ...[
-              const SizedBox(height: 10),
-              const Text(
-                'Elige una Bendición de Oleada:',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+              const SizedBox(height: 16),
+              if (_runActive && !_victory && !_defeat)
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFB16EFF),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: const Icon(Icons.local_fire_department),
+                  label: const Text('DESCENDER AL ABISMO'),
+                  onPressed: () => _enterCombat(),
+                ),
+              if (_victory && _blessing == null) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'Elige una Bendición de Oleada:',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                ...List.generate(3, (i) => _blessingButton(i)),
+              ],
+              if (_defeat) ...[
+                const SizedBox(height: 10),
+                FilledButton.tonal(
+                  onPressed: () {
+                    _wave = 1;
+                    _damageMult = 1.0;
+                    _startWave();
+                    setState(() {});
+                  },
+                  child: const Text('Reiniciar Incursión'),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Text(
+                'Récord: $_highestEndlessWave oleadas',
+                style: const TextStyle(color: Colors.white38, fontSize: 11),
               ),
-              const SizedBox(height: 8),
-              ...List.generate(3, (i) => _blessingButton(i)),
             ],
-            if (_defeat) ...[
-              const SizedBox(height: 10),
-              FilledButton.tonal(
-                onPressed: () {
-                  _wave = 1;
-                  _damageMult = 1.0;
-                  _startWave();
-                  setState(() {});
-                },
-                child: const Text('Reiniciar Incursión'),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Text(
-              'Récord: $_highestEndlessWave oleadas',
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
-            ),
-          ],
+          ),
         ),
       ),
     );

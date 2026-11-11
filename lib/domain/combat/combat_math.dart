@@ -10,6 +10,9 @@ class CombatMath {
   static const double flickSpeedThreshold = -280.0; // px/s upward
   static const double grazeRadius = 70.0;
   static const double projectileInterceptDistance = 44.0;
+
+  /// Radio generoso de contraesquirla por toque/click directo (px).
+  static const double counterFlickRadius = 58.0;
   static const double interceptZWindow = 0.16;
 
   /// Normalized flight progress z in [0, 1].

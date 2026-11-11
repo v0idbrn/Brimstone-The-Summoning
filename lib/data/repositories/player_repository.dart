@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:sqflite_common/sqlite_api.dart';
@@ -6,6 +7,9 @@ import 'package:brimstone_summoning/core/security/integrity_signer.dart';
 
 import 'package:brimstone_summoning/domain/arena/archon_league.dart';
 import 'package:brimstone_summoning/domain/entities/owned_card.dart';
+import 'package:brimstone_summoning/domain/meta/abyssal_expeditions.dart';
+import 'package:brimstone_summoning/domain/meta/battle_log.dart';
+import 'package:brimstone_summoning/domain/meta/covenant_order.dart';
 import 'package:brimstone_summoning/domain/meta/elemental_chambers.dart';
 import 'package:brimstone_summoning/domain/value_objects/card_skin.dart';
 import 'package:brimstone_summoning/domain/meta/rune_system.dart';
@@ -60,7 +64,7 @@ class PlayerRepository {
     final essences = await loadEssences();
 
     final payload = <String, dynamic>{
-      'formatVersion': 3,
+      'formatVersion': 4,
       'profile': {
         'gold': profile[0],
         'shards': profile[1],
@@ -119,6 +123,42 @@ class PlayerRepository {
       },
       'essences': essences,
     };
+
+    // v4 — Estado completo del Leviatán (SQLite v10).
+    final tower = await loadTowerProgress();
+    final expeditions = await loadExpeditionSlots();
+    final artifacts = await loadArtifacts();
+    final guild = await loadGuild();
+    final battles = await loadBattleLog();
+    final language = await loadSetting('language');
+    payload['tower'] = {
+      'bestFloor': tower.$1,
+      'lastSweepEpochMs': tower.$2,
+      'lastSweepDay': tower.$3,
+    };
+    payload['expeditions'] = [
+      for (final s in expeditions)
+        {
+          'missionId': s.missionId,
+          'cardInstanceIds': s.cardInstanceIds,
+          'startedEpochMs': s.startedEpochMs,
+        },
+    ];
+    payload['artifacts'] = {
+      'crafted': artifacts.$1,
+      'equipped': artifacts.$2,
+    };
+    payload['guild'] = {
+      'order': guild.order?.name,
+      'orderLevel': guild.orderLevel,
+      'contributionsToday': guild.contributionsToday,
+      'dayKey': guild.dayKey,
+      'badges': guild.badges,
+    };
+    payload['battleLog'] = [
+      for (final b in battles) b.toMap(),
+    ];
+    payload['settings'] = {'language': language ?? 'es'};
     // Sello de integridad: cualquier edición posterior del JSON deja de cuadrar.
     payload[IntegritySigner.signatureKey] = signer.sign(payload);
     return payload;
@@ -132,7 +172,7 @@ class PlayerRepository {
     bool allowUnsignedLegacy = false,
   }) async {
     final version = _asInt(data['formatVersion'], 1);
-    if (version < 1 || version > 3) {
+    if (version < 1 || version > 4) {
       throw FormatException('Formato de backup no reconocido.');
     }
     // v2+ exige sello válido: un JSON editado a mano (oro, estrellas, niveles)
@@ -163,6 +203,15 @@ class PlayerRepository {
     final archon = _asMap(data['archon']);
     final chambers = _asMap(data['chambers']);
     final essences = _asMap(data['essences']);
+    final tower = version >= 4 ? _asMap(data['tower']) : <String, dynamic>{};
+    final expeditions =
+        version >= 4 ? _asList(data['expeditions']) : <dynamic>[];
+    final artifacts =
+        version >= 4 ? _asMap(data['artifacts']) : <String, dynamic>{};
+    final guild = version >= 4 ? _asMap(data['guild']) : <String, dynamic>{};
+    final battleLog = version >= 4 ? _asList(data['battleLog']) : <dynamic>[];
+    final settings =
+        version >= 4 ? _asMap(data['settings']) : <String, dynamic>{};
 
     final db = await _db.db;
     await db.transaction((txn) async {
@@ -372,6 +421,82 @@ class PlayerRepository {
           where: 'id = ?',
           whereArgs: ['player_1'],
         );
+      }
+
+      // v4 — Estado del Leviatán (torre, expediciones, artefactos, orden,
+      // log de batallas y ajustes). Solo se restaura si el payload lo trae.
+      if (version >= 4) {
+        await txn.insert(
+          'tower_progress',
+          {
+            'id': 'tower_1',
+            'best_floor': _asInt(tower['bestFloor'], 0),
+            'last_sweep_epoch_ms': _asInt(tower['lastSweepEpochMs'], 0),
+            'last_sweep_day': _asNullableStr(tower['lastSweepDay']),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        await txn.delete('expedition_slots');
+        for (final raw in expeditions) {
+          if (raw is! Map) continue;
+          final mid = _asStr(raw['missionId'], '');
+          if (mid.isEmpty) continue;
+          final ids = raw['cardInstanceIds'];
+          await txn.insert(
+            'expedition_slots',
+            {
+              'mission_id': mid,
+              'card_instance_ids': jsonEncode(
+                ids is List ? [for (final v in ids) _asInt(v, 0)] : <int>[],
+              ),
+              'started_epoch_ms': _asInt(raw['startedEpochMs'], 0),
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        await txn.delete('summoner_artifacts');
+        for (final id in _asList(artifacts['crafted'])) {
+          if (id is! String) continue;
+          final equippedId = _asNullableStr(artifacts['equipped']);
+          await txn.insert(
+            'summoner_artifacts',
+            {
+              'id': id,
+              'crafted': 1,
+              'equipped': equippedId == id ? 1 : 0,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        final orderName = _asNullableStr(guild['order']);
+        await txn.insert(
+          'guild_state',
+          {
+            'id': 'guild_1',
+            'order_name': orderName,
+            'order_level': _asInt(guild['orderLevel'], 0),
+            'contributions_today': _asInt(guild['contributionsToday'], 0),
+            'day_key': _asNullableStr(guild['dayKey']),
+            'badges': _asInt(guild['badges'], 0),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        await txn.delete('battle_log');
+        for (final raw in battleLog) {
+          if (raw is! Map) continue;
+          final entry = BattleLogEntry.fromMap(
+            raw.map((k, v) => MapEntry('$k', v)),
+          );
+          await txn.insert('battle_log', entry.toSql());
+        }
+        final language = _asNullableStr(settings['language']);
+        if (language != null) {
+          await txn.insert(
+            'app_settings',
+            {'key': 'language', 'value': language},
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
       }
     });
   }
@@ -1665,5 +1790,249 @@ class PlayerRepository {
     if (current < amount) return false;
     await addEssence(element, -amount);
     return true;
+  }
+
+  // ============================================================ v10 — Torre
+
+  /// Récord de la Torre de Obsidiana: (bestFloor, lastSweepEpochMs, lastSweepDay).
+  Future<(int, int, String?)> loadTowerProgress() async {
+    final db = await _db.db;
+    final rows = await db.query(
+      'tower_progress',
+      where: "id = 'tower_1'",
+      limit: 1,
+    );
+    if (rows.isEmpty) return (0, 0, null);
+    final r = rows.first;
+    return (
+      (r['best_floor'] as int?) ?? 0,
+      (r['last_sweep_epoch_ms'] as int?) ?? 0,
+      r['last_sweep_day'] as String?,
+    );
+  }
+
+  /// Registra un nuevo récord de piso (solo sube).
+  Future<int> saveTowerBestFloor(int floor) async {
+    final db = await _db.db;
+    final (best, _, _) = await loadTowerProgress();
+    final next = floor > best ? floor : best;
+    await db.insert(
+      'tower_progress',
+      {
+        'id': 'tower_1',
+        'best_floor': next,
+        'last_sweep_epoch_ms': 0,
+        'last_sweep_day': null,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    return next;
+  }
+
+  /// Registra el cobro del barrido diario.
+  Future<void> saveTowerSweep(int epochMs, String dayKey) async {
+    final db = await _db.db;
+    final (best, _, _) = await loadTowerProgress();
+    await db.insert(
+      'tower_progress',
+      {
+        'id': 'tower_1',
+        'best_floor': best,
+        'last_sweep_epoch_ms': epochMs,
+        'last_sweep_day': dayKey,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // ================================================ v10 — Expediciones
+
+  /// Los 3 slots de expedición persistidos.
+  Future<List<ExpeditionSlot>> loadExpeditionSlots() async {
+    final db = await _db.db;
+    final rows = await db.query('expedition_slots');
+    final byId = {
+      for (final r in rows)
+        r['mission_id'] as String: ExpeditionSlot(
+          missionId: r['mission_id'] as String,
+          cardInstanceIds: _decodeIds(r['card_instance_ids'] as String?),
+          startedEpochMs: (r['started_epoch_ms'] as int?) ?? 0,
+        ),
+    };
+    return [
+      for (final m in expeditionMissions)
+        byId[m.id] ??
+            ExpeditionSlot(
+                missionId: m.id, cardInstanceIds: const [], startedEpochMs: 0),
+    ];
+  }
+
+  static List<int> _decodeIds(String? json) {
+    if (json == null || json.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(json);
+      if (decoded is List) {
+        return [for (final v in decoded) (v as num).toInt()];
+      }
+    } catch (_) {}
+    return const [];
+  }
+
+  /// Envía cartas a una misión (sobrescribe el slot).
+  Future<void> startExpedition(
+      String missionId, List<int> instanceIds, int nowEpochMs) async {
+    final db = await _db.db;
+    await db.insert(
+      'expedition_slots',
+      {
+        'mission_id': missionId,
+        'card_instance_ids': jsonEncode(instanceIds),
+        'started_epoch_ms': nowEpochMs,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Libera un slot tras reclamar las recompensas.
+  Future<void> clearExpedition(String missionId) async {
+    final db = await _db.db;
+    await db.insert(
+      'expedition_slots',
+      {
+        'mission_id': missionId,
+        'card_instance_ids': '[]',
+        'started_epoch_ms': 0
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // =============================================== v10 — Artefactos
+
+  /// (ids fabricados, id equipado o null).
+  Future<(List<String>, String?)> loadArtifacts() async {
+    final db = await _db.db;
+    final rows = await db.query('summoner_artifacts');
+    final crafted = <String>[];
+    String? equipped;
+    for (final r in rows) {
+      if (((r['crafted'] as int?) ?? 0) > 0) {
+        final id = r['id'] as String;
+        crafted.add(id);
+        if ((r['equipped'] as int?) == 1) equipped = id;
+      }
+    }
+    return (crafted, equipped);
+  }
+
+  /// Marca un artefacto como fabricado y lo equipa por defecto.
+  Future<void> craftArtifact(String id) async {
+    final db = await _db.db;
+    await db.insert(
+      'summoner_artifacts',
+      {'id': id, 'crafted': 1, 'equipped': 1},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Cambia el artefacto equipado (null = ninguno).
+  Future<void> equipArtifact(String? id) async {
+    final db = await _db.db;
+    await db.update('summoner_artifacts', {'equipped': 0});
+    if (id != null) {
+      await db.update(
+        'summoner_artifacts',
+        {'equipped': 1},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    }
+  }
+
+  // ================================================== v10 — Orden del Pacto
+
+  Future<GuildState> loadGuild() async {
+    final db = await _db.db;
+    final rows =
+        await db.query('guild_state', where: "id = 'guild_1'", limit: 1);
+    if (rows.isEmpty) return GuildState.empty;
+    final r = rows.first;
+    final name = r['order_name'] as String?;
+    return GuildState(
+      order: name == null
+          ? null
+          : CovenantOrder.values.firstWhere(
+              (o) => o.name == name,
+              orElse: () => CovenantOrder.ordenCeniza,
+            ),
+      orderLevel: (r['order_level'] as int?) ?? 0,
+      contributionsToday: (r['contributions_today'] as int?) ?? 0,
+      dayKey: (r['day_key'] as String?) ?? '',
+      badges: (r['badges'] as int?) ?? 0,
+    );
+  }
+
+  Future<void> saveGuild(GuildState g) async {
+    final db = await _db.db;
+    await db.insert(
+      'guild_state',
+      {
+        'id': 'guild_1',
+        'order_name': g.order?.name,
+        'order_level': g.orderLevel,
+        'contributions_today': g.contributionsToday,
+        'day_key': g.dayKey,
+        'badges': g.badges,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  // =================================================== v10 — Log de batallas
+
+  /// Guarda una batalla y recorta el historial a las últimas 15.
+  Future<void> saveBattleLog(BattleLogEntry entry) async {
+    final db = await _db.db;
+    await db.insert('battle_log', entry.toSql());
+    await db.execute(
+      'DELETE FROM battle_log WHERE id NOT IN '
+      '(SELECT id FROM battle_log ORDER BY epoch_ms DESC LIMIT ?)',
+      [BattleLogEntry.historyLimit],
+    );
+  }
+
+  /// Historial (más reciente primero).
+  Future<List<BattleLogEntry>> loadBattleLog() async {
+    final db = await _db.db;
+    final rows = await db.query(
+      'battle_log',
+      orderBy: 'epoch_ms DESC',
+      limit: BattleLogEntry.historyLimit,
+    );
+    return [for (final r in rows) BattleLogEntry.fromSqlRow(r)];
+  }
+
+  // ==================================================== v10 — Ajustes (i18n)
+
+  /// Lee un ajuste de `app_settings` o null.
+  Future<String?> loadSetting(String key) async {
+    final db = await _db.db;
+    final rows = await db.query(
+      'app_settings',
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first['value'] as String?;
+  }
+
+  /// Persiste un ajuste.
+  Future<void> saveSetting(String key, String value) async {
+    final db = await _db.db;
+    await db.insert(
+      'app_settings',
+      {'key': key, 'value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 }

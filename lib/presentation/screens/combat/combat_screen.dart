@@ -15,6 +15,7 @@ import '../../../domain/combat/combat_math.dart';
 import '../../../domain/combat/combat_models.dart';
 import '../../../domain/meta/card_mastery_system.dart';
 import '../../../domain/meta/rune_system.dart';
+import '../../../domain/meta/summoner_artifact.dart';
 import '../../../domain/meta/seal_challenge_rules.dart';
 import '../../../domain/meta/squad_synergy_resolver.dart';
 import '../../../domain/value_objects/element.dart';
@@ -29,6 +30,7 @@ import '../../widgets/tcg_card_widget.dart';
 import '../../widgets/overdrive_bar.dart';
 import '../../widgets/gothic_modal_frame.dart';
 import 'hero_skill_cut_in.dart';
+import 'combat_artifact_button.dart';
 import '../meta/how_to_play_modal.dart';
 import '../sanctuary/settings_modal.dart';
 
@@ -136,6 +138,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   // Secuencia de muerte del jefe: grietas + brasas + banner dorado.
   int _shatterToken = 0;
+
+  // Artefacto del Invocador equipado (5to botón táctico).
+  SummonerArtifact? _equippedArtifact;
 
   // Studio Edition: cinematic camera + bouncing Verlet sparks.
   final DynamicCombatCamera _camera = DynamicCombatCamera();
@@ -259,6 +264,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     _fxTicker = createTicker(_onFxTick)..start();
     ProceduralSfxEngine.startAmbient('boss_pulse');
     _initEngine();
+    _loadEquippedArtifact();
   }
 
   @override
@@ -269,6 +275,32 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     _particleCtrl.dispose();
     _mergePulseCtrl.dispose();
     super.dispose();
+  }
+
+  /// Carga (una sola vez) el artefacto fabricado Y equipado por el jugador.
+  Future<void> _loadEquippedArtifact() async {
+    try {
+      final (crafted, equipped) =
+          await ref.read(playerRepositoryProvider).loadArtifacts();
+      if (!mounted) return;
+      final matches = equipped == null
+          ? const <SummonerArtifact>[]
+          : summonerArtifacts.where((a) => a.id == equipped).toList();
+      setState(() {
+        _equippedArtifact = crafted.contains(equipped) && matches.isNotEmpty
+            ? matches.first
+            : null;
+      });
+    } catch (_) {}
+  }
+
+  /// Usa el artefacto equipado si está listo (el motor arma el cooldown).
+  void _useEquippedArtifact() {
+    final artifact = _equippedArtifact;
+    if (artifact == null) return;
+    if (!(_engine?.useArtifact(artifact) ?? false)) return;
+    ProceduralSfxEngine.playCardSkillInvoke();
+    setState(() {});
   }
 
   @override
@@ -506,6 +538,9 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
           counterflicks: engine.counterflicks,
           mergesToThree: engine.mergesToThree,
           bestStreak: engine.bestBullseyeStreak,
+          damageByCard: Map<String, int>.of(engine.damageByCard),
+          cardNames: {for (final c in engine.cards) c.id: c.name},
+          mvpCardId: engine.mvpCardId,
         ),
       );
 
@@ -605,16 +640,27 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   }
 
   // Unified drag/flick handlers
-  void _onPanStart(DragStartDetails d) {
-    final (x, y) = _toEngine(d.globalPosition);
 
+  /// Counter-flick: tap/flick directo sobre un proyectil enemigo (radio 58px
+  /// vive en el motor). Devuelve true si destruyó algo.
+  bool _tryCounterFlickAt(Offset globalPos) {
+    if (_engine == null) return false;
+    final (x, y) = _toEngine(globalPos);
+    if (!engine.counterFlickAt(x, y, engine.time)) return false;
+    ProceduralSfxEngine.playCounterFlickDestroy();
+    ref.read(bountyProvider.notifier).increment('counterflicks');
+    if (mounted) setState(() {});
+    return true;
+  }
+
+  // 100% de casos: un tap sin drag también destruye el proyectil.
+  void _onTapDown(TapDownDetails d) => _tryCounterFlickAt(d.globalPosition);
+
+  void _onPanStart(DragStartDetails d) {
     // Counter-flick priority
-    if (engine.counterFlickAt(
-        x, y, DateTime.now().millisecondsSinceEpoch / 1000)) {
-      ProceduralSfxEngine.playCounterFlickDestroy();
-      ref.read(bountyProvider.notifier).increment('counterflicks');
-      return;
-    }
+    if (_tryCounterFlickAt(d.globalPosition)) return;
+
+    final (x, y) = _toEngine(d.globalPosition);
 
     // Check if started on a tray orb
     if (_isOverTray(y)) {
@@ -840,10 +886,12 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF0C0608),
       body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+        // Translucent: el pan del Blade Swipe no traga los taps de proyectiles/overlay.
+        behavior: HitTestBehavior.translucent,
         onPanStart: _onPanStart,
         onPanUpdate: _onPanUpdate,
         onPanEnd: _onPanEnd,
+        onTapDown: _onTapDown,
         child: Column(
           key: ValueKey<int>(_session),
           children: [
@@ -1450,6 +1498,19 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                   ],
                 ),
               ),
+              // 5to botón táctico: artefacto del Invocador (junto a la barra de HP).
+              if (_equippedArtifact != null) ...[
+                const SizedBox(width: BrimstoneSpacing.spaceSM),
+                AnimatedBuilder(
+                  animation: _fxClock,
+                  builder: (context, _) => CombatArtifactButton(
+                    artifact: _equippedArtifact,
+                    cooldownRemaining:
+                        _engine?.artifactCooldownRemaining ?? 0.0,
+                    onTap: _useEquippedArtifact,
+                  ),
+                ),
+              ],
             ]),
           ),
           // Orbs tray - 5 slots, 3D rendering with Runic Stone Base
@@ -3048,6 +3109,9 @@ class CombatSummaryDialog extends StatelessWidget {
   final int counterflicks;
   final int mergesToThree;
   final int bestStreak;
+  final Map<String, int> damageByCard;
+  final Map<String, String> cardNames;
+  final String mvpCardId;
   const CombatSummaryDialog(
       {super.key,
       required this.victory,
@@ -3057,10 +3121,16 @@ class CombatSummaryDialog extends StatelessWidget {
       required this.reactions,
       required this.counterflicks,
       required this.mergesToThree,
-      this.bestStreak = 0});
+      this.bestStreak = 0,
+      this.damageByCard = const {},
+      this.cardNames = const {},
+      this.mvpCardId = ''});
   @override
   Widget build(BuildContext context) {
     final loot = victory ? (damageTotal ~/ 5) : 0;
+    final entries = damageByCard.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final breakdownTotal = entries.fold<int>(0, (s, e) => s + e.value);
     return AlertDialog(
       backgroundColor: const Color(0xFF14090D),
       title: Text(victory ? 'VICTORIA' : 'DERROTA',
@@ -3068,23 +3138,45 @@ class CombatSummaryDialog extends StatelessWidget {
               color: victory ? const Color(0xFF4FFFA3) : Colors.redAccent,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.2)),
-      content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SummaryRow(label: 'Daño total', value: '$damageTotal'),
-            _SummaryRow(label: 'Golpe máximo', value: '${maxHit.toInt()}'),
-            _SummaryRow(label: 'Bullseyes', value: '$bullseyes'),
-            _SummaryRow(label: 'Mejor racha', value: 'x$bestStreak'),
-            _SummaryRow(label: 'Reacciones', value: '$reactions'),
-            _SummaryRow(label: 'Esferas Nv.3', value: '$mergesToThree'),
-            _SummaryRow(label: 'Counter-flicks', value: '$counterflicks'),
-            const SizedBox(height: 10),
-            _SummaryRow(
-                label: 'Botín',
-                value: '$loot oro',
-                valueColor: const Color(0xFFFFC93C)),
-          ]),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340, maxHeight: 480),
+        child: SingleChildScrollView(
+          child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SummaryRow(label: 'Daño total', value: '$damageTotal'),
+                _SummaryRow(label: 'Golpe máximo', value: '${maxHit.toInt()}'),
+                _SummaryRow(label: 'Bullseyes', value: '$bullseyes'),
+                _SummaryRow(label: 'Mejor racha', value: 'x$bestStreak'),
+                _SummaryRow(label: 'Reacciones', value: '$reactions'),
+                _SummaryRow(label: 'Esferas Nv.3', value: '$mergesToThree'),
+                _SummaryRow(label: 'Counter-flicks', value: '$counterflicks'),
+                const SizedBox(height: 10),
+                _SummaryRow(
+                    label: 'Botín',
+                    value: '$loot oro',
+                    valueColor: const Color(0xFFFFC93C)),
+                if (breakdownTotal > 0) ...[
+                  const SizedBox(height: 14),
+                  const Text('APORTE DE DAÑO',
+                      style: TextStyle(
+                          color: Color(0xFFFFC93C),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2)),
+                  const SizedBox(height: 6),
+                  for (final e in entries)
+                    _DamageRow(
+                      name: cardNames[e.key] ?? e.key,
+                      damage: e.value,
+                      share: e.value / breakdownTotal,
+                      isMvp: e.key == mvpCardId,
+                    ),
+                ],
+              ]),
+        ),
+      ),
       actions: [
         TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -3092,6 +3184,71 @@ class CombatSummaryDialog extends StatelessWidget {
                 style: TextStyle(
                     color: Color(0xFFB16EFF), fontWeight: FontWeight.w800))),
       ],
+    );
+  }
+}
+
+class _DamageRow extends StatelessWidget {
+  final String name;
+  final int damage;
+  final double share;
+  final bool isMvp;
+  const _DamageRow(
+      {required this.name,
+      required this.damage,
+      required this.share,
+      this.isMvp = false});
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(children: [
+        SizedBox(
+          width: 96,
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                color: isMvp ? const Color(0xFFFFC93C) : Colors.white70,
+                fontSize: 11,
+                fontWeight: isMvp ? FontWeight.w900 : FontWeight.w600),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: Container(
+              height: 8,
+              color: Colors.white12,
+              child: FractionallySizedBox(
+                widthFactor: share.clamp(0.02, 1.0),
+                alignment: Alignment.centerLeft,
+                child: const ColoredBox(color: Color(0xFFB16EFF)),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        SizedBox(
+          width: 44,
+          child: Text('$damage',
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800)),
+        ),
+        if (isMvp) ...[
+          const SizedBox(width: 4),
+          const Text('★ MVP',
+              style: TextStyle(
+                  color: Color(0xFFFFC93C),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900)),
+        ],
+      ]),
     );
   }
 }

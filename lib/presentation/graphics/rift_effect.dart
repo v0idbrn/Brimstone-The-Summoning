@@ -21,12 +21,18 @@ class BrimstoneShaders {
   static const String shockwaveAsset = 'shaders/shockwave_break.frag';
   static const String plasmaAsset = 'shaders/orb_plasma.frag';
   static const String arcaneBeamAsset = 'shaders/arcane_beam.frag';
+  static const String mythicAuraAsset = 'shaders/mythic_aura.frag';
+  static const String elementalWeatherAsset = 'shaders/elemental_weather.frag';
+  static const String shieldHexAsset = 'shaders/shield_hex.frag';
 
   static ui.FragmentProgram? _rift;
   static ui.FragmentProgram? _foil;
   static ui.FragmentProgram? _shockwave;
   static ui.FragmentProgram? _plasma;
   static ui.FragmentProgram? _arcaneBeam;
+  static ui.FragmentProgram? _mythicAura;
+  static ui.FragmentProgram? _elementalWeather;
+  static ui.FragmentProgram? _shieldHex;
   static bool _warming = false;
   static bool _warmed = false;
 
@@ -35,6 +41,21 @@ class BrimstoneShaders {
   static bool get shockwaveAvailable => _shockwave != null;
   static bool get plasmaAvailable => _plasma != null;
   static bool get arcaneBeamAvailable => _arcaneBeam != null;
+  static bool get mythicAuraAvailable => _mythicAura != null;
+  static bool get elementalWeatherAvailable => _elementalWeather != null;
+  static bool get shieldHexAvailable => _shieldHex != null;
+
+  /// Todos los assets de shaders del juego (8 en la Etapa III).
+  static const List<String> allAssets = [
+    riftAsset,
+    foilAsset,
+    shockwaveAsset,
+    plasmaAsset,
+    arcaneBeamAsset,
+    mythicAuraAsset,
+    elementalWeatherAsset,
+    shieldHexAsset,
+  ];
 
   /// Preloads every program once (called from `main()` after the first frame).
   static Future<void> warmUp() async {
@@ -47,12 +68,18 @@ class BrimstoneShaders {
         _load(shockwaveAsset),
         _load(plasmaAsset),
         _load(arcaneBeamAsset),
+        _load(mythicAuraAsset),
+        _load(elementalWeatherAsset),
+        _load(shieldHexAsset),
       ]);
       _rift = loaded[0];
       _foil = loaded[1];
       _shockwave = loaded[2];
       _plasma = loaded[3];
       _arcaneBeam = loaded[4];
+      _mythicAura = loaded[5];
+      _elementalWeather = loaded[6];
+      _shieldHex = loaded[7];
     } finally {
       _warming = false;
       _warmed = true;
@@ -108,6 +135,33 @@ class BrimstoneShaders {
   static ui.FragmentShader? newArcaneBeamShader() {
     try {
       return _arcaneBeam?.fragmentShader();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fresh shader instance bound to the mythic aura program, or `null`.
+  static ui.FragmentShader? newMythicAuraShader() {
+    try {
+      return _mythicAura?.fragmentShader();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fresh shader instance bound to the elemental weather program, or `null`.
+  static ui.FragmentShader? newElementalWeatherShader() {
+    try {
+      return _elementalWeather?.fragmentShader();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Fresh shader instance bound to the shield hex program, or `null`.
+  static ui.FragmentShader? newShieldHexShader() {
+    try {
+      return _shieldHex?.fragmentShader();
     } catch (_) {
       return null;
     }

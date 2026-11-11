@@ -4,6 +4,7 @@ import '../services/elemental_reaction_engine.dart';
 import '../meta/squad_synergy_resolver.dart';
 import '../meta/rune_system.dart';
 import '../meta/leader_skill.dart';
+import '../meta/summoner_artifact.dart';
 import '../meta/talent_rules.dart';
 import '../meta/summoner_gear.dart';
 import '../../core/performance/object_pool.dart';
@@ -665,7 +666,7 @@ class CombatEngine {
       final ex = CombatMath.lerp(e.startX, e.endX, ez);
       final ey = CombatMath.lerp(e.startY, e.endY, ez);
       final dist = math.sqrt((x - ex) * (x - ex) + (y - ey) * (y - ey));
-      if (dist < CombatMath.projectileInterceptDistance * 1.5) {
+      if (dist < CombatMath.counterFlickRadius) {
         _destroyEnemyProjectile(e, byCounterflick: true);
         return true;
       }
@@ -698,10 +699,44 @@ class CombatEngine {
       element: element,
       level: level,
       prismatic: prismatic,
+      // Pilar 10: la esfera queda cargada por la carta en rotación.
+      sourceCardId: _nextCardForAttribution(),
     );
     tray[slot] = orb;
     onTrayChanged?.call();
     return orb;
+  }
+
+  int _orbCardCursor = 0;
+
+  /// Rota la atribución de esferas entre las 4 cartas del escuadrón.
+  String? _nextCardForAttribution() {
+    if (cards.isEmpty) return null;
+    final id = cards[_orbCardCursor % cards.length].id;
+    _orbCardCursor++;
+    return id;
+  }
+
+  /// Atribuye [dmg] a una carta concreta (Pilar 10: aporte por carta).
+  void attributeCardDamage(String cardId, double dmg) {
+    if (dmg <= 0) return;
+    damageByCard[cardId] = (damageByCard[cardId] ?? 0) + dmg.toInt();
+  }
+
+  /// Aporte de daño acumulado por carta (id -> daño). Claves solo con datos.
+  final Map<String, int> damageByCard = <String, int>{};
+
+  /// Id de la carta con mayor aporte ('' si no hay datos) — ★ MVP.
+  String get mvpCardId {
+    String best = '';
+    var bestVal = -1;
+    damageByCard.forEach((k, v) {
+      if (v > bestVal) {
+        bestVal = v;
+        best = k;
+      }
+    });
+    return best;
   }
 
   OrbLevel? mergeOrbs(int a, int b) {
@@ -1004,6 +1039,7 @@ class CombatEngine {
         id: _nextId('proj'),
         element: orb.element,
         level: orb.level,
+        sourceCardId: orb.sourceCardId,
         startX: startX,
         startY: trayY,
         targetX: target.xAt(time, effectiveAngularSpeed(target)),
@@ -1035,6 +1071,8 @@ class CombatEngine {
     }
     vulnerableRemaining = math.max(0, vulnerableRemaining - s);
     petrifyRemaining = math.max(0, petrifyRemaining - s);
+    // Pilar 7: cooldown táctico del Artefacto del Invocador (20s).
+    artifactCooldownRemaining = math.max(0, artifactCooldownRemaining - s);
     for (final t in targets) {
       if (t.frozenRemaining > 0) {
         t.frozenRemaining -= s;
@@ -1105,7 +1143,12 @@ class CombatEngine {
       CombatMath.lerp(p.startX, p.targetX, z);
 
   void _resolveArrival(OrbProjectile p) {
-    final orb = CombatOrb(id: p.id, element: p.element, level: p.level);
+    final orb = CombatOrb(
+      id: p.id,
+      element: p.element,
+      level: p.level,
+      sourceCardId: p.sourceCardId,
+    );
     CombatTarget? best;
     var bestDist = double.infinity;
     var bestKind = HitKind.miss;
@@ -1381,6 +1424,12 @@ class CombatEngine {
     // por encima del techo legal se recortan y quedan registrados.
     final dmg = sanityGuard.sanitize(rawDamage);
 
+    // Pilar 10: atribuir el daño a la carta que cargó la esfera.
+    final source = orb.sourceCardId;
+    if (source != null && dmg > 0) {
+      damageByCard[source] = (damageByCard[source] ?? 0) + dmg.toInt();
+    }
+
     // Block 3: Apply damage to shield first, then to HP.
     if (bossShieldHp > 0 && !bossShieldBroken) {
       final shieldDmg = math.min(bossShieldHp, dmg);
@@ -1472,6 +1521,170 @@ class CombatEngine {
   // New reaction mana from relic Sello de Resonancia (kept out of const ctor).
   // Hover harness: expose via extension below.
 
+  // ───────────────────────────── Pilar 7: Artefacto Activo del Invocador ──
+
+  /// Segundos restantes de recarga del artefacto (0 = listo).
+  double artifactCooldownRemaining = 0.0;
+
+  /// Whether the summoner artifact is ready to fire.
+  bool get artifactReady => artifactCooldownRemaining <= 0;
+
+  /// Cooldown táctico pactado del artefacto (20s).
+  static const double artifactCooldown = SummonerArtifact.cooldownSeconds;
+
+  /// Usa el artefacto equipado. Retorna false si está en recarga.
+  ///
+  /// Los efectos operan sobre el estado vivo del motor (dianas, bandeja,
+  /// proyectiles enemigos, maná, HP) y siempre arman el cooldown de 20s.
+  bool useArtifact(SummonerArtifact artifact) {
+    if (!artifactReady) return false;
+    artifactCooldownRemaining = artifactCooldown;
+    switch (artifact.effect) {
+      case ArtifactEffect.cronomancia:
+        for (final t in targets) {
+          t.frozen = true;
+          t.frozenRemaining = 3.0;
+        }
+        for (final e in enemyProjectiles) {
+          _destroyEnemyProjectile(e, byCounterflick: false);
+        }
+        enemyProjectiles.removeWhere((e) => !e.alive);
+        texts.add(FloatingText(
+          id: _nextId('txt'),
+          text: '¡CRONOMANCIA!',
+          x: bossScreenX,
+          y: bossScreenY - 180,
+          kind: FloatingTextKind.skill,
+        ));
+      case ArtifactEffect.transmutacion:
+        for (var i = 0; i < tray.length; i++) {
+          final orb = tray[i];
+          if (orb == null || orb.level == OrbLevel.three) continue;
+          final upgraded =
+              random.nextDouble() < 0.25 ? OrbLevel.three : OrbLevel.two;
+          tray[i] = CombatOrb(
+            id: _nextId('orb'),
+            element: orb.element,
+            level: upgraded,
+            sourceCardId: orb.sourceCardId,
+          );
+        }
+        texts.add(FloatingText(
+          id: _nextId('txt'),
+          text: '¡TRANSMUTACIÓN!',
+          x: bossScreenX,
+          y: trayY - 60,
+          kind: FloatingTextKind.skill,
+        ));
+      case ArtifactEffect.sangriaReal:
+        playerHp = math.max(1.0, playerHp - playerMaxHp * 0.10);
+        for (var i = 0; i < 3; i++) {
+          _fireGuaranteedBullseye(aura ?? Element.igneous);
+        }
+        texts.add(FloatingText(
+          id: _nextId('txt'),
+          text: '¡SANGRE REAL!',
+          x: bossScreenX,
+          y: bossScreenY - 180,
+          kind: FloatingTextKind.skill,
+        ));
+      case ArtifactEffect.precision:
+        for (final t in targets) {
+          t.enlargedUntil = time + 8.0;
+          t.enlargedRadiusBonus = 0.50;
+        }
+        texts.add(FloatingText(
+          id: _nextId('txt'),
+          text: '¡PRECISIÓN TOTAL!',
+          x: bossScreenX,
+          y: bossScreenY - 180,
+          kind: FloatingTextKind.skill,
+        ));
+      case ArtifactEffect.detonacion:
+        _detonateArea(4.0);
+        texts.add(FloatingText(
+          id: _nextId('txt'),
+          text: '¡DETONACIÓN DE AZUFRE!',
+          x: bossScreenX,
+          y: bossScreenY - 180,
+          kind: FloatingTextKind.skill,
+        ));
+      case ArtifactEffect.vacio:
+        addManaToAllCards(40.0);
+        vulnerableRemaining = 5.0;
+        texts.add(FloatingText(
+          id: _nextId('txt'),
+          text: '¡CATÁLISIS DEL VACÍO!',
+          x: bossScreenX,
+          y: bossScreenY - 180,
+          kind: FloatingTextKind.skill,
+        ));
+    }
+    onArtifactUsed?.call(artifact.id);
+    return true;
+  }
+
+  /// Dispara un proyectil con acierto garantizado de bullseye.
+  void _fireGuaranteedBullseye(Element element) {
+    final slot = _firstEmptySlot() ?? 0;
+    final startX = _trayX(slot);
+    final target =
+        targets.isNotEmpty ? targets[random.nextInt(targets.length)] : null;
+    final tx = target?.xAt(time, effectiveAngularSpeed(target)) ?? bossScreenX;
+    final ty = target?.yAt(time, effectiveAngularSpeed(target)) ?? bossScreenY;
+    final p = OrbProjectile(
+      id: _nextId('proj'),
+      element: element,
+      level: OrbLevel.two,
+      startX: startX,
+      startY: trayY,
+      targetX: tx,
+      targetY: ty,
+      flightDuration: CombatMath.flightMax,
+    );
+    projectiles.add(p);
+    // Garantía de bullseye: la diana queda congelada y agrandada durante el
+    // vuelo para que la clasificación no pueda fallar.
+    target
+      ?..frozen = true
+      ..frozenRemaining = math.max(
+        target.frozenRemaining,
+        p.flightDuration + 0.05,
+      )
+      ..enlargedUntil = time + p.flightDuration + 0.05
+      ..enlargedRadiusBonus = 1.0;
+  }
+
+  int? _firstEmptySlot() {
+    for (var i = 0; i < tray.length; i++) {
+      if (tray[i] == null) return i;
+    }
+    return null;
+  }
+
+  /// Daño directo de área (artefacto Bomba de Azufre).
+  void _detonateArea(double mult) {
+    final dmg =
+        baseDamage * mult * playerDamageMult * math.max(1, targets.length);
+    bossHp -= dmg;
+    attributeCardDamage('artifact', dmg);
+    for (final t in targets) {
+      texts.add(
+        FloatingText(
+          id: _nextId('txt'),
+          text: '-${dmg.toInt()}',
+          x: t.xAt(time, effectiveAngularSpeed(t)),
+          y: t.yAt(time, effectiveAngularSpeed(t)),
+          kind: FloatingTextKind.crit,
+        ),
+      );
+    }
+    trauma = (trauma + 0.6).clamp(0.0, 1.0);
+  }
+
+  /// Callback de UI cuando el artefacto se usa (cut-in, sonido).
+  void Function(String artifactId)? onArtifactUsed;
+
   void _tickEnemyProjectiles(double s) {
     for (final e in List.of(enemyProjectiles)) {
       if (!e.alive) continue;
@@ -1554,7 +1767,50 @@ class CombatEngine {
       case 'nyxara':
         _tickNyxaraEnrage(s);
         break;
+      case 'boss_samael':
+        _tickSamaelPhases(s);
+        break;
     }
+  }
+
+  /// Samael (Cap. X, Pilar 2): tres fases dinámicas al 100%, 65% y 30% HP.
+  ///
+  /// Cada fase acelera sus proyectiles y añade una diana; el HUD muestra el
+  /// rótulo de fase. Puramente determinista: los umbrales son de diseño.
+  static const List<double> samaelPhaseThresholds = [0.65, 0.30];
+
+  int samaelPhase = 1;
+
+  void _tickSamaelPhases(double s) {
+    final hpFraction = bossHp / boss.maxHp;
+    var phase = 1;
+    for (var i = 0; i < samaelPhaseThresholds.length; i++) {
+      if (hpFraction <= samaelPhaseThresholds[i]) phase = i + 2;
+    }
+    if (phase > samaelPhase) {
+      samaelPhase = phase;
+      // Cada fase: +1 proyectil por ataque, dianas 15% más rápidas.
+      for (final t in targets) {
+        t.speedMultiplier *= 1.15;
+      }
+      texts.add(
+        FloatingText(
+          id: _nextId('txt'),
+          text: 'SAMAEL — FASE $phase',
+          x: bossScreenX,
+          y: bossScreenY - 200,
+          kind: FloatingTextKind.skill,
+        ),
+      );
+      onEnrage?.call();
+    }
+  }
+
+  /// Proyectiles por ataque efectivos (Samael escala +1 por fase).
+  int get effectiveProjectilesPerAttack {
+    final base = boss.projectilesPerAttack;
+    if (boss.id == 'boss_samael') return base + (samaelPhase - 1);
+    return base;
   }
 
   /// Pyroth (Ígneo): burns 1 random tray slot for 4.0s. Tapping the burned
@@ -1671,7 +1927,7 @@ class CombatEngine {
 
   /// Number of enemy projectiles per boss attack (doubled for Azathor enrage).
   int get bossProjectileCount {
-    var base = 1 + random.nextInt(boss.projectilesPerAttack);
+    var base = 1 + random.nextInt(effectiveProjectilesPerAttack);
     if (enraged && boss.id == 'azathor') base *= 2;
     // Lluvia Corrupta: el jefe dispara el doble.
     if (has(SealMutator.bossDoubleProjectiles)) base *= 2;
@@ -1773,9 +2029,10 @@ class CombatEngine {
     );
     final atk = _effectiveAttack(c) * playerDamageMult;
     final vuln = vulnerableRemaining > 0 ? 1.3 : 1.0;
-    void aoeSkillDamage(double mult) => _skillDamageAll(atk * mult * vuln);
+    void aoeSkillDamage(double mult) =>
+        _skillDamageAll(atk * mult * vuln, sourceCard: c.id);
     void singleSkillDamage(double mult) =>
-        _skillDamageSingle(atk * mult * vuln);
+        _skillDamageSingle(atk * mult * vuln, sourceCard: c.id);
 
     switch (c.id) {
       case 'ignis_hound':
@@ -1793,6 +2050,7 @@ class CombatEngine {
           );
         }
         bossHp -= atk * 1.1 * vuln * 3;
+        attributeCardDamage(c.id, atk * 1.1 * vuln * 3);
         applyAura(Element.igneous);
       case 'ignis_lord':
         aoeSkillDamage(3.5);
@@ -1983,8 +2241,10 @@ class CombatEngine {
     }
   }
 
-  void _skillDamageAll(double dmg) {
-    bossHp -= dmg * math.max(1, targets.length);
+  void _skillDamageAll(double dmg, {String? sourceCard}) {
+    final total = dmg * math.max(1, targets.length);
+    bossHp -= total;
+    if (sourceCard != null) attributeCardDamage(sourceCard, total);
     for (final t in targets) {
       texts.add(
         FloatingText(
@@ -1998,8 +2258,9 @@ class CombatEngine {
     }
   }
 
-  void _skillDamageSingle(double dmg) {
+  void _skillDamageSingle(double dmg, {String? sourceCard}) {
     bossHp -= dmg;
+    if (sourceCard != null) attributeCardDamage(sourceCard, dmg);
     if (targets.isNotEmpty) {
       final t = targets.first;
       texts.add(
