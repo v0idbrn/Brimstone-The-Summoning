@@ -170,8 +170,8 @@ void main() {
   });
 
   group('Phase 12A — capítulos de campaña', () {
-    test('campaignChapters tiene exactamente 5 capítulos', () {
-      expect(campaignChapters.length, 5);
+    test('campaignChapters tiene exactamente 10 capítulos', () {
+      expect(campaignChapters.length, 10);
     });
 
     test('chapterById encuentra cada capítulo y rechaza ids inválidos', () {
@@ -290,6 +290,11 @@ void main() {
           'chapter_tectonico',
           'chapter_velo',
           'chapter_tronco',
+          'chapter_coral',
+          'chapter_observatorio',
+          'chapter_catedral',
+          'chapter_laberinto',
+          'chapter_corazon',
         ]),
         isNull,
       );

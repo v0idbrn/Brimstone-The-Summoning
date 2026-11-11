@@ -5,6 +5,8 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart' hide Element;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart'
+    show KeyDownEvent, LogicalKeyboardKey, KeyEvent;
 
 import '../../../core/audio/procedural_sfx_engine.dart';
 import '../../../core/performance/object_pool.dart';
@@ -107,8 +109,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   String? _reactionBanner;
   int _session = 0;
 
-  // Game speed multiplier (1.0 or 1.5x)
+  // Game speed multiplier (1.0, 1.5x, 2.0x)
   double _gameSpeed = 1.0;
+  // Set to true after Chapter I cleared (future feature gate)
+  final bool _speed2xUnlocked = false;
 
   // Block 3: Auto-Battle state
   bool _autoBattleEnabled = false;
@@ -148,6 +152,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   late final Ticker _fxTicker;
   Duration _fxElapsed = Duration.zero;
   final ValueNotifier<double> _fxClock = ValueNotifier<double>(0);
+
+  // Keyboard support for PC (Pilar 2)
+  late final FocusNode _focusNode;
+  bool _showKeyboardHints = false;
 
   CombatEngine get engine => _engine!;
 
@@ -265,6 +273,16 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     ProceduralSfxEngine.startAmbient('boss_pulse');
     _initEngine();
     _loadEquippedArtifact();
+
+    // Keyboard support for PC (Pilar 2)
+    _focusNode = FocusNode();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _focusNode.requestFocus();
+        final width = MediaQuery.of(context).size.width;
+        setState(() => _showKeyboardHints = width > 560);
+      }
+    });
   }
 
   @override
@@ -274,6 +292,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     _fxClock.dispose();
     _particleCtrl.dispose();
     _mergePulseCtrl.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -301,6 +320,105 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     if (!(_engine?.useArtifact(artifact) ?? false)) return;
     ProceduralSfxEngine.playCardSkillInvoke();
     setState(() {});
+  }
+
+  // Keyboard shortcuts for PC (Pilar 2)
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+
+    // 1-4: Invoke card skill if mana is full
+    if (key == LogicalKeyboardKey.digit1) {
+      _tryInvokeCard(0);
+    } else if (key == LogicalKeyboardKey.digit2) {
+      _tryInvokeCard(1);
+    } else if (key == LogicalKeyboardKey.digit3) {
+      _tryInvokeCard(2);
+    } else if (key == LogicalKeyboardKey.digit4) {
+      _tryInvokeCard(3);
+    }
+    // Q or E: Use equipped artifact
+    else if (key == LogicalKeyboardKey.keyQ || key == LogicalKeyboardKey.keyE) {
+      _useEquippedArtifact();
+    }
+    // Space: Auto-merge all
+    else if (key == LogicalKeyboardKey.space) {
+      _autoMergeAll();
+    }
+    // A: Toggle auto-battle
+    else if (key == LogicalKeyboardKey.keyA) {
+      setState(() {
+        _autoBattleEnabled = !_autoBattleEnabled;
+        _engine?.autoBattleEnabled = _autoBattleEnabled;
+      });
+    }
+    // S or Tab: Cycle game speed 1x -> 1.5x -> 2x (if unlocked)
+    else if (key == LogicalKeyboardKey.keyS || key == LogicalKeyboardKey.tab) {
+      _cycleGameSpeed();
+    }
+    // Esc: Pause/settings
+    else if (key == LogicalKeyboardKey.escape) {
+      _showPauseMenu();
+    }
+    return KeyEventResult.handled;
+  }
+
+  void _tryInvokeCard(int index) {
+    if (index >= engine.cards.length) return;
+    final card = engine.cards[index];
+    if (card.mana >= card.baseManaCost) {
+      _onCardTap(index);
+    }
+  }
+
+  void _cycleGameSpeed() {
+    const speeds = [1.0, 1.5, 2.0];
+    final currentIndex = speeds.indexOf(_gameSpeed);
+    final nextIndex = (currentIndex + 1) % speeds.length;
+    final nextSpeed = speeds[nextIndex];
+    // Only allow 2x if unlocked (after Chapter I)
+    if (nextSpeed == 2.0 && !_speed2xUnlocked) return;
+    setState(() => _gameSpeed = nextSpeed);
+    // game.speedMultiplier is final (set in constructor); _gameSpeed is used for display
+  }
+
+  void _showPauseMenu() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF14090D),
+        title: const Text('PAUSA',
+            style: TextStyle(
+                color: Color(0xFFB16EFF), fontWeight: FontWeight.w900)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('CONTINUAR',
+                style: TextStyle(color: Color(0xFFB16EFF))),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              showDialog(
+                context: context,
+                builder: (_) => const SettingsModal(),
+              );
+            },
+            child: const Text('AJUSTES',
+                style: TextStyle(color: Color(0xFFB16EFF))),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).maybePop();
+            },
+            child:
+                const Text('SALIR', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -883,271 +1001,295 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       );
     }
 
+    final isDesktop = MediaQuery.of(context).size.width > 560;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0C0608),
-      body: GestureDetector(
-        // Translucent: el pan del Blade Swipe no traga los taps de proyectiles/overlay.
-        behavior: HitTestBehavior.translucent,
-        onPanStart: _onPanStart,
-        onPanUpdate: _onPanUpdate,
-        onPanEnd: _onPanEnd,
-        onTapDown: _onTapDown,
-        child: Column(
-          key: ValueKey<int>(_session),
+      body: Focus(
+        focusNode: _focusNode,
+        onKeyEvent: (node, event) => _handleKeyEvent(node, event),
+        child: Stack(
           children: [
-            // ZONE 1: HEADER (56px)
-            SizedBox(height: 56, child: _buildHeader()),
-
-            // ZONE 2: ARENA (Expanded, FULL WIDTH)
-            Expanded(
-              child: Stack(
+            GestureDetector(
+              // Translucent: el pan del Blade Swipe no traga los taps de proyectiles/overlay.
+              behavior: HitTestBehavior.translucent,
+              onPanStart: _onPanStart,
+              onPanUpdate: _onPanUpdate,
+              onPanEnd: _onPanEnd,
+              onTapDown: _onTapDown,
+              child: Column(
+                key: ValueKey<int>(_session),
                 children: [
-                  Positioned.fill(
-                    child: AnimatedBuilder(
-                      animation: _fxClock,
-                      builder: (context, _) => Transform.scale(
-                        scale: _camera.scale,
-                        alignment: Alignment.bottomCenter,
-                        child: ClipRect(child: GameWidget(game: game)),
-                      ),
-                    ),
-                  ),
-                  // Peripheral vignette that closes in with the tactical zoom.
-                  Positioned.fill(
-                    child: AnimatedBuilder(
-                      animation: _fxClock,
-                      builder: (context, _) =>
-                          CombatVignette(strength: _camera.vignette),
-                    ),
-                  ),
-                  // Live boss afflictions floating over its portrait.
-                  Positioned(
-                    top: 6,
-                    left: 10,
-                    right: 10,
-                    child: IgnorePointer(
-                      child: _BossStatusBar(engine: engine),
-                    ),
-                  ),
-                  if (engine.scoreTarget != null)
-                    Positioned(
-                      top: 44,
-                      left: 12,
-                      right: 12,
-                      child: IgnorePointer(
-                        child: AnimatedBuilder(
-                          animation: _fxClock,
-                          builder: (context, _) =>
-                              _DuelScoreboard(engine: engine),
+                  // ZONE 1: HEADER (56px)
+                  SizedBox(height: 56, child: _buildHeader()),
+
+                  // ZONE 2: ARENA (Expanded, FULL WIDTH)
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: AnimatedBuilder(
+                            animation: _fxClock,
+                            builder: (context, _) => Transform.scale(
+                              scale: _camera.scale,
+                              alignment: Alignment.bottomCenter,
+                              child: ClipRect(child: GameWidget(game: game)),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  // HellFire: Dimensional Rift Archway - stone pillars with elemental energy veins
-                  Positioned.fill(
-                      child:
-                          _RiftArchwayPillars(chapterColor: _chapterColor())),
-                  // Particle bursts
-                  if (_bursts.isNotEmpty)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _BurstsPainter(
-                          bursts: _bursts,
-                          progress: _particleCtrl.value,
-                          ringsPerBurst: PerformanceSettings.ringsPerBurst,
-                          scale: PerformanceSettings.particleScale,
+                        // Peripheral vignette that closes in with the tactical zoom.
+                        Positioned.fill(
+                          child: AnimatedBuilder(
+                            animation: _fxClock,
+                            builder: (context, _) =>
+                                CombatVignette(strength: _camera.vignette),
+                          ),
                         ),
-                      ),
-                    ),
-                  // HellFire: Mana Orb Particles flying to squad cards
-                  if (_manaOrbParticles.isNotEmpty)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _ManaOrbParticlesPainter(
-                            particles: _manaOrbParticles),
-                      ),
-                    ),
-                  // Flying projectile
-                  if (_flyingProjectile != null)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _FlyingProjectilePainter(
-                          projectile: _flyingProjectile!,
-                          game: game,
+                        // Live boss afflictions floating over its portrait.
+                        Positioned(
+                          top: 6,
+                          left: 10,
+                          right: 10,
+                          child: IgnorePointer(
+                            child: _BossStatusBar(engine: engine),
+                          ),
                         ),
-                      ),
-                    ),
-                  // Danger overlay
-                  Positioned.fill(
-                    child: IgnorePointer(
-                        child: _CombatDangerOverlay(engine: engine)),
-                  ),
-                  // Boss shatter: white flash, light cracks, rising embers
-                  // and the gilded "¡SELLO PURIFICADO!" banner.
-                  Positioned.fill(
-                    child: BossShatterOverlay(
-                      token: _shatterToken,
-                      portraitId: engine.boss.id,
-                      element: engine.boss.element,
-                    ),
-                  ),
-                  // Elemental barrage (700 ms) landing with the cut-in.
-                  Positioned.fill(
-                    child: ElementalBarrage(
-                      token: _barrageToken,
-                      element: _barrageElement,
-                    ),
-                  ),
-                  // GPU break shockwave (bullseye Lv3, reaction, seal break).
-                  Positioned.fill(
-                    child: BreakShockwave(
-                      token: _shockToken,
-                      color: _elementColor(_barrageElement),
-                    ),
-                  ),
-                  // Verlet sparks with gravity + stone-lip bounce.
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: AnimatedBuilder(
-                        animation: _fxClock,
-                        builder: (context, _) => CustomPaint(
-                          painter: SparkPoolPainter(
-                            pool: _sparks,
+                        if (engine.scoreTarget != null)
+                          Positioned(
+                            top: 44,
+                            left: 12,
+                            right: 12,
+                            child: IgnorePointer(
+                              child: AnimatedBuilder(
+                                animation: _fxClock,
+                                builder: (context, _) =>
+                                    _DuelScoreboard(engine: engine),
+                              ),
+                            ),
+                          ),
+                        // HellFire: Dimensional Rift Archway - stone pillars with elemental energy veins
+                        Positioned.fill(
+                            child: _RiftArchwayPillars(
+                                chapterColor: _chapterColor())),
+                        // Particle bursts
+                        if (_bursts.isNotEmpty)
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _BurstsPainter(
+                                bursts: _bursts,
+                                progress: _particleCtrl.value,
+                                ringsPerBurst:
+                                    PerformanceSettings.ringsPerBurst,
+                                scale: PerformanceSettings.particleScale,
+                              ),
+                            ),
+                          ),
+                        // HellFire: Mana Orb Particles flying to squad cards
+                        if (_manaOrbParticles.isNotEmpty)
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _ManaOrbParticlesPainter(
+                                  particles: _manaOrbParticles),
+                            ),
+                          ),
+                        // Flying projectile
+                        if (_flyingProjectile != null)
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _FlyingProjectilePainter(
+                                projectile: _flyingProjectile!,
+                                game: game,
+                              ),
+                            ),
+                          ),
+                        // Danger overlay
+                        Positioned.fill(
+                          child: IgnorePointer(
+                              child: _CombatDangerOverlay(engine: engine)),
+                        ),
+                        // Boss shatter: white flash, light cracks, rising embers
+                        // and the gilded "¡SELLO PURIFICADO!" banner.
+                        Positioned.fill(
+                          child: BossShatterOverlay(
+                            token: _shatterToken,
+                            portraitId: engine.boss.id,
+                            element: engine.boss.element,
+                          ),
+                        ),
+                        // Elemental barrage (700 ms) landing with the cut-in.
+                        Positioned.fill(
+                          child: ElementalBarrage(
+                            token: _barrageToken,
+                            element: _barrageElement,
+                          ),
+                        ),
+                        // GPU break shockwave (bullseye Lv3, reaction, seal break).
+                        Positioned.fill(
+                          child: BreakShockwave(
+                            token: _shockToken,
                             color: _elementColor(_barrageElement),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  // Arcane beam shader: predictive aim + BREAK chains.
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final s =
-                              constraints.maxWidth / CombatEngine.layoutWidth;
-                          final dy = (constraints.maxHeight -
-                                  CombatEngine.layoutHeight * s) /
-                              2;
-                          return Transform.translate(
-                            offset: Offset(0, dy),
-                            child: Transform.scale(
-                              scale: s,
-                              alignment: Alignment.topLeft,
-                              child: _ArcaneField(
-                                engine: engine,
-                                aiming: _aimingLevelThree,
-                                color: _elementColor(_barrageElement),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  // Cinematic hero invocation cut-in (diagonal band + impact)
-                  Positioned.fill(
-                    child: HeroSkillCutIn(
-                      data: _cutIn,
-                      onCompleted: () {
-                        if (mounted) setState(() => _cutIn = null);
-                      },
-                    ),
-                  ),
-                  // Reaction banner
-                  if (_reactionBanner != null)
-                    Positioned(
-                      top: 20,
-                      left: 0,
-                      right: 0,
-                      child: IgnorePointer(
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 18, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.85),
-                              borderRadius: BorderRadius.circular(10),
-                              border:
-                                  Border.all(color: const Color(0xFFFF5A26)),
-                            ),
-                            child: Text(
-                              '¡$_reactionBanner!',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.2,
+                        // Verlet sparks with gravity + stone-lip bounce.
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: AnimatedBuilder(
+                              animation: _fxClock,
+                              builder: (context, _) => CustomPaint(
+                                painter: SparkPoolPainter(
+                                  pool: _sparks,
+                                  color: _elementColor(_barrageElement),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  // Training tools
-                  if (widget.showTrainingTools || engine.trainingMode)
-                    Positioned(
-                      top: 12,
-                      left: 10,
-                      right: 10,
-                      child: _TrainingTools(
-                        engine: engine,
-                        onFillMana: () {
-                          engine.fillAllMana();
-                          ProceduralSfxEngine.playOrbSpawn();
-                          setState(() {});
-                        },
-                        onRestart: _restartTraining,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // ZONE 3+4: BOTTOM BAR - fixed height so Column reserves space before Expanded.
-            // OverdriveBar(22) + SquadCards(118) + OrbsTray(104) + mutators(~20) = ~264px
-            SizedBox(
-              height: 280,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // OVERDRIVE rail: frenesi meter under the arena.
-                  AnimatedBuilder(
-                    animation: _fxClock,
-                    builder: (context, _) => OverdriveBar(
-                      fraction: engine.overdriveFraction,
-                      active: engine.overdriveActive,
-                      remaining: engine.overdriveRemaining,
+                        // Arcane beam shader: predictive aim + BREAK chains.
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final s = constraints.maxWidth /
+                                    CombatEngine.layoutWidth;
+                                final dy = (constraints.maxHeight -
+                                        CombatEngine.layoutHeight * s) /
+                                    2;
+                                return Transform.translate(
+                                  offset: Offset(0, dy),
+                                  child: Transform.scale(
+                                    scale: s,
+                                    alignment: Alignment.topLeft,
+                                    child: _ArcaneField(
+                                      engine: engine,
+                                      aiming: _aimingLevelThree,
+                                      color: _elementColor(_barrageElement),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        // Cinematic hero invocation cut-in (diagonal band + impact)
+                        Positioned.fill(
+                          child: HeroSkillCutIn(
+                            data: _cutIn,
+                            onCompleted: () {
+                              if (mounted) setState(() => _cutIn = null);
+                            },
+                          ),
+                        ),
+                        // Reaction banner
+                        if (_reactionBanner != null)
+                          Positioned(
+                            top: 20,
+                            left: 0,
+                            right: 0,
+                            child: IgnorePointer(
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 18, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.85),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: const Color(0xFFFF5A26)),
+                                  ),
+                                  child: Text(
+                                    '¡$_reactionBanner!',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Training tools
+                        if (widget.showTrainingTools || engine.trainingMode)
+                          Positioned(
+                            top: 12,
+                            left: 10,
+                            right: 10,
+                            child: _TrainingTools(
+                              engine: engine,
+                              onFillMana: () {
+                                engine.fillAllMana();
+                                ProceduralSfxEngine.playOrbSpawn();
+                                setState(() {});
+                              },
+                              onRestart: _restartTraining,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
 
-                  // ZONE 3: SQUAD CARDS (118px)
-                  SizedBox(height: 118, child: _buildSquadCards()),
-
-                  // ZONE 4: ORBS TRAY (104px) - HP bar + FUSIONAR integrated above, 5 orbs fully visible
-                  SizedBox(height: 104, child: _buildOrbsTray()),
-
-                  // Seal mutators label
-                  if (widget.mutators.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4, right: 8),
-                      child: Align(
-                        alignment: Alignment.bottomRight,
-                        child: Text(
-                          widget.mutators.map((m) => m.label).join(' · '),
-                          style: const TextStyle(
-                              color: Colors.white24,
-                              fontSize: 8,
-                              fontWeight: FontWeight.w700),
+                  // ZONE 3+4: BOTTOM BAR - fixed height so Column reserves space before Expanded.
+                  // OverdriveBar(22) + SquadCards(118) + OrbsTray(104) + mutators(~20) = ~264px
+                  SizedBox(
+                    height: 280,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // OVERDRIVE rail: frenesi meter under the arena.
+                        AnimatedBuilder(
+                          animation: _fxClock,
+                          builder: (context, _) => OverdriveBar(
+                            fraction: engine.overdriveFraction,
+                            active: engine.overdriveActive,
+                            remaining: engine.overdriveRemaining,
+                          ),
                         ),
+
+                        // ZONE 3: SQUAD CARDS (118px)
+                        SizedBox(height: 118, child: _buildSquadCards()),
+
+                        // ZONE 4: ORBS TRAY (104px) - HP bar + FUSIONAR integrated above, 5 orbs fully visible
+                        SizedBox(height: 104, child: _buildOrbsTray()),
+
+                        // Seal mutators label
+                        if (widget.mutators.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4, right: 8),
+                            child: Align(
+                              alignment: Alignment.bottomRight,
+                              child: Text(
+                                widget.mutators.map((m) => m.label).join(' · '),
+                                style: const TextStyle(
+                                    color: Colors.white24,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Keyboard hints panel for desktop (Pilar 2)
+                  if (isDesktop && _showKeyboardHints)
+                    Positioned(
+                      right: 12,
+                      top: 70,
+                      bottom: 280,
+                      child: _KeyboardHintsPanel(
+                        gameSpeed: _gameSpeed,
+                        speed2xUnlocked: _speed2xUnlocked,
+                        hasArtifact: _equippedArtifact != null,
+                        autoBattleEnabled: _autoBattleEnabled,
                       ),
                     ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
+          ], // Stack children
+        ), // Stack
+      ), // Focus
+    ); // Scaffold
   }
 
   Widget _buildHeader() {
@@ -2114,6 +2256,108 @@ class _AutoBattleToggle extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Keyboard hints panel for desktop (Pilar 2)
+class _KeyboardHintsPanel extends StatelessWidget {
+  final double gameSpeed;
+  final bool speed2xUnlocked;
+  final bool hasArtifact;
+  final bool autoBattleEnabled;
+
+  const _KeyboardHintsPanel({
+    required this.gameSpeed,
+    required this.speed2xUnlocked,
+    required this.hasArtifact,
+    required this.autoBattleEnabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hints = <_HintEntry>[
+      _HintEntry('[1]', 'Invocar carta 1'),
+      _HintEntry('[2]', 'Invocar carta 2'),
+      _HintEntry('[3]', 'Invocar carta 3'),
+      _HintEntry('[4]', 'Invocar carta 4'),
+      _HintEntry('[SPACE]', 'Fusionar iguales'),
+      _HintEntry('[Q/E]', hasArtifact ? 'Artefacto' : 'Artefacto (n/a)'),
+      _HintEntry('[A]', 'Auto: ${autoBattleEnabled ? 'ON' : 'OFF'}'),
+      _HintEntry('[S/Tab]',
+          'Velocidad: ${gameSpeed}x${speed2xUnlocked ? '' : ' (2x tras Cap. I)'}'),
+      _HintEntry('[Esc]', 'Pausa / Ajustes'),
+    ];
+
+    return Container(
+      width: 180,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF1A0A0F),
+            const Color(0xFF0C0608),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFFB16EFF).withValues(alpha: 0.5),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB16EFF).withValues(alpha: 0.2),
+            blurRadius: 12,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ATAJOS PC',
+            style: TextStyle(
+              color: const Color(0xFFB16EFF),
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...hints.map((h) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      h.key,
+                      style: const TextStyle(
+                        color: Color(0xFFFFC93C),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                    Text(
+                      h.label,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+class _HintEntry {
+  final String key;
+  final String label;
+  const _HintEntry(this.key, this.label);
 }
 
 // Boss Shield Break Bar (Block 3: Barrera Arcana + ¡BREAK!)

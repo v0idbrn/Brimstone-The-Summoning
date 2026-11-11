@@ -34,8 +34,8 @@ CombatEngine enrageEngine({BossConfig boss = BossConfig.pyroth}) =>
 
 void main() {
   group('Phase 14 — campaña expandida a 5 capítulos', () {
-    test('campaña tiene exactamente 5 capítulos en orden', () {
-      expect(campaignChapters.length, 5);
+    test('campaña tiene exactamente 10 capítulos en orden', () {
+      expect(campaignChapters.length, 10);
     });
 
     test('Capítulo I Pyroth igneo', () {

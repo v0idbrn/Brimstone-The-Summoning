@@ -1013,7 +1013,7 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen>
               IconButton(
                 icon: const Icon(Icons.person, color: Color(0xFFB16EFF)),
                 onPressed: _openProfile,
-                tooltip: AppStrings.t('common.barracks'),
+                tooltip: 'Perfil de Invocador',
               ),
               IconButton(
                 icon: const Icon(Icons.account_tree, color: Color(0xFF4FFFA3)),

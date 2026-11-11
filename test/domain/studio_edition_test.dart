@@ -1081,7 +1081,7 @@ void main() {
   group('Studio — Backup V3', () {
     test('exporta skin, archon, cámaras y esencias', () async {
       final data = await freshRepo().exportBackup();
-      expect(data['formatVersion'], 3);
+      expect(data['formatVersion'], 4);
       expect(data.containsKey('archon'), isTrue);
       expect(data.containsKey('chambers'), isTrue);
       expect(data.containsKey('essences'), isTrue);

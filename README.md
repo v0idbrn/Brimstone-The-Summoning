@@ -5,7 +5,7 @@
 > **Engine:** Flutter 3.24+ + Flame 1.18+
 > **Architecture:** Clean Architecture (Domain-Driven, Offline-First)
 > **State:** Riverpod 3.x (Notifier / AsyncNotifier / StreamNotifier)
-> **Persistence:** SQLite (sqflite + sqflite_common_ffi), schema v10
+> **Persistence:** SQLite (sqflite + sqflite_common_ffi), schema v11
 > **CI/CD:** GitHub Actions → Release APK + Web Portal artifacts
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.24+-02569B?logo=flutter&logoColor=white)]()
@@ -29,11 +29,21 @@
 5. **Expediciones Abisales** → 3 misiones idle (15m/1h/8h) con cartas suplentes → Oro, Esquirlas, XP Maestría
 6. **Orden del Pacto (Gremios)** → 4 Órdenes elementales, contribuciones diarias IA, Tienda de Insignias
 7. **Evolución 1★→5★** → Ascensión mítica (skins) + 20 criaturas nuevas (5 por elemento)
-8. **i18n ES/EN** → Toggle instantáneo persistido en SQLite v10
+8. **i18n ES/EN** → Toggle instantáneo persistido en SQLite v11
 9. **8 Shaders GLSL** → Mythic Aura, Elemental Weather, Shield Hex + 5 originales
 10. **5 Tracks musicales** → Sintetizados algorítmicamente (PCM 16-bit, loop zero-crossing)
 
 ---
+
+## 🎹 Controles de teclado (Web / Desktop)
+
+| Tecla | Acción |
+|-------|--------|
+| `Espacio` | Fusionar esferas en la bandeja (equivalente a arrastrar) |
+| `1`–`4` | Tocar carta del escuadrón (slot 0–3) para activar su habilidad |
+| `Click` | Impacto en diana (Bullseye para x1.5 daño) |
+| `Deslizar → afuera` | Counter-Flick: destruir proyectil enemigo (devuelve maná) |
+| `Toggle ES/EN` | Cambiar idioma instantáneo (TitleSplash / Settings) |
 
 ## ✨ Features Completas (Fases 1-22)
 
@@ -92,7 +102,7 @@
 ### 🔊 Audio Procedural + Ajustes (Etapa III: 5 Tracks Musicales)
 - **WAV sintéticos en memoria** → esferas, golpes, reacciones, skills, jefes, evolución, **drone ambiente (4s loop)** y **pulso de jefe**
 - **5 Tracks musicales PCM 16-bit** → Sanctuary Requiem / Rift March / Boss Confrontation / Titan & Samael Apocalypse / Portal of Souls (16–24s, loop zero-crossing, lazy caching)
-- **SettingsModal** → Volumen SFX / Volumen Ambiente / Volumen Música / Hápticas / Mute global (persistidos en SQLite v10)
+- **SettingsModal** → Volumen SFX / Volumen Ambiente / Volumen Música / Hápticas / Mute global (persistidos en SQLite v11)
 - **i18n ES/EN** → Toggle instantáneo en TitleSplashScreen y SettingsModal (persistido en SQLite v10)
 - **Racha Crítica** → ≥3 Bullseyes consecutivos → **¡RACHA CRÍTICA!** +10% daño por golpe extra (tope +100%)
 - **Viñeta de Peligro** → HP <25% → borde rojo pulsante
@@ -125,8 +135,8 @@ lib/
 ├── data/
 │   ├── datasources/        # LocalDataSource (SQLite)
 │   ├── repositories/       # PlayerRepository, CardRepository, RelicRepository, RiftRepository
-│   ├── database/           # DatabaseHelper (v6, backend FFI nativo / WASM web, seed 20+18)
-│   └── migration/          # Schema migrations (v1→v6)
+│   ├── database/           # DatabaseHelper (v11, backend FFI nativo / WASM web, seed 40+18)
+│   └── migration/          # Schema migrations (v1→v11)
 ├── domain/
 │   ├── entities/           # Card, Relic, PlayerProfile, RiftRun, ElementalAura, Orb, BossTarget
 │   ├── repositories/       # Repository interfaces (abstract)
@@ -161,20 +171,20 @@ lib/
 | `data/` | `domain/`, `sqflite`, `path_provider`, `shared_preferences` | ❌ `presentation/*`, ❌ `flame/*` |
 | `presentation/` | `domain/`, `data/` (via repositories), `flame`, `flutter_riverpod`, `google_fonts` | — |
 
-### Persistencia (schema v10)
+### Persistencia (schema v11)
 
-`cards` · `relics` · `player_profile` · `owned_cards` · `player_squad` · `owned_card_runes` · `bounties` · `codex_reactions` · `chapters_cleared` · `summoner_talents` · `challenges_cleared` · `summoner_gear` · `player_stats` · **`tower_progress` · `expedition_slots` · `summoner_artifacts` · `guild_state` · `battle_log` · `app_settings`**
+`cards` · `relics` · `player_profile` · `owned_cards` · `player_squad` · `owned_card_runes` · `bounties` · `codex_reactions` · `chapters_cleared` · `summoner_talents` · `challenges_cleared` · `summoner_gear` · `player_stats` · **`tower_progress` · `expedition_slots` · `summoner_artifacts` · `guild_state` · `battle_log` · `app_settings`** · **v11: `onboarding` · `soul_bonds` · `live_ops_login` · `rune_substats` · `summoner_paragon` · `entitlements` · `purchase_receipts` · `trophies` · `battle_pass` · `redeemed_codes` · `app_settings_extended`**
 
 `DatabaseHelper` mantiene **una conexión por instancia** (nada de `static`), expone `useInMemory()`, `uniqueTestPath()` y `close()`, y cada transacción se abre en el repositorio — sin transacciones anidadas. Eso elimina los `database is locked` en suites paralelas.
 
 ---
 
-## 🧪 Testing Strategy (850+ Tests)
+## 🧪 Testing Strategy (710 Tests)
 
 | Type | Scope | Tools |
 |------|-------|-------|
 | **Unit (Domain)** | CombatMath, ElementalReactions, DamageCalc, RiftGen, Talent/Gear/Event/Title math, **Tower/Expedition/Guild/Artifact/Leviathan entities** | `flutter_test`, seeded fuzz, round-trip |
-| **Data (SQLite)** | Seed (40 cards), migraciones v1→v10, backup v1–v4, aislamiento por instancia | `sqflite_common_ffi` (in-memory) |
+| **Data (SQLite)** | Seed (40 cards), migraciones v1→v11, backup v1–v4, aislamiento por instancia | `sqflite_common_ffi` (in-memory) |
 | **Widget** | Sanctuary (4 tabs), Barracks, Codex, Settings, EventModal, RelicDraft, **Tower/Expedition/Guild/Artifact/Logs modals** | `flutter_test`, `pumpApp` harness |
 | **Integration** | Combate 2.5D full run, Campaign Act II, Tower sweep, Expeditions claim | `integration_test` |
 | **Gates** | `flutter_lints` estricto, format, `analyze --fatal-infos`, `--concurrency=1` | `dart format`, `flutter analyze` |
@@ -185,7 +195,7 @@ C:\flutter\bin\flutter.bat pub get
 C:\flutter\bin\dart.bat format --set-exit-if-changed lib test
 C:\flutter\bin\flutter.bat analyze --fatal-infos
 C:\flutter\bin\flutter.bat test --concurrency=1 --test-randomize-ordering-seed random
-# → 850+ tests, 0 errores, 0 warnings
+# → 710 tests, 0 errores, 0 warnings
 ```
 
 ---
@@ -276,3 +286,4 @@ MIT License.
 > **Brimstone: The Summoning** — *Forja tu destino en el Abismo.*
 > **Repositorio**: https://github.com/v0idbrn/Brimstone-The-Summoning
 > **Releases**: https://github.com/v0idbrn/Brimstone-The-Summoning/releases/latest
+> **Web Portal (GitHub Pages)**: https://v0idbrn.github.io/Brimstone-The-Summoning/

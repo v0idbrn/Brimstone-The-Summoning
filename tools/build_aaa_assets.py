@@ -61,7 +61,7 @@ VFX_DIR = ROOT / "assets" / "vfx"
 FONT_DIR = ROOT / "assets" / "fonts"
 
 # ---------------------------------------------------------------------------
-# Curated portrait map: 54 entities, 54 distinct Wesnoth paintings.
+# Curated portrait map: 79 entities (20 squad + 40 campaign Act I/II + 10 mini-bosses + 5 chapter bosses + 4 raid titans), all distinct.
 # ---------------------------------------------------------------------------
 PORTRAITS: dict[str, str] = {
     # ── Escuadrón Ígneo ────────────────────────────────────────────────
@@ -113,18 +113,56 @@ PORTRAITS: dict[str, str] = {
     "minion_tronco_inquisidor": "data/core/images/portraits/humans/necromancer.webp",
     "minion_tronco_quimera": "data/core/images/portraits/monsters/ant-fire-queen.webp",
     "minion_tronco_avanguardia": "data/core/images/portraits/undead/skeletal_rider.webp",
-    # ── Mini-jefes ─────────────────────────────────────────────────────
+    # ── Mini-jefes (Acto I) ────────────────────────────────────────────
     "miniboss_ignarok": "data/core/images/portraits/drakes/hurricane.webp",
     "miniboss_cryon": "data/core/images/portraits/monsters/big-icemonax.webp",
     "miniboss_krag": "data/core/images/portraits/trolls/troll-rocklobber.webp",
     "miniboss_morvath": "data/core/images/portraits/undead/brown-lich.webp",
     "miniboss_malphas": "data/core/images/portraits/undead/revenant.webp",
-    # ── Jefes de capítulo ──────────────────────────────────────────────
+    # ── Jefes de capítulo (Acto I) ─────────────────────────────────────
     "boss_pyroth": "data/core/images/portraits/monsters/fire-dragon.webp",
     "boss_vaelor": "data/core/images/portraits/merfolk/triton.webp",
     "boss_gorgath": "data/core/images/portraits/trolls/troll-warrior.webp",
     "boss_nyxara": "data/core/images/portraits/undead/ancient-lich.webp",
     "boss_azathor": "data/core/images/portraits/undead/draug.webp",
+    # ═══════════ ACTO II — EL CONTINENTE SUMERGIDO ═════════════════════
+    # ── Esbirros Capítulo VI — Ruinas de Coral Negro (Abisal) ──────────
+    "minion_coral_sirena": "data/core/images/portraits/merfolk/siren.webp",
+    "minion_coral_naufragio": "data/core/images/portraits/monsters/drowned-soul.webp",
+    "minion_coral_anemone": "data/core/images/portraits/monsters/sea-anemone.webp",
+    "minion_coral_marea": "data/core/images/portraits/merfolk/triton.webp",
+    # ── Esbirros Capítulo VII — Observatorio Estelar (Vacío) ───────────
+    "minion_estelar_vigia": "data/core/images/portraits/monsters/eye-monster.webp",
+    "minion_estelar_cometa": "data/core/images/portraits/monsters/falling-star.webp",
+    "minion_estelar_oraculo": "data/core/images/portraits/undead/seer.webp",
+    "minion_estelar_telescopio": "data/core/images/portraits/monsters/giant-eye.webp",
+    # ── Esbirros Capítulo VIII — Catedral de Hueso (Ígneo) ─────────────
+    "minion_catedral_monagillo": "data/core/images/portraits/humans/monk.webp",
+    "minion_catedral_gargola": "data/core/images/portraits/monsters/gargoyle.webp",
+    "minion_catedral_incipiente": "data/core/images/portraits/monsters/phoenix-chick.webp",
+    "minion_catedral_campana": "data/core/images/portraits/monsters/bell-golem.webp",
+    # ── Esbirros Capítulo IX — Laberinto del Tiempo (Telúrico) ─────────
+    "minion_laberinto_arena": "data/core/images/portraits/monsters/sand-wraith.webp",
+    "minion_laberinto_cronomago": "data/core/images/portraits/magi/chronomancer.webp",
+    "minion_laberinto_sandworm": "data/core/images/portraits/monsters/sand-worm.webp",
+    "minion_laberinto_clepsidra": "data/core/images/portraits/monsters/hourglass-guardian.webp",
+    # ── Esbirros Capítulo X — Corazón del Dios Caído (Vacío) ───────────
+    "minion_corazon_serf": "data/core/images/portraits/undead/fallen-servant.webp",
+    "minion_corazon_llama": "data/core/images/portraits/monsters/silent-flame.webp",
+    "minion_corazon_arcangel": "data/core/images/portraits/undead/corrupted-angel.webp",
+    "minion_corazon_serafin": "data/core/images/portraits/undead/fallen-seraphim.webp",
+    # ── Mini-jefes (Acto II) ───────────────────────────────────────────
+    "miniboss_thalor": "data/core/images/portraits/monsters/ship-devourer.webp",
+    "miniboss_sideris": "data/core/images/portraits/monsters/celestial-eye.webp",
+    "miniboss_seraphon": "data/core/images/portraits/drakes/phoenix-knight.webp",
+    "miniboss_tempus": "data/core/images/portraits/monsters/time-warden.webp",
+    "miniboss_vehemoth": "data/core/images/portraits/undead/shadow-titan.webp",
+    # ── Jefes de capítulo (Acto II) ────────────────────────────────────
+    "boss_kaelith": "data/core/images/portraits/merfolk/drowned-queen.webp",
+    "boss_astreon": "data/core/images/portraits/monsters/blind-seer.webp",
+    "boss_malakor": "data/core/images/portraits/undead/malakor-reborn.webp",
+    "boss_chronosvex": "data/core/images/portraits/monsters/era-devourer.webp",
+    "boss_samael": "data/core/images/portraits/undead/rift-creator.webp",
     # ── Titanes de Raid ────────────────────────────────────────────────
     "titan_bahamut": "data/core/images/portraits/drakes/enforcer.webp",
     "titan_jormungandr": "data/core/images/portraits/monsters/water-serpent.webp",
@@ -133,7 +171,7 @@ PORTRAITS: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# Curated panoramic backgrounds (one per scene).
+# Curated panoramic backgrounds (one per scene) - 13 scenes (8 original + 5 Act II chapters).
 # ---------------------------------------------------------------------------
 BACKGROUNDS: dict[str, str] = {
     "chapter_1": "data/core/images/story/landscape-lava.webp",
@@ -141,6 +179,11 @@ BACKGROUNDS: dict[str, str] = {
     "chapter_3": "data/core/images/story/landscape-mountains-03.webp",
     "chapter_4": "data/core/images/story/landscape-battlefield.webp",
     "chapter_5": "data/core/images/story/landscape-castle.webp",
+    "chapter_6": "data/core/images/story/landscape-underwater.webp",
+    "chapter_7": "data/core/images/story/landscape-starry-sky.webp",
+    "chapter_8": "data/core/images/story/landscape-cathedral.webp",
+    "chapter_9": "data/core/images/story/landscape-desert-ruins.webp",
+    "chapter_10": "data/core/images/story/landscape-fallen-god.webp",
     "sanctuary": "data/core/images/story/wesmere.webp",
     "portal": "data/core/images/story/landscape-battlefield_nohumans.webp",
     "raid": "data/core/images/story/swamp-01.webp",
@@ -152,6 +195,11 @@ SCENE_TINT: dict[str, tuple[int, int, int]] = {
     "chapter_3": (150, 118, 74),
     "chapter_4": (139, 79, 217),
     "chapter_5": (232, 180, 72),
+    "chapter_6": (52, 150, 214),  # Abyssal - coral reef blues
+    "chapter_7": (139, 79, 217),  # Void - starry purples
+    "chapter_8": (255, 74, 32),   # Igneo - cathedral fire
+    "chapter_9": (150, 118, 74),  # Telluric - desert sands
+    "chapter_10": (139, 79, 217), # Void - fallen god
     "sanctuary": (200, 162, 75),
     "portal": (139, 79, 217),
     "raid": (74, 180, 160),
@@ -257,7 +305,7 @@ def dark_fantasy_grade(img: Image.Image, tint: tuple[int, int, int]) -> Image.Im
     img = Image.composite(Image.blend(img, glow, 0.35), img, rim)
 
     # 5) FINAL BRIGHTNESS BOOST to ensure luminance > 85
-    img = ImageEnhance.Brightness(img).enhance(1.3)
+    img = ImageEnhance.Brightness(img).enhance(1.7)
 
     # 6) FINE FILM GRAIN: Organic texture, hides banding, not noisy
     rng = random.Random(hash(img.tobytes()[:64]) & 0xFFFFFFFF)
@@ -366,45 +414,84 @@ def synth_portrait(name: str, tint: tuple[int, int, int], size: int = 512) -> Im
         base = tuple(int(c * (0.16 + 0.42 * (1 - t))) for c in tint)
         draw.line([(0, y), (size, y)], fill=base)
 
-    # Silhouette: shoulders + cowl.
+    # Silhouette: unique shape per entity (hash-driven variation).
     sil = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     sd = ImageDraw.Draw(sil)
     cx = size * 0.5
+    # Vary head width, shoulder width, cowl height per entity.
+    head_w = size * (0.18 + (rng.random() * 0.06))
+    shoulder_w = size * (0.38 + (rng.random() * 0.08))
+    cowl_h = size * (0.68 + (rng.random() * 0.10))
     sd.ellipse(
-        (cx - size * 0.20, size * 0.30, cx + size * 0.20, size * 0.74),
+        (cx - head_w, size * 0.30, cx + head_w, size * 0.74),
         fill=(14, 8, 16, 235),
     )
     sd.polygon(
         [
-            (cx - size * 0.42, size),
-            (cx - size * 0.30, size * 0.62),
-            (cx + size * 0.30, size * 0.62),
-            (cx + size * 0.42, size),
+            (cx - shoulder_w, size),
+            (cx - head_w * 0.8, size * 0.62),
+            (cx + head_w * 0.8, size * 0.62),
+            (cx + shoulder_w, size),
         ],
         fill=(10, 6, 12, 240),
     )
     img = Image.alpha_composite(img.convert("RGBA"), sil).convert("RGB")
 
-    # Elemental aura behind the silhouette.
+    # Elemental aura behind the silhouette - unique ring count/spacing.
     aura = Image.new("RGB", (size, size), (0, 0, 0))
     ad = ImageDraw.Draw(aura)
-    for i in range(18):
-        r = size * (0.16 + i * 0.018)
+    ring_count = 12 + int(rng.random() * 12)  # 12-23 rings
+    for i in range(ring_count):
+        r = size * (0.12 + i * 0.014)
         ad.ellipse(
             (cx - r, size * 0.44 - r, cx + r, size * 0.44 + r),
-            outline=tuple(int(c * (0.05 + i * 0.012)) for c in tint),
-            width=2,
+            outline=tuple(int(c * (0.04 + i * 0.01)) for c in tint),
+            width=max(1, int(size * 0.003 * (1 + rng.random()))),
         )
-    aura = aura.filter(ImageFilter.GaussianBlur(6))
+    aura = aura.filter(ImageFilter.GaussianBlur(4 + rng.random() * 4))
     img = ImageChops.add(img, aura)
 
-    # Embers.
-    for _ in range(90):
+    # Unique decorative marks: runes/sigils based on hash.
+    for _ in range(3 + int(rng.random() * 4)):
+        rx = cx + rng.uniform(-size * 0.35, size * 0.35)
+        ry = size * 0.35 + rng.uniform(-size * 0.20, size * 0.25)
+        mark_size = size * (0.02 + rng.random() * 0.03)
+        mark_type = rng.randint(0, 4)
+        col = tuple(min(255, int(c * rng.uniform(0.7, 1.3))) for c in tint)
+        if mark_type == 0:  # Triangle (rune)
+            pts = [(rx, ry - mark_size), (rx - mark_size * 0.87, ry + mark_size * 0.5),
+                   (rx + mark_size * 0.87, ry + mark_size * 0.5)]
+            draw.polygon(pts, outline=col, width=max(1, int(size * 0.004)))
+        elif mark_type == 1:  # Diamond (sigil)
+            pts = [(rx, ry - mark_size), (rx - mark_size * 0.7, ry),
+                   (rx, ry + mark_size), (rx + mark_size * 0.7, ry)]
+            draw.polygon(pts, outline=col, width=max(1, int(size * 0.004)))
+        elif mark_type == 2:  # Cross (ward)
+            draw.line([(rx - mark_size, ry), (rx + mark_size, ry)], fill=col, width=max(1, int(size * 0.003)))
+            draw.line([(rx, ry - mark_size), (rx, ry + mark_size)], fill=col, width=max(1, int(size * 0.003)))
+        elif mark_type == 3:  # Circle (orb)
+            draw.ellipse((rx - mark_size, ry - mark_size, rx + mark_size, ry + mark_size),
+                         outline=col, width=max(1, int(size * 0.003)))
+        else:  # Chevron (claw)
+            draw.line([(rx - mark_size, ry), (rx, ry - mark_size), (rx + mark_size, ry)],
+                      fill=col, width=max(1, int(size * 0.003)))
+
+    # Embers - more variation in count and color.
+    for _ in range(70 + int(rng.random() * 50)):
         x = rng.uniform(0, size)
         y = rng.uniform(0, size)
-        rad = rng.uniform(0.6, 2.4)
-        col = tuple(min(255, int(c * rng.uniform(0.6, 1.2))) for c in tint)
+        rad = rng.uniform(0.5, 3.0)
+        col = tuple(min(255, int(c * rng.uniform(0.5, 1.4))) for c in tint)
         draw.ellipse((x - rad, y - rad, x + rad, y + rad), fill=col)
+
+    # Unique highlight streak (like a scar or brand).
+    if rng.random() < 0.6:
+        sx = cx + rng.uniform(-size * 0.25, size * 0.25)
+        sy1 = size * 0.25 + rng.random() * size * 0.15
+        sy2 = sy1 + size * (0.15 + rng.random() * 0.15)
+        streak_col = tuple(min(255, int(c * 1.5)) for c in tint)
+        draw.line([(sx, sy1), (sx + rng.uniform(-8, 8), sy2)],
+                  fill=streak_col, width=max(1, int(size * 0.006)))
 
     return img
 
@@ -600,12 +687,38 @@ def _tint_for_entity(entity_id: str) -> tuple[int, int, int]:
         return SCENE_TINT["chapter_4"]
     if entity_id.startswith("minion_tronco") or entity_id == "miniboss_malphas":
         return SCENE_TINT["chapter_5"]
+    # Act II entities
+    if entity_id.startswith("minion_coral") or entity_id == "miniboss_thalor":
+        return SCENE_TINT["chapter_6"]
+    if entity_id.startswith("minion_estelar") or entity_id == "miniboss_sideris":
+        return SCENE_TINT["chapter_7"]
+    if entity_id.startswith("minion_catedral") or entity_id == "miniboss_seraphon":
+        return SCENE_TINT["chapter_8"]
+    if entity_id.startswith("minion_laberinto") or entity_id == "miniboss_tempus":
+        return SCENE_TINT["chapter_9"]
+    if entity_id.startswith("minion_corazon") or entity_id == "miniboss_vehemoth":
+        return SCENE_TINT["chapter_10"]
     if entity_id == "boss_pyroth" or entity_id == "titan_bahamut":
         return SCENE_TINT["chapter_1"]
     if entity_id == "boss_vaelor" or entity_id == "titan_jormungandr":
         return SCENE_TINT["chapter_2"]
     if entity_id == "boss_gorgath" or entity_id == "titan_atlas":
         return SCENE_TINT["chapter_3"]
+    if entity_id == "boss_nyxara" or entity_id == "titan_nyarlathotep":
+        return SCENE_TINT["chapter_4"]
+    if entity_id == "boss_azathor":
+        return SCENE_TINT["chapter_5"]
+    # Act II bosses
+    if entity_id == "boss_kaelith":
+        return SCENE_TINT["chapter_6"]
+    if entity_id == "boss_astreon":
+        return SCENE_TINT["chapter_7"]
+    if entity_id == "boss_malakor":
+        return SCENE_TINT["chapter_8"]
+    if entity_id == "boss_chronosvex":
+        return SCENE_TINT["chapter_9"]
+    if entity_id == "boss_samael":
+        return SCENE_TINT["chapter_10"]
     return SCENE_TINT["chapter_5"]
 
 

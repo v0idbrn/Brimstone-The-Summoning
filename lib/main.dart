@@ -11,6 +11,7 @@ import 'presentation/graphics/painted_backdrop.dart';
 import 'presentation/graphics/rift_effect.dart';
 import 'presentation/screens/altar/altar_evolution_screen.dart';
 import 'presentation/screens/barracks/barracks_screen.dart';
+import 'presentation/screens/onboarding/onboarding_screen.dart';
 import 'presentation/screens/sanctuary/sanctuary_screen.dart';
 import 'presentation/screens/summon/summon_portal_screen.dart';
 import 'presentation/screens/title/title_splash_screen.dart';
@@ -111,7 +112,7 @@ class BrimstoneApp extends StatelessWidget {
       navigatorKey: brimstoneNavigatorKey,
       // Puerta cinematográfica: el primer toque desbloquea el audio web y
       // entrega el control al Santuario con un zoom + fundido.
-      home: const TitleGate(child: HomeShell()),
+      home: const BrimstoneHome(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -732,11 +733,61 @@ class _SideHint extends StatelessWidget {
   }
 }
 
+/// Root widget that shows onboarding first, then TitleGate + HomeShell.
+class BrimstoneHome extends StatefulWidget {
+  const BrimstoneHome({super.key});
+
+  @override
+  State<BrimstoneHome> createState() => _BrimstoneHomeState();
+}
+
+/// Shell con pestañas del meta-juego (Santuario, Cuartel, Altar, Portal).
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
   @override
   State<HomeShell> createState() => _HomeShellState();
+}
+
+class _BrimstoneHomeState extends State<BrimstoneHome> {
+  bool _showOnboarding = true;
+  bool _checking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkOnboarding();
+  }
+
+  Future<void> _checkOnboarding() async {
+    final completed = await OnboardingScreen.isCompleted();
+    if (mounted) {
+      setState(() {
+        _showOnboarding = !completed;
+        _checking = false;
+      });
+    }
+  }
+
+  void _onOnboardingComplete() {
+    setState(() => _showOnboarding = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_checking) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0C0608),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFB16EFF)),
+        ),
+      );
+    }
+    if (_showOnboarding) {
+      return OnboardingScreen(onComplete: _onOnboardingComplete);
+    }
+    return const TitleGate(child: HomeShell());
+  }
 }
 
 class _HomeShellState extends State<HomeShell> {

@@ -290,11 +290,11 @@ void main() {
 
   // =============================================================== FASE 24
   group('Fase 24 — Base local lista para web', () {
-    test('el esquema sigue siendo v8 y abre en memoria', () async {
+    test('el esquema sigue siendo v11 y abre en memoria', () async {
       final helper = DatabaseHelper();
       DatabaseHelper.useInMemory();
       final repo = PlayerRepository(DatabaseHelper());
-      expect(DatabaseHelper.version, 9);
+      expect(DatabaseHelper.version, 11);
       expect(await repo.loadProfile(), isNotEmpty);
       await helper.close();
     });

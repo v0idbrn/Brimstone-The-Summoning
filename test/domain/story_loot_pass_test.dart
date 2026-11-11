@@ -43,14 +43,14 @@ void main() {
     });
   });
 
-  group('Campaign Enemies - 30 enemies across 5 chapters', () {
-    test('Total enemy count is 30', () {
-      expect(campaignEnemies.length, 30);
+  group('Campaign Enemies - 60 enemies across 10 chapters', () {
+    test('Total enemy count is 60', () {
+      expect(campaignEnemies.length, 60);
     });
 
     test('Each chapter has 6 enemies (4 minions, 1 miniBoss, 1 chapterBoss)',
         () {
-      for (var chapter = 1; chapter <= 5; chapter++) {
+      for (var chapter = 1; chapter <= 10; chapter++) {
         final chapterEnemies = enemiesForChapter(chapter);
         expect(chapterEnemies.length, 6,
             reason: 'Chapter $chapter should have 6 enemies');

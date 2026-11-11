@@ -1,102 +1,70 @@
-name: Android APK + Web Portal Release
+name: Android Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-
 jobs:
-  build-and-release:
+  build-apk:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 17 (Temurin)
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.24.3'
+          channel: stable
           cache: true
-
-      - name: Upgrade Flutter to latest stable
-        run: flutter upgrade
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Static analysis
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Restore native audio sink
+        run: cp tools/android/MainActivity.kt android/app/src/main/kotlin/com/brimstone/brimstone_summoning/MainActivity.kt
 
-      - name: Run test suite
+      - name: Install Pillow and regenerate app icons
+        run: |
+          pip install pillow
+          python tools/build_app_icons.py
+
+      - name: Verify code format
+        run: dart format --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Run tests
         run: flutter test --concurrency=1
 
-      - name: Ensure clean Android project
+      - name: Build APK (release)
+        run: flutter build apk --release --obfuscate --split-debug-info=build/app/outputs/symbols
+
+      - name: Prepare release artifacts
         run: |
-          if [ -d "android" ]; then
-            rm -rf android
-          fi
-          flutter create --platforms=android --org com.brimstone --project-name brimstone_summoning .
-          # Set app name and portrait orientation
-          sed -i 's/android:label="[^"]*"/android:label="Brimstone: The Summoning"/' android/app/src/main/AndroidManifest.xml
-          sed -i '/android:name="io.flutter.embedding.android.FlutterActivity"/a\            android:screenOrientation="portrait"' android/app/src/main/AndroidManifest.xml
-          # Restore the native PCM sink (AudioTrack) that flutter create overwrites.
-          mkdir -p android/app/src/main/kotlin/com/brimstone/brimstone_summoning
-          cp tools/android/MainActivity.kt android/app/src/main/kotlin/com/brimstone/brimstone_summoning/MainActivity.kt
-
-      - name: Regenerate native + PWA icons
-        run: |
-          python3 -m pip install --quiet pillow
-          python3 tools/build_app_icons.py
-          python3 tools/build_app_icons.py --check
-
-      - name: Build release APK
-        run: flutter build apk --release --split-debug-info=build/symbols
-
-      - name: Build web portal (WASM SQLite)
-        run: flutter build web --release
-
-      - name: Copy APK to release name
-        run: cp build/app/outputs/flutter-apk/app-release.apk Brimstone-The-Summoning.apk
-
-      - name: Package web portal
-        run: |
+          mkdir -p release_artifacts
+          cp build/app/outputs/flutter-apk/app-release.apk release_artifacts/Brimstone-The-Summoning-${{ github.ref_name }}.apk
+          # Also copy debug symbols for crash symbolication
+          cp -r build/app/outputs/symbols release_artifacts/symbols-${{ github.ref_name }}
+          # Create web portal zip for cross-reference
+          flutter build web --release --base-href "/Brimstone-The-Summoning/"
           cd build/web
-          zip -r ../../Brimstone-Web-Portal.zip . -x "*.map"
+          zip -r ../../release_artifacts/Brimstone-Web-Portal.zip .
+          cd ../..
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Brimstone-The-Summoning-APK
-          path: Brimstone-The-Summoning.apk
-
-      - name: Upload web portal artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Brimstone-Web-Portal
-          path: Brimstone-Web-Portal.zip
-
-      - name: Upload obfuscation symbols
-        uses: actions/upload-artifact@v4
-        with:
-          name: Brimstone-Obfuscation-Symbols
-          path: build/symbols
-
-      - name: Create or update GitHub Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          tag_name: latest
-          name: "Brimstone: The Summoning — Latest Build (APK + Web Portal)"
           files: |
-            Brimstone-The-Summoning.apk
-            Brimstone-Web-Portal.zip
-          generate_release_notes: false
+            release_artifacts/Brimstone-The-Summoning-${{ github.ref_name }}.apk
+            release_artifacts/Brimstone-Web-Portal.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false

@@ -91,8 +91,8 @@ void main() {
 
   // =========================================================== MÓDULO 0
   group('Módulo 0 — SQLite sin bloqueos', () {
-    test('el esquema actual es v8', () {
-      expect(DatabaseHelper.version, 9);
+    test('el esquema actual es v11', () {
+      expect(DatabaseHelper.version, 11);
     });
 
     test('crea las 15 tablas del esquema v7', () async {
@@ -137,10 +137,10 @@ void main() {
       expect(first.contains('brimstone_test'), isTrue);
     });
 
-    test('la base semilla tiene las 20 criaturas del catálogo', () async {
+    test('la base semilla tiene las 40 criaturas del catálogo', () async {
       final db = await freshHelper().db;
       final rows = await db.query('cards');
-      expect(rows.length, 20);
+      expect(rows.length, 40);
     });
 
     test('la base semilla tiene las 18 reliquias', () async {
@@ -1569,9 +1569,9 @@ void main() {
   });
 
   group('Módulo 5 — Backup V2', () {
-    test('exportBackup usa formatVersion 3', () async {
+    test('exportBackup usa formatVersion 4', () async {
       final data = await freshRepo().exportBackup();
-      expect(data['formatVersion'], 3);
+      expect(data['formatVersion'], 4);
     });
 
     test('el backup incluye talentos, desafíos, gear, título y stats',

@@ -14,11 +14,12 @@ import '../../domain/value_objects/element.dart';
 /// contención del archivo. Para tests se puede usar [useInMemory] o un
 /// archivo único por suite con [setOverridePath].
 class DatabaseHelper {
-  /// Schema actual: v10 añade el Leviatán — Torre de Obsidiana (50 pisos +
-  /// barrido diario), Expediciones Abisales (startTimeEpochMs), Artefactos del
-  /// Invocador, Orden del Pacto (buffs + insignias), historial de batallas
-  /// (15 últimas), idioma ES/EN y roles/facciones en el catálogo de 40 cartas.
-  static const int version = 10;
+  /// Schema actual: v11 añade Omega Release — Onboarding completado,
+  /// Vínculos de Almas (12), Live-Ops (login 7 días + eventos semanales),
+  /// Runas sub-stats + Paragón 1-100, Monetización (entitlements + receipts),
+  /// Sala de Trofeos (30 logros), Battle Pass, Códigos promocionales,
+  /// Settings extendidos, y backup formatVersion 5.
+  static const int version = 11;
 
   /// Ruta por defecto para las instancias creadas después de esta llamada.
   static String? _overridePath;
@@ -121,6 +122,18 @@ class DatabaseHelper {
       'guild_state',
       'battle_log',
       'app_settings',
+      // v11 tables
+      'onboarding',
+      'soul_bonds',
+      'live_ops_login',
+      'rune_substats',
+      'summoner_paragon',
+      'entitlements',
+      'purchase_receipts',
+      'trophies',
+      'battle_pass',
+      'redeemed_codes',
+      'app_settings_extended',
     ];
     for (final table in tables) {
       await db.execute('DROP TABLE IF EXISTS $table');
@@ -318,6 +331,72 @@ class DatabaseHelper {
     // v10 — Ajustes de app (idioma ES/EN persistido).
     await db.execute(
       'CREATE TABLE app_settings('
+      'key TEXT PRIMARY KEY, '
+      'value TEXT)',
+    );
+
+    // v11 — Onboarding completed flag.
+    await db.execute(
+      'CREATE TABLE onboarding('
+      "id TEXT PRIMARY KEY DEFAULT 'onboarding_1', "
+      'completed INTEGER NOT NULL DEFAULT 0, '
+      'completed_at INTEGER)',
+    );
+    // v11 — Soul Bonds progress (level 0-5 per bond).
+    await db.execute(
+      'CREATE TABLE soul_bonds('
+      'bond_id TEXT PRIMARY KEY, '
+      'level INTEGER NOT NULL DEFAULT 0)',
+    );
+    // v11 — Live-Ops 7-day login (claimed days per week).
+    await db.execute(
+      'CREATE TABLE live_ops_login('
+      'week_key TEXT PRIMARY KEY, '
+      'claimed_days TEXT NOT NULL DEFAULT \'\', '
+      'last_claim_epoch_ms INTEGER NOT NULL DEFAULT 0)',
+    );
+    // v11 — Rune sub-stats (for runes level 5 with up to 2 enchanted substats).
+    await db.execute(
+      'CREATE TABLE rune_substats('
+      'owned_card_id INTEGER PRIMARY KEY, '
+      'substat1_type TEXT, substat1_value REAL, '
+      'substat2_type TEXT, substat2_value REAL, '
+      'FOREIGN KEY(owned_card_id) REFERENCES owned_cards(id) ON DELETE CASCADE)',
+    );
+    // v11 — Summoner Paragon XP and level.
+    await db.execute(
+      'CREATE TABLE summoner_paragon('
+      "id TEXT PRIMARY KEY DEFAULT 'paragon_1', "
+      'total_xp INTEGER NOT NULL DEFAULT 0, '
+      'level INTEGER NOT NULL DEFAULT 1)',
+    );
+    // v11 — Monetization entitlements and receipts.
+    await db.execute(
+      'CREATE TABLE entitlements('
+      'sku_id TEXT PRIMARY KEY, '
+      'granted INTEGER NOT NULL DEFAULT 1, '
+      'transaction_id TEXT, '
+      'granted_at INTEGER)',
+    );
+    await db.execute(
+      'CREATE TABLE purchase_receipts('
+      'transaction_id TEXT PRIMARY KEY, '
+      'sku_id TEXT NOT NULL, '
+      'timestamp INTEGER NOT NULL, '
+      'signature TEXT NOT NULL, '
+      'portal_user_id TEXT)',
+    );
+    // v11 — Trophy Room achievements (earned timestamp).
+    await db.execute(
+      'CREATE TABLE trophies('
+      'achievement_id TEXT PRIMARY KEY, '
+      'earned INTEGER NOT NULL DEFAULT 0, '
+      'earned_at INTEGER, '
+      'progress REAL NOT NULL DEFAULT 0.0)',
+    );
+    // v11 — Extended app settings (formatVersion for backup).
+    await db.execute(
+      'CREATE TABLE app_settings_extended('
       'key TEXT PRIMARY KEY, '
       'value TEXT)',
     );
@@ -522,7 +601,7 @@ class DatabaseHelper {
       {
         'id': 'void_specter',
         'name': 'Espectro del Sello',
-        'element': 'void',
+        'element': 'empty',
         'rarity': 'rare',
         'base_mana_cost': 110,
         'attack': 15,
@@ -534,7 +613,7 @@ class DatabaseHelper {
       {
         'id': 'void_malakor',
         'name': 'Malakor, Heraldo Abisal',
-        'element': 'void',
+        'element': 'empty',
         'rarity': 'legendary',
         'base_mana_cost': 160,
         'attack': 30,
@@ -546,7 +625,7 @@ class DatabaseHelper {
       {
         'id': 'void_reaper',
         'name': 'Segador Astral',
-        'element': 'void',
+        'element': 'empty',
         'rarity': 'rare',
         'base_mana_cost': 115,
         'attack': 16,
@@ -558,7 +637,7 @@ class DatabaseHelper {
       {
         'id': 'void_oracle',
         'name': 'Oráculo del Eclipse',
-        'element': 'void',
+        'element': 'empty',
         'rarity': 'epic',
         'base_mana_cost': 155,
         'attack': 24,
@@ -570,7 +649,7 @@ class DatabaseHelper {
       {
         'id': 'void_archon',
         'name': "Xal'atoh, Arconte del Vacío",
-        'element': 'void',
+        'element': 'empty',
         'rarity': 'legendary',
         'base_mana_cost': 185,
         'attack': 34,
@@ -928,7 +1007,7 @@ class DatabaseHelper {
       {
         'id': 'titan_void',
         'name': 'Nyarlathotep del Eclipse',
-        'element': 'void',
+        'element': 'empty',
         'base_hp': 25000,
         'current_hp': 25000,
         'ascension_level': 0,

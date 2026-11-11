@@ -26,7 +26,7 @@ REQUIRED_ENTITIES = [
     "abyss_stalker", "abyss_siren", "abyss_kraken", "abyss_leviathan", "abyss_wraith",
     "terra_golem", "terra_warden", "terra_titan", "terra_hydra", "terra_behemoth",
     "void_specter", "void_reaper", "void_oracle", "void_malakor", "void_archon",
-    # 20 campaign minions
+    # 20 campaign minions Act I
     "minion_ceniza_imp", "minion_ceniza_sabueso", "minion_ceniza_gargola",
     "minion_ceniza_elemental", "minion_fosa_acechador", "minion_fosa_naga",
     "minion_fosa_espectro", "minion_fosa_glaciar", "minion_tectonico_centinela",
@@ -35,17 +35,28 @@ REQUIRED_ENTITIES = [
     "minion_velo_larva", "minion_velo_phantom", "minion_tronco_caballero",
     "minion_tronco_inquisidor", "minion_tronco_quimera",
     "minion_tronco_avanguardia",
-    # 5 mini-bosses
+    # 5 mini-bosses Act I
     "miniboss_ignarok", "miniboss_cryon", "miniboss_krag", "miniboss_morvath",
     "miniboss_malphas",
-    # 5 chapter bosses
+    # 5 chapter bosses Act I
     "boss_pyroth", "boss_vaelor", "boss_gorgath", "boss_nyxara", "boss_azathor",
+    # 20 campaign minions Act II (chapters 6-10)
+    "minion_coral_sirena", "minion_coral_naufragio", "minion_coral_anemone", "minion_coral_marea",
+    "minion_estelar_vigia", "minion_estelar_cometa", "minion_estelar_oraculo", "minion_estelar_telescopio",
+    "minion_catedral_monagillo", "minion_catedral_gargola", "minion_catedral_incipiente", "minion_catedral_campana",
+    "minion_laberinto_arena", "minion_laberinto_cronomago", "minion_laberinto_sandworm", "minion_laberinto_clepsidra",
+    "minion_corazon_serf", "minion_corazon_llama", "minion_corazon_arcangel", "minion_corazon_serafin",
+    # 5 mini-bosses Act II
+    "miniboss_thalor", "miniboss_sideris", "miniboss_seraphon", "miniboss_tempus", "miniboss_vehemoth",
+    # 5 chapter bosses Act II
+    "boss_kaelith", "boss_astreon", "boss_malakor", "boss_chronosvex", "boss_samael",
     # 4 raid titans
     "titan_bahamut", "titan_jormungandr", "titan_atlas", "titan_nyarlathotep",
 ]
 
 REQUIRED_SCENES = [
     "chapter_1", "chapter_2", "chapter_3", "chapter_4", "chapter_5",
+    "chapter_6", "chapter_7", "chapter_8", "chapter_9", "chapter_10",
     "sanctuary", "portal", "raid",
 ]
 
@@ -107,7 +118,7 @@ def main() -> int:
     for font in REQUIRED_FONTS:
         checked += 1
         check(ROOT / "assets" / "fonts" / font, errors)
-    for shader in ("abyssal_rift.frag", "foil_card.frag"):
+    for shader in ("abyssal_rift.frag", "foil_card.frag", "mythic_aura.frag", "elemental_weather.frag", "shield_hex.frag"):
         checked += 1
         check(ROOT / "shaders" / shader, errors)
 

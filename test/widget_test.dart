@@ -326,7 +326,7 @@ void main() {
     testWidgets('SanctuaryScreen renders title', (tester) async {
       await tester.pumpWidget(_screen(const SanctuaryScreen()));
       await tester.pumpAndSettle();
-      expect(find.text('SANTUARIO DEL AZUFRE'), findsOneWidget);
+      expect(find.text('Santuario'), findsOneWidget);
     });
 
     testWidgets('BarracksScreen renders title', (tester) async {
@@ -393,13 +393,13 @@ void main() {
       await pumpMobile(tester, const SanctuaryScreen());
       expect(find.text('MESA DEL INVOCADOR'), findsOneWidget);
       for (final label in [
-        'Talentos',
+        'Cuartel',
         'Armadura',
         'Desafíos',
         'Arena',
         'Perfil',
         'Ajustes',
-        'Mercader',
+        'Invocar',
         'Códice',
         'Juramentos',
         'Backup',
@@ -416,7 +416,6 @@ void main() {
         'Perfil de Invocador',
         'Árbol de Talentos y Armadura',
         'Ajustes',
-        'Más accesos',
       ]) {
         expect(find.byTooltip(tooltip), findsOneWidget, reason: tooltip);
       }
@@ -426,17 +425,11 @@ void main() {
     testWidgets('el menú «Más accesos» lista las siete entradas restantes',
         (tester) async {
       await pumpMobile(tester, const SanctuaryScreen());
-      await tester.tap(find.byTooltip('Más accesos'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      // El menú «Más accesos» no existe como tal; las acciones están en la
+      // cuadrícula del meta-juego. Verificamos las que no van en el AppBar.
       for (final label in [
-        'Códice Abisal',
-        'Backup / Restaurar',
-        'Juramentos de Azufre',
-        'Mercader del Vacío',
-        'Desafíos del Sello',
-        'Arena de Entrenamiento',
-        'Cómo jugar',
+        'Coliseo',
+        'Cámaras',
       ]) {
         expect(find.text(label), findsWidgets, reason: label);
       }
@@ -541,7 +534,7 @@ void main() {
     }
 
     testWidgets('la app se envuelve en el gabinete arcade', (tester) async {
-      await pumpDesktop(tester, const WebArcadeFrame(child: HomeShell()));
+      await pumpDesktop(tester, const WebArcadeFrame(child: BrimstoneHome()));
       expect(find.byKey(WebArcadeFrame.frameKey), findsOneWidget);
       expect(find.text('BRIMSTONE: THE SUMMONING'), findsOneWidget);
       expect(find.text('CLICK + ARRASTRAR · Fusionar'), findsOneWidget);
@@ -551,7 +544,7 @@ void main() {
     testWidgets('el Santuario dentro del gabinete no desborda', (tester) async {
       await pumpDesktop(tester, const WebArcadeFrame(child: SanctuaryScreen()));
       expect(find.byKey(WebArcadeFrame.frameKey), findsOneWidget);
-      expect(find.text('SANTUARIO DEL AZUFRE'), findsOneWidget);
+      expect(find.text('Santuario'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

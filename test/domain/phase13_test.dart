@@ -89,12 +89,12 @@ void main() {
       );
 
   group('Phase 13 — catálogo TCG de 20 criaturas', () {
-    test('seed de base de datos contiene exactamente 20 cartas de catálogo',
+    test('seed de base de datos contiene exactamente 40 cartas de catálogo',
         () async {
       final db = await _freshDb().db;
       final rows = await db.query('cards');
       final ids = rows.map((r) => r['id'] as String).toSet();
-      expect(ids.length, 20);
+      expect(ids.length, 40);
       for (final id in _catalog20) {
         expect(ids, contains(id), reason: 'falta $id en el catálogo');
       }
