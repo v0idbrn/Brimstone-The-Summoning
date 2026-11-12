@@ -103,6 +103,19 @@ class AppStrings {
     'common.chapters': 'Capítulos',
     'common.rewards': 'Recompensas',
     'common.defeat': 'Derrota',
+    // Onboarding (Etapa III, Pilar 3)
+    'onboarding.skip': 'Saltar',
+    'onboarding.step1.title': 'Paso 1: Fusioná Esferas Elementales',
+    'onboarding.step1.desc':
+        'Arrastrá dos esferas iguales o pulsá [ESPACIO] para fusionarlas y cargar maná.',
+    'onboarding.step2.title': 'Paso 2: Apuntá y Deslizá al Punto Débil',
+    'onboarding.step2.desc':
+        'Deslizá hacia arriba o hacé clic en el Bullseye dorado del enemigo para un golpe crítico.',
+    'onboarding.step3.title': 'Paso 3: Invocá el Poder de tu Escuadrón',
+    'onboarding.step3.desc':
+        '¡Maná lleno! Tocá tu carta (o pulsá [1-4]) para desatar su habilidad definitiva.',
+    'onboarding.next': 'Siguiente',
+    'onboarding.complete': '¡Comenzar Aventura!',
     // Rune Substats (Pilar 6)
     'rune.substat.bullseye_crit': 'Crítico Bullseye',
     'rune.substat.tray_speed': 'Vel. Bandeja',
@@ -453,6 +466,19 @@ class AppStrings {
     'common.chapters': 'Chapters',
     'common.rewards': 'Rewards',
     'common.defeat': 'Defeat',
+    // Onboarding (Etapa III, Pilar 3)
+    'onboarding.skip': 'Skip',
+    'onboarding.step1.title': 'Step 1: Fuse Elemental Orbs',
+    'onboarding.step1.desc':
+        'Drag two matching orbs or press [SPACE] to fuse them and charge mana.',
+    'onboarding.step2.title': 'Step 2: Aim and Swipe the Weak Point',
+    'onboarding.step2.desc':
+        'Swipe up or click the golden Bullseye on enemies for a critical hit.',
+    'onboarding.step3.title': 'Step 3: Unleash Your Squad\'s Power',
+    'onboarding.step3.desc':
+        'Mana full! Tap your card (or press [1-4]) to unleash its ultimate skill.',
+    'onboarding.next': 'Next',
+    'onboarding.complete': 'Begin Adventure!',
     // Rune Substats (Pilar 6)
     'rune.substat.bullseye_crit': 'Bullseye Crit',
     'rune.substat.tray_speed': 'Tray Speed',

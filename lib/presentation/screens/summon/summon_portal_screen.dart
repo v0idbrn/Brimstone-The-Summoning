@@ -217,10 +217,6 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
               activeBanner: _activeBanner,
               banners: banners,
             ),
-            // Daily Free Summon Indicator
-            if (_freeSummonAvailable)
-              _DailyFreeSummonBanner(
-                  onTap: () => _summon(grandRitual: false, free: true)),
             Expanded(
               child: Stack(
                 alignment: Alignment.center,
@@ -230,7 +226,7 @@ class _SummonPortalScreenState extends ConsumerState<SummonPortalScreen>
                     child: IgnorePointer(
                       child: AbyssalRiftView(
                         color: const Color(0xFF8B4FD9),
-                        intensity: 0.9,
+                        intensity: 0.25,
                       ),
                     ),
                   ),
@@ -569,70 +565,6 @@ class _PityCounterBar extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DailyFreeSummonBanner extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _DailyFreeSummonBanner({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF00C853),
-              Color(0xFF4FFFA3),
-              Color(0xFFFFD700),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF00C853).withValues(alpha: 0.4),
-              blurRadius: 12,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.card_giftcard, color: Colors.black, size: 28),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'INVOCACIÓN DIARIA GRATIS DISPONIBLE',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const Text(
-                    'Tu pacto menor diario no cuesta nada hoy',
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios, color: Colors.black, size: 18),
-          ],
-        ),
       ),
     );
   }

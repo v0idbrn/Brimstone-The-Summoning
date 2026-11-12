@@ -433,11 +433,17 @@ class WebArcadeFrame extends StatelessWidget {
                       child: MediaQuery(
                         data: MediaQuery.of(context).copyWith(
                           size: Size(width, height),
-                          padding: EdgeInsets.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                           viewPadding: EdgeInsets.zero,
                           viewInsets: EdgeInsets.zero,
                         ),
-                        child: child,
+                        child: SafeArea(
+                          left: true,
+                          right: true,
+                          top: false,
+                          bottom: false,
+                          child: child,
+                        ),
                       ),
                     ),
                   ),

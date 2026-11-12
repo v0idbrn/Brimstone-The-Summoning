@@ -131,7 +131,7 @@ class _TitleSplashScreenState extends State<TitleSplashScreen>
                 heightFactor: 0.42,
                 child: AbyssalRiftView(
                   color: BrimstoneTokens.goldPrimary,
-                  intensity: 0.85,
+                  intensity: 0.35,
                   animate: _animate,
                 ),
               ),

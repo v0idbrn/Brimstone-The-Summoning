@@ -76,7 +76,7 @@ class _CodexModalState extends ConsumerState<CodexModal>
               child: Row(
                 children: [
                   const Text(
-                    'CÃ“DICE ABISAL',
+                    'CA“DICE ABISAL',
                     style: TextStyle(
                       color: Color(0xFFB16EFF),
                       fontWeight: FontWeight.w900,
@@ -100,7 +100,7 @@ class _CodexModalState extends ConsumerState<CodexModal>
               isScrollable: true,
               tabs: const [
                 Tab(text: 'GRIMORIO'),
-                Tab(text: 'GALERÃA'),
+                Tab(text: 'GALERAA'),
                 Tab(text: 'ANNALES'),
                 Tab(text: 'HITOS'),
               ],
@@ -193,7 +193,7 @@ class _ReactionGrimoire extends ConsumerWidget {
               onPressed: () {
                 ref.read(playerRepositoryProvider).incrementCodexReaction(r.id);
               },
-              tooltip: 'Simular detonaciÃ³n',
+              tooltip: 'Simular detonacion',
             ),
           ),
         );
@@ -385,7 +385,7 @@ class _CollectionMilestones extends ConsumerWidget {
                         color: Color(0xFFFFD700), size: 28),
                     const SizedBox(width: 12),
                     const Text(
-                      'ÃLBUM DE CRIATURAS',
+                      'ALBUM DE CRIATURAS',
                       style: TextStyle(
                         color: Color(0xFFFFD700),
                         fontWeight: FontWeight.w900,
@@ -397,7 +397,7 @@ class _CollectionMilestones extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '$uniqueCreatures / 20 CRIATURAS ÃšNICAS',
+                  '$uniqueCreatures / 20 CRIATURAS AšNICAS',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
@@ -507,7 +507,7 @@ class _CollectionMilestones extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-            'Â¡Hito de ${milestone.count} criaturas reclamado! +${milestone.shards} esquirlas +${(milestone.globalBonus * 100).toInt()}% ATK/HP global'),
+            '!Hito de ${milestone.count} criaturas reclamado! +${milestone.shards} esquirlas +${(milestone.globalBonus * 100).toInt()}% ATK/HP global'),
         backgroundColor: const Color(0xFF4FFFA3),
       ),
     );
@@ -623,27 +623,27 @@ class _BossAnnals extends StatelessWidget {
       {
         'id': 'pyroth',
         'name': 'Pyroth, Coloso de Ceniza',
-        'element': 'Ãgneo',
+        'element': 'Agneo',
         'weakness': 'Agua/Abyssal',
-        'enrage': 'Quema 1 ranura de bandeja por 4s (tocar 2Ã— apaga).',
+        'enrage': 'Quema 1 ranura de bandeja por 4s (tocar 2A— apaga).',
         'kills': 0,
       },
       {
         'id': 'vaelor',
-        'name': 'Vaelor, SeÃ±or de la Fosa Helada',
+        'name': 'Vaelor, Senor de la Fosa Helada',
         'element': 'Abyssal',
-        'weakness': 'Ãgneo (rompe escudo de hielo)',
+        'weakness': 'Agneo (rompe escudo de hielo)',
         'enrage':
-            'Escuda una diana con hielo (necesita golpe Ãgneo para romper).',
+            'Escuda una diana con hielo (necesita golpe Agneo para romper).',
         'kills': 0,
       },
       {
         'id': 'azathor',
-        'name': 'Azathor, Monolito del VacÃ­o',
-        'element': 'VacÃ­o',
+        'name': 'Azathor, Monolito del Vacio',
+        'element': 'Vacio',
         'weakness': 'Ninguna conocida',
         'enrage':
-            'Invierte rotaciÃ³n cada 5s + proyectiles dobles de Counter-Flick.',
+            'Invierte rotacion cada 5s + proyectiles dobles de Counter-Flick.',
         'kills': 0,
       },
     ];
@@ -672,7 +672,7 @@ class _BossAnnals extends StatelessWidget {
               children: [
                 const SizedBox(height: 4),
                 Text(
-                  'Elemento: ${b['element']} Â· Debilidad: ${b['weakness']}',
+                  'Elemento: ${b['element']} . Debilidad: ${b['weakness']}',
                   style: const TextStyle(color: Colors.white54, fontSize: 11),
                 ),
                 const SizedBox(height: 2),

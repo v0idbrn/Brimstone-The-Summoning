@@ -39,6 +39,9 @@ jobs:
       - name: Analyze
         run: flutter analyze --fatal-infos --fatal-warnings
 
+      - name: Install libsqlite3-dev for sqflite_common_ffi
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+
       - name: Run tests
         run: flutter test --concurrency=1
 

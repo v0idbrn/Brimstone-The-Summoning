@@ -703,18 +703,18 @@ class _AutoArmButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 56,
+      width: 72,
       child: OutlinedButton.icon(
         onPressed: onPressed,
         icon:
-            const Icon(Icons.auto_fix_high, size: 16, color: Color(0xFFB16EFF)),
+            const Icon(Icons.auto_fix_high, size: 14, color: Color(0xFFB16EFF)),
         label: const Text(
           'AUTO',
           style: TextStyle(
             color: Color(0xFFB16EFF),
-            fontSize: 9,
+            fontSize: 8,
             fontWeight: FontWeight.w900,
-            letterSpacing: 0.5,
+            letterSpacing: 0.2,
           ),
         ),
         style: OutlinedButton.styleFrom(
