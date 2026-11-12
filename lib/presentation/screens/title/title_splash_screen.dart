@@ -129,10 +129,25 @@ class _TitleSplashScreenState extends State<TitleSplashScreen>
               child: FractionallySizedBox(
                 widthFactor: 0.62,
                 heightFactor: 0.42,
-                child: AbyssalRiftView(
-                  color: BrimstoneTokens.goldPrimary,
-                  intensity: 0.35,
-                  animate: _animate,
+                child: ClipOval(
+                  child: ShaderMask(
+                    shaderCallback: (rect) => RadialGradient(
+                      center: Alignment.center,
+                      radius: 1.0,
+                      colors: [
+                        Colors.white,
+                        Colors.white.withValues(alpha: 0.8),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.65, 1.0],
+                    ).createShader(rect),
+                    blendMode: BlendMode.dstIn,
+                    child: AbyssalRiftView(
+                      color: BrimstoneTokens.goldPrimary,
+                      intensity: 0.35,
+                      animate: _animate,
+                    ),
+                  ),
                 ),
               ),
             ),

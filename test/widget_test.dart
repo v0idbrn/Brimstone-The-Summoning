@@ -12,6 +12,7 @@ import 'package:brimstone_summoning/domain/meta/rune_system.dart';
 import 'package:brimstone_summoning/domain/meta/summoner_titles.dart';
 import 'package:brimstone_summoning/domain/entities/owned_card.dart';
 import 'package:brimstone_summoning/domain/value_objects/element.dart';
+import 'package:brimstone_summoning/domain/value_objects/orb_level.dart';
 import 'package:brimstone_summoning/domain/value_objects/rarity.dart';
 import 'package:brimstone_summoning/presentation/controllers/meta_controller.dart';
 import 'package:brimstone_summoning/presentation/screens/altar/altar_evolution_screen.dart';
@@ -675,6 +676,44 @@ void main() {
       );
       await pumpView(tester, CombatScreen(engine: squadEngine(titan)));
       expect(find.text('Nyarlathotep del Eclipse'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('CombatScreen flicked orb deals damage to boss',
+        (tester) async {
+      final bossConfig = chapterBossForChapter(1)!.toBossConfig();
+      final engine = squadEngine(bossConfig);
+      await pumpView(tester, CombatScreen(engine: engine));
+
+      // Access the screen state (its internal engine is the one that takes damage)
+      final state = tester.state(find.byType(CombatScreen)) as dynamic;
+
+      final initialBossHp = state.engine.bossHp;
+      final initialShieldHp = state.engine.bossShieldHp;
+      final initialTotalHp = initialBossHp + initialShieldHp;
+      expect(initialTotalHp, greaterThan(0));
+
+      // Ensure tray slot 0 has an orb (fillTray may not have run yet)
+      if (state.engine.tray[0] == null) {
+        state.engine.tray[0] = CombatOrb(
+          id: 'test_orb',
+          element: Element.igneous,
+          level: OrbLevel.one,
+        );
+      }
+
+      final arenaBox = state.arenaKey.currentContext?.findRenderObject();
+      final arenaSize = arenaBox?.size ?? const Size(430, 932);
+      final (engX, engY) =
+          state.arenaLocalToEngine(const Offset(215, 373), arenaSize);
+      state.startFlyingShot(0, engX, engY);
+
+      // Wait for flight animation (220ms) + impact resolution
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify total boss effective HP decreased (damage hits shield first)
+      final finalTotalHp = state.engine.bossHp + state.engine.bossShieldHp;
+      expect(finalTotalHp, lessThan(initialTotalHp));
       expect(tester.takeException(), isNull);
     });
   });

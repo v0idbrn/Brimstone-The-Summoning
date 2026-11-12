@@ -331,6 +331,7 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen>
           onColosseum: _openColosseum,
           onChambers: _openChambers,
           onBackup: _openBackup,
+          showTitle: true,
         ),
         const SizedBox(height: 12),
         _battlePassProgressBar(
@@ -433,6 +434,7 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen>
           onColosseum: _openColosseum,
           onChambers: _openChambers,
           onBackup: _openBackup,
+          showTitle: false,
         ),
       ],
     );
@@ -507,6 +509,7 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen>
           onColosseum: _openColosseum,
           onChambers: _openChambers,
           onBackup: _openBackup,
+          showTitle: false,
         ),
       ],
     );
@@ -614,6 +617,7 @@ class _SanctuaryScreenState extends ConsumerState<SanctuaryScreen>
           onColosseum: _openColosseum,
           onChambers: _openChambers,
           onBackup: _openBackup,
+          showTitle: false,
         ),
       ],
     );
@@ -1317,6 +1321,7 @@ class _MetaActionsPanel extends StatelessWidget {
     required this.onColosseum,
     required this.onChambers,
     required this.onBackup,
+    this.showTitle = false,
   });
 
   final VoidCallback onTalentTree;
@@ -1331,6 +1336,7 @@ class _MetaActionsPanel extends StatelessWidget {
   final VoidCallback onColosseum;
   final VoidCallback onChambers;
   final VoidCallback onBackup;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -1360,19 +1366,21 @@ class _MetaActionsPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'MESA DEL INVOCADOR',
-            style: BrimstoneTypography.labelXS,
-          ),
-          const SizedBox(height: 8),
+          if (showTitle) ...[
+            Text(
+              'MESA DEL INVOCADOR',
+              style: BrimstoneTypography.labelXS,
+            ),
+            const SizedBox(height: 8),
+          ],
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 5,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              childAspectRatio: 1.6,
+              crossAxisCount: 4,
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+              mainAxisExtent: 58,
             ),
             itemCount: actions.length,
             itemBuilder: (context, index) {
@@ -1404,13 +1412,13 @@ class _MetaActionButton extends StatelessWidget {
     return InteractivePressable(
       onTap: action.onTap,
       borderRadius: BorderRadius.circular(BrimstoneRadii.radiusMD),
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             action.icon,
-            size: 16,
+            size: 18,
             color: BrimstoneTokens.goldPrimary,
           ),
           const SizedBox(height: 4),
@@ -1420,7 +1428,10 @@ class _MetaActionButton extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: BrimstoneTypography.labelSM.copyWith(fontSize: 9),
+              style: BrimstoneTypography.labelSM.copyWith(
+                fontSize: 10,
+                height: 1.1,
+              ),
             ),
           ),
         ],

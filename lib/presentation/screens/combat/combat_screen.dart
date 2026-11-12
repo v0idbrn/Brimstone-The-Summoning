@@ -111,10 +111,15 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   // Raw pointer input state (Listener replaces GestureDetector for web mouse support)
   final GlobalKey _bodyKey = GlobalKey();
+  // Arena key for precise coordinate conversion to engine space
+  final GlobalKey arenaKey = GlobalKey();
   int? _draggingSlot;
   Offset? _dragStartLocal;
   Offset? _dragCurrentLocal;
   int? _hoveredMergeSlot;
+
+  // Flying shot animation (Flutter overlay - 220ms parabolic flight)
+  _FlyingShot? _flyingShot;
 
   // Game speed multiplier (1.0, 1.5x, 2.0x)
   double _gameSpeed = 1.0;
@@ -699,16 +704,6 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     _initEngine();
   }
 
-  // Coordinate conversion: screen -> engine (430x932 logical)
-  (double, double) _toEngine(Offset p) => game.toEngineCoords(p.dx, p.dy);
-
-  // Convert engine X to tray slot index (0-4)
-
-  // Get tray slot center X in engine coords
-  double _slotCenterX(int slot) => CombatEngine.layoutWidth / 5 * (slot + 0.5);
-
-  // Check if a point is over the tray area (engine coords)
-
   // Auto-merge all available pairs in tray
   void _autoMergeAll() {
     var merged = false;
@@ -740,59 +735,71 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   // Raw pointer input handlers (Listener-based for web mouse support)
   void _onPointerDown(PointerDownEvent event) {
     if (!mounted || _engine == null) return;
-    final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-    final localPos = renderBox.globalToLocal(event.position);
-    final bodyHeight = renderBox.size.height;
+    final arenaBox = arenaKey.currentContext?.findRenderObject() as RenderBox?;
+    if (arenaBox == null) return;
+    final arenaLocal = arenaBox.globalToLocal(event.position);
+    final arenaSize = arenaBox.size;
+
+    // Check if started on orb tray (bottom ~115px of body, but we need body coords for tray)
+    final bodyBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (bodyBox == null) return;
+    final bodyLocal = bodyBox.globalToLocal(event.position);
+    final bodyHeight = bodyBox.size.height;
 
     // Counter-flick priority: any pointer over arena destroys projectiles
-    if (localPos.dy < bodyHeight - 250) {
-      _tryCounterFlickAt(event.position);
+    if (arenaLocal.dy < arenaSize.height * 0.7) {
+      final (engX, engY) = arenaLocalToEngine(arenaLocal, arenaSize);
+      engine.counterFlickAt(engX, engY, engine.time);
       return;
     }
 
-    // Check if started on orb tray (bottom 115px)
-    if (localPos.dy >= bodyHeight - 115) {
-      final bodyWidth = renderBox.size.width;
-      final slot = (localPos.dx / (bodyWidth / 5)).floor().clamp(0, 4);
+    // Check if started on orb tray (bottom 115px of body)
+    if (bodyLocal.dy >= bodyHeight - 115) {
+      final bodyWidth = bodyBox.size.width;
+      final slot = (bodyLocal.dx / (bodyWidth / 5)).floor().clamp(0, 4);
       if (engine.tray[slot] != null) {
         setState(() {
           _draggingSlot = slot;
-          _dragStartLocal = localPos;
-          _dragCurrentLocal = localPos;
+          _dragStartLocal = bodyLocal;
+          _dragCurrentLocal = bodyLocal;
         });
         game.draggingOrb = true;
-        final (x, y) = _toEngine(event.position);
-        engine.startDrag(slot, x, y);
+        final (engX, engY) = arenaLocalToEngine(arenaLocal, arenaSize);
+        engine.startDrag(slot, engX, engY);
       }
     }
   }
 
   void _onPointerMove(PointerMoveEvent event) {
     if (!mounted || _engine == null) return;
-    final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-    final localPos = renderBox.globalToLocal(event.position);
-    final bodyHeight = renderBox.size.height;
+    final arenaBox = arenaKey.currentContext?.findRenderObject() as RenderBox?;
+    final bodyBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (arenaBox == null || bodyBox == null) return;
+
+    final arenaLocal = arenaBox.globalToLocal(event.position);
+    final arenaSize = arenaBox.size;
+    final bodyLocal = bodyBox.globalToLocal(event.position);
+    final bodyHeight = bodyBox.size.height;
 
     // Counter-flick over arena (any pointer move in arena zone)
-    if (localPos.dy < bodyHeight - 250) {
-      engine.counterFlickAt(localPos.dx, localPos.dy, engine.time);
+    if (arenaLocal.dy < arenaSize.height * 0.7) {
+      final (engX, engY) = arenaLocalToEngine(arenaLocal, arenaSize);
+      engine.counterFlickAt(engX, engY, engine.time);
     }
 
     // Update drag preview
     if (_draggingSlot != null) {
-      setState(() => _dragCurrentLocal = localPos);
+      setState(() => _dragCurrentLocal = bodyLocal);
 
-      final bodyWidth = renderBox.size.width;
-      final (x, y) = _toEngine(event.position);
-      engine.updateDrag(
-          x, y, (DateTime.now().millisecondsSinceEpoch - _lastPanMs) / 1000.0);
+      final (engX, engY) = arenaLocalToEngine(arenaLocal, arenaSize);
+      engine.updateDrag(engX, engY,
+          (DateTime.now().millisecondsSinceEpoch - _lastPanMs) / 1000.0);
       _lastPanMs = DateTime.now().millisecondsSinceEpoch;
 
       // Update merge hover target (only when in tray zone)
-      if (localPos.dy >= bodyHeight - 115) {
-        final slot = (localPos.dx / (bodyWidth / 5)).floor().clamp(0, 4);
+      if (bodyLocal.dy >= bodyHeight - 115) {
+        final bodyWidth = bodyBox.size.width;
+        final slot = (bodyLocal.dx / (bodyWidth / 5)).floor().clamp(0, 4);
         if (slot != _draggingSlot && engine.tray[slot] != null) {
           final draggedOrb = engine.tray[_draggingSlot!]!;
           final targetOrb = engine.tray[slot]!;
@@ -813,11 +820,13 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   void _onPointerUp(PointerUpEvent event) {
     if (!mounted || _engine == null || _draggingSlot == null) return;
-    final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
-    final localPos = renderBox.globalToLocal(event.position);
-    final bodyHeight = renderBox.size.height;
-    final bodyWidth = renderBox.size.width;
+    final arenaBox = arenaKey.currentContext?.findRenderObject() as RenderBox?;
+    final bodyBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (arenaBox == null || bodyBox == null) return;
+
+    final arenaLocal = arenaBox.globalToLocal(event.position);
+    final arenaSize = arenaBox.size;
+    final bodyWidth = bodyBox.size.width;
 
     final draggedSlot = _draggingSlot!;
     final dragStart = _dragStartLocal ?? Offset.zero;
@@ -828,10 +837,10 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
     if (isFlickUp) {
       // FLICK: Launch toward boss plane with magnet to nearest target
-      final (startX, startY) = _toEngine(event.position);
-      final (endX, endY) = _toEngine(event.position);
-      _launchFlickProjectile(
-          draggedSlot, startX, startY, endX, endY, Velocity.zero);
+      // Convert release point to engine coordinates for target selection
+      final (engReleaseX, engReleaseY) =
+          arenaLocalToEngine(arenaLocal, arenaSize);
+      startFlyingShot(draggedSlot, engReleaseX, engReleaseY);
     } else {
       // DRAG END: Check for merge or swap in tray
       final targetSlot = (dragEnd.dx / (bodyWidth / 5)).floor().clamp(0, 4);
@@ -878,137 +887,109 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     });
   }
 
-  /// Counter-flick: tap/flick directo sobre un proyectil enemigo (radio 58px
-  /// vive en el motor). Devuelve true si destruyó algo.
-  bool _tryCounterFlickAt(Offset globalPos) {
-    if (_engine == null) return false;
-    final (x, y) = _toEngine(globalPos);
-    if (!engine.counterFlickAt(x, y, engine.time)) return false;
-    ProceduralSfxEngine.playCounterFlickDestroy();
-    ref.read(bountyProvider.notifier).increment('counterflicks');
-    if (mounted) setState(() {});
-    return true;
+  /// Convert arena-local coordinates to engine logical coordinates
+  (double, double) arenaLocalToEngine(Offset arenaLocal, Size arenaSize) {
+    // Engine uses fixed layout: 430x932
+    // Arena widget fills the Expanded area, so we scale
+    final scaleX = CombatEngine.layoutWidth / arenaSize.width;
+    final scaleY = CombatEngine.layoutHeight / arenaSize.height;
+    return (arenaLocal.dx * scaleX, arenaLocal.dy * scaleY);
   }
 
-  // Launch projectile with flick physics (HellFire style)
-  void _launchFlickProjectile(int slot, double startX, double startY,
-      double endX, double endY, Velocity velocity) {
+  // Start flying shot animation in Flutter overlay (220ms parabolic flight)
+  void startFlyingShot(int slot, double releaseEngX, double releaseEngY) {
     final orb = engine.tray[slot];
     if (orb == null) return;
 
-    // Calculate flick direction
-    final dx = endX - startX;
-    final dy = endY - startY;
-
-    // Target point: extend flick vector to boss plane
-    double targetY = CombatEngine.bossScreenY - 90; // target plane
-    double targetX = startX + (targetY - startY) / dy * dx;
-
-    // Magnet to nearest target within 75px
+    // Magnet to nearest target within 95px (screen pixels)
+    // We need to find target in engine coords, then convert to screen for animation
+    CombatTarget? bestTarget;
+    var bestDist = double.infinity;
     for (final t in engine.targets) {
       final tx = t.xAt(engine.time, engine.effectiveAngularSpeed(t));
       final ty = t.yAt(engine.time, engine.effectiveAngularSpeed(t));
-      final dist = math.sqrt(
-          (targetX - tx) * (targetX - tx) + (targetY - ty) * (targetY - ty));
-      if (dist < 75) {
-        targetX = tx;
-        targetY = ty;
-        break;
+      final dist = math.sqrt((releaseEngX - tx) * (releaseEngX - tx) +
+          (releaseEngY - ty) * (releaseEngY - ty));
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestTarget = t;
       }
     }
 
-    // Clamp target
-    targetY = targetY.clamp(
-        CombatEngine.bossScreenY - 120, CombatEngine.bossScreenY + 20);
+    // Determine impact target in engine coordinates
+    double impactEngX, impactEngY;
+    HitKind hitKind;
+    if (bestTarget != null && bestDist < 75) {
+      // 75 engine units ≈ 95 screen pixels at typical scale
+      impactEngX =
+          bestTarget.xAt(engine.time, engine.effectiveAngularSpeed(bestTarget));
+      impactEngY =
+          bestTarget.yAt(engine.time, engine.effectiveAngularSpeed(bestTarget));
+      hitKind = CombatMath.classifyHit(bestDist,
+          engine.innerRadiusFor(bestTarget), engine.outerRadiusFor(bestTarget));
+    } else {
+      // No target hit - fly to release point projected to boss plane
+      impactEngX = releaseEngX;
+      impactEngY = CombatEngine.bossScreenY - 90;
+      hitKind = HitKind.miss;
+    }
 
-    final trayX = _slotCenterX(slot);
-    final trayY = CombatEngine.trayY;
-
-    _flyingProjectile = _FlyingOrbProjectile(
-      element: orb.element,
-      level: orb.level,
-      startX: trayX,
-      startY: trayY,
-      targetX: targetX,
-      targetY: targetY,
-      duration: 0.22,
-    );
-
+    // Remove orb from tray immediately (game logic is independent of render objects)
     engine.tray[slot] = null;
     ProceduralSfxEngine.playOrbFlick();
-    _animateFlight(targetX, targetY, orb);
-  }
 
-  Future<void> _animateFlight(
-      double targetX, double targetY, CombatOrb orb) async {
-    const flightDuration = 0.22;
-    const frames = 60;
-    final frameTime = flightDuration / frames;
+    // Convert engine coordinates to screen coordinates for animation (optional)
+    final arenaBox = arenaKey.currentContext?.findRenderObject() as RenderBox?;
+    if (arenaBox != null) {
+      final arenaSize = arenaBox.size;
+      final scaleX = arenaSize.width / CombatEngine.layoutWidth;
+      final scaleY = arenaSize.height / CombatEngine.layoutHeight;
 
-    for (var i = 0; i <= frames; i++) {
-      if (!mounted) return;
-      final t = i / frames;
-      setState(
-          () => _flyingProjectile = _flyingProjectile?.copyWith(progress: t));
-      await Future.delayed(Duration(milliseconds: (frameTime * 1000).round()));
+      final trayScreenX = _slotCenterScreenX(slot, arenaSize);
+      final trayScreenY = CombatEngine.trayY * scaleY;
+      final targetScreenX = impactEngX * scaleX;
+      final targetScreenY = impactEngY * scaleY;
+
+      setState(() {
+        _flyingShot = _FlyingShot(
+          element: orb.element,
+          level: orb.level,
+          startX: trayScreenX,
+          startY: trayScreenY,
+          targetX: targetScreenX,
+          targetY: targetScreenY,
+          hitKind: hitKind,
+          target: bestTarget,
+          impactEngX: impactEngX,
+          impactEngY: impactEngY,
+          startTime: DateTime.now().millisecondsSinceEpoch,
+        );
+      });
     }
 
-    _resolveImpact(targetX, targetY, orb);
-
-    if (mounted) setState(() => _flyingProjectile = null);
-  }
-
-  void _resolveImpact(double targetX, double targetY, CombatOrb orb) {
-    CombatTarget? best;
-    var bestDist = double.infinity;
-    var bestKind = HitKind.miss;
-
-    for (final t in engine.targets) {
-      final tx = t.xAt(engine.time, engine.effectiveAngularSpeed(t));
-      final ty = t.yAt(engine.time, engine.effectiveAngularSpeed(t));
-      final d = math.sqrt(
-        (targetX - tx) * (targetX - tx) +
-            (CombatEngine.bossScreenY - ty) * (CombatEngine.bossScreenY - ty),
+    // Resolve impact (damage applies on hit; visual flight is 220ms overlay)
+    if (bestTarget != null) {
+      engine.registerDamage(
+        orb: CombatOrb(
+          id: 'flying_shot_${DateTime.now().millisecondsSinceEpoch}',
+          element: orb.element,
+          level: orb.level,
+          prismatic: false,
+        ),
+        target: bestTarget,
+        multiplier: hitKind == HitKind.bullseye ? 1.5 : 1.0,
+        kind: hitKind,
       );
-      final kind = CombatMath.classifyHit(
-          d, engine.innerRadiusFor(t), engine.outerRadiusFor(t));
-      if (_hitRank(kind) < _hitRank(bestKind) ||
-          (kind == bestKind && d < bestDist)) {
-        best = t;
-        bestDist = d;
-        bestKind = kind;
-      }
-    }
-
-    if (best == null || bestKind == HitKind.miss) {
+    } else {
       engine.bullseyeStreak = 0;
-      if (bestKind == HitKind.graze) {
-        engine.registerDamage(
-            orb: orb, target: null, multiplier: 0.25, kind: HitKind.graze);
-      }
-      return;
     }
-    final dummyProj = OrbProjectile(
-      id: 'visual_${DateTime.now().millisecondsSinceEpoch}',
-      element: orb.element,
-      level: orb.level,
-      startX: _slotCenterX(0),
-      startY: CombatEngine.trayY,
-      targetX: targetX,
-      targetY: targetY,
-      flightDuration: 0.001,
-    );
-    engine.projectiles.add(dummyProj);
-    engine.tick(0.001);
-    engine.projectiles.removeWhere((p) => p.id == dummyProj.id);
+    if (mounted) setState(() => _flyingShot = null);
   }
 
-  static int _hitRank(HitKind k) => switch (k) {
-        HitKind.bullseye => 0,
-        HitKind.normal => 1,
-        HitKind.graze => 2,
-        HitKind.miss => 3,
-      };
+  double _slotCenterScreenX(int slot, Size arenaSize) {
+    final scaleX = arenaSize.width / CombatEngine.layoutWidth;
+    return (CombatEngine.layoutWidth / 5 * (slot + 0.5)) * scaleX;
+  }
 
   void _onCardTap(int index) {
     if (engine.castSkill(index)) {
@@ -1053,6 +1034,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
                   // ZONE 2: ARENA (Expanded, FULL WIDTH)
                   Expanded(
+                    key: arenaKey,
                     child: Stack(
                       children: [
                         Positioned.fill(
@@ -1127,6 +1109,44 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                               painter: _FlyingProjectilePainter(
                                 projectile: _flyingProjectile!,
                                 game: game,
+                              ),
+                            ),
+                          ),
+                        // Flying shot animation (Flutter overlay)
+                        if (_flyingShot != null)
+                          Positioned.fill(
+                            child: AnimatedBuilder(
+                              animation: _fxClock,
+                              builder: (context, _) {
+                                return CustomPaint(
+                                  painter: _FlyingShotPainter(
+                                    shot: _flyingShot!,
+                                    arenaSize: arenaKey.currentContext
+                                            ?.findRenderObject()
+                                            ?.paintBounds
+                                            .size ??
+                                        Size.zero,
+                                    targets: engine.targets,
+                                    engineTime: engine.time,
+                                    effectiveAngularSpeed:
+                                        engine.effectiveAngularSpeed,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        // Drag preview: orb following pointer + aim line
+                        if (_draggingSlot != null && _dragCurrentLocal != null)
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _DragPreviewPainter(
+                                dragCurrent: _dragCurrentLocal!,
+                                dragStart: _dragStartLocal ?? Offset.zero,
+                                slot: _draggingSlot!,
+                                orb: engine.tray[_draggingSlot!],
+                                arenaKey: arenaKey,
+                                engine: engine,
+                                hoveredMergeSlot: _hoveredMergeSlot,
                               ),
                             ),
                           ),
@@ -1844,21 +1864,22 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                     bottom: -6,
                     child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 1),
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.78),
-                            borderRadius: BorderRadius.circular(3),
+                            color: Colors.black.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(4),
                             border: Border.all(
                                 color: level == 1
                                     ? const Color(0xFFC0C0C0)
                                     : level == 2
                                         ? const Color(0xFFFFD700)
                                         : const Color(0xFFFF5A26),
-                                width: 0.9)),
-                        child: Text('Nv.',
+                                width: 1.2)),
+                        child: Text('Lv.$level',
                             style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 8.5,
+                                fontSize: 10,
+                                height: 1.0,
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: 0.5)))),
                 // Prismatic indicator
@@ -2600,6 +2621,44 @@ class _FlyingOrbProjectile {
       progress: progress ?? this.progress);
 }
 
+// ----------------------------------------------------------------------
+// Flying shot animation (Flutter overlay - 220ms parabolic flight with impact)
+// ----------------------------------------------------------------------
+class _FlyingShot {
+  final Element element;
+  final OrbLevel level;
+  final double startX;
+  final double startY;
+  final double targetX;
+  final double targetY;
+  final HitKind hitKind;
+  final CombatTarget? target;
+  final double impactEngX;
+  final double impactEngY;
+  final int startTime;
+
+  _FlyingShot({
+    required this.element,
+    required this.level,
+    required this.startX,
+    required this.startY,
+    required this.targetX,
+    required this.targetY,
+    required this.hitKind,
+    required this.target,
+    required this.impactEngX,
+    required this.impactEngY,
+    required this.startTime,
+  });
+
+  double get progress {
+    final elapsed = DateTime.now().millisecondsSinceEpoch - startTime;
+    return (elapsed / 220.0).clamp(0.0, 1.0);
+  }
+
+  bool get isComplete => progress >= 1.0;
+}
+
 class _FlyingProjectilePainter extends CustomPainter {
   final _FlyingOrbProjectile projectile;
   final BrimstoneCombatGame game;
@@ -2708,6 +2767,227 @@ class _FlyingProjectilePainter extends CustomPainter {
       old.projectile.progress != projectile.progress ||
       old.projectile.targetX != projectile.targetX ||
       old.projectile.targetY != projectile.targetY;
+}
+
+// ----------------------------------------------------------------------
+// Element color utilities (top-level for painter access)
+// ----------------------------------------------------------------------
+Color elementColor(Element e) => switch (e) {
+      Element.igneous => const Color(0xFFFF5A26),
+      Element.abyssal => const Color(0xFF3FD8FF),
+      Element.telluric => const Color(0xFFB0703B),
+      Element.empty => const Color(0xFFB16EFF),
+    };
+
+Color elementAccent(Element e) => switch (e) {
+      Element.igneous => const Color(0xFFFFD980),
+      Element.abyssal => const Color(0xFF80E8FF),
+      Element.telluric => const Color(0xFFF0D0A0),
+      Element.empty => const Color(0xFFE5D4FF),
+    };
+
+// ----------------------------------------------------------------------
+// Flying shot painter (Flutter overlay)
+// ----------------------------------------------------------------------
+class _FlyingShotPainter extends CustomPainter {
+  final _FlyingShot shot;
+  final Size arenaSize;
+  final List<CombatTarget> targets;
+  final double engineTime;
+  final double Function(CombatTarget) effectiveAngularSpeed;
+
+  _FlyingShotPainter({
+    required this.shot,
+    required this.arenaSize,
+    required this.targets,
+    required this.engineTime,
+    required this.effectiveAngularSpeed,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = shot.progress;
+    if (p >= 1.0) return;
+
+    // Parabolic flight path
+    final z = CombatMath.flightZ(p, 1.0);
+    final x = CombatMath.lerp(shot.startX, shot.targetX, p);
+    final baseY = CombatMath.lerp(shot.startY, shot.targetY, p);
+    final arc = math.sin(z * math.pi) * 115.0;
+    final y = baseY - arc;
+
+    final color = elementColor(shot.element);
+    final accent = elementAccent(shot.element);
+    final orbSize = 32.0 * (1.0 + p * 0.5); // Grows during flight
+
+    // Fire tail
+    final tailPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..shader = LinearGradient(
+        colors: [
+          color.withValues(alpha: 0.0),
+          accent.withValues(alpha: 0.6),
+          color.withValues(alpha: 0.9),
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(Rect.fromLTWH(x - 20, y - 20, 40, 40));
+    canvas.drawLine(
+      Offset(x - 15 * (1 - p), y + 10),
+      Offset(x, y),
+      tailPaint,
+    );
+
+    // Orb with glow
+    final orbPaint1 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          Colors.white.withValues(alpha: 0.9),
+          accent,
+          color,
+        ],
+        stops: const [0.0, 0.3, 1.0],
+      ).createShader(Rect.fromCircle(center: Offset(x, y), radius: orbSize))
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(Offset(x, y), orbSize * 0.7, orbPaint1);
+
+    final orbPaint2 = Paint()
+      ..shader = RadialGradient(
+        colors: [Colors.white, accent, color],
+        stops: const [0.0, 0.4, 1.0],
+      ).createShader(
+          Rect.fromCircle(center: Offset(x, y), radius: orbSize * 0.6));
+    canvas.drawCircle(Offset(x, y), orbSize * 0.45, orbPaint2);
+
+    // Magnetic target indicator (green ring around target)
+    if (shot.target != null && p > 0.3) {
+      final t = shot.target!;
+      final tx = t.xAt(engineTime, effectiveAngularSpeed(t)) *
+          (arenaSize.width / CombatEngine.layoutWidth);
+      final ty = t.yAt(engineTime, effectiveAngularSpeed(t)) *
+          (arenaSize.height / CombatEngine.layoutHeight);
+      final dist = math.sqrt((x - tx) * (x - tx) + (y - ty) * (y - ty));
+      if (dist < 95) {
+        // Within magnet range
+        canvas.drawCircle(
+          Offset(tx, ty),
+          28.0 + 4.0 * math.sin(p * 20),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5
+            ..color = Colors.greenAccent.withValues(alpha: 0.8),
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FlyingShotPainter old) => true;
+}
+
+// ----------------------------------------------------------------------
+// Drag preview painter (orb following pointer + aim line + magnetic target ring)
+// ----------------------------------------------------------------------
+class _DragPreviewPainter extends CustomPainter {
+  final Offset dragCurrent;
+  final Offset dragStart;
+  final int slot;
+  final CombatOrb? orb;
+  final GlobalKey arenaKey;
+  final CombatEngine engine;
+  final int? hoveredMergeSlot;
+
+  _DragPreviewPainter({
+    required this.dragCurrent,
+    required this.dragStart,
+    required this.slot,
+    required this.orb,
+    required this.arenaKey,
+    required this.engine,
+    required this.hoveredMergeSlot,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (orb == null) return;
+
+    final color = elementColor(orb!.element);
+    final accent = elementAccent(orb!.element);
+
+    // Arena bounds for coordinate conversion
+    final arenaBox = arenaKey.currentContext?.findRenderObject() as RenderBox?;
+    if (arenaBox == null) return;
+    final arenaSize = arenaBox.size;
+    final scaleX = arenaSize.width / CombatEngine.layoutWidth;
+    final scaleY = arenaSize.height / CombatEngine.layoutHeight;
+
+    // Draw aim line from orb slot to current pointer position (if in arena)
+    if (dragCurrent.dy <
+        arenaBox.localToGlobal(Offset.zero).dy + arenaSize.height * 0.7) {
+      final trayScreenX =
+          (CombatEngine.layoutWidth / 5 * (slot + 0.5)) * scaleX;
+      final trayScreenY = CombatEngine.trayY * scaleY;
+
+      // Golden aim line
+      final linePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0
+        ..shader = LinearGradient(
+          colors: [
+            Colors.transparent,
+            accent.withValues(alpha: 0.6),
+            Colors.amber.withValues(alpha: 0.9),
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      canvas.drawLine(
+        Offset(trayScreenX, trayScreenY),
+        dragCurrent,
+        linePaint,
+      );
+
+      // Magnetic target ring
+      for (final t in engine.targets) {
+        final tx = t.xAt(engine.time, engine.effectiveAngularSpeed(t)) * scaleX;
+        final ty = t.yAt(engine.time, engine.effectiveAngularSpeed(t)) * scaleY;
+        final dist = math.sqrt((dragCurrent.dx - tx) * (dragCurrent.dx - tx) +
+            (dragCurrent.dy - ty) * (dragCurrent.dy - ty));
+        if (dist < 95) {
+          canvas.drawCircle(
+            Offset(tx, ty),
+            28.0 + 4.0 * math.sin(engine.time * 10),
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.5
+              ..color = Colors.greenAccent.withValues(alpha: 0.8),
+          );
+        }
+      }
+    }
+
+    // Draw orb following pointer (when dragged)
+    final dragPaint1 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          Colors.white.withValues(alpha: 0.9),
+          accent,
+          color,
+        ],
+        stops: const [0.0, 0.3, 1.0],
+      ).createShader(Rect.fromCircle(center: dragCurrent, radius: 28))
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6);
+    canvas.drawCircle(dragCurrent, 24.0, dragPaint1);
+
+    final dragPaint2 = Paint()
+      ..shader = RadialGradient(
+        colors: [Colors.white, accent, color],
+        stops: const [0.0, 0.4, 1.0],
+      ).createShader(Rect.fromCircle(center: dragCurrent, radius: 20));
+    canvas.drawCircle(dragCurrent, 16.0, dragPaint2);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DragPreviewPainter old) => true;
 }
 
 // ----------------------------------------------------------------------
