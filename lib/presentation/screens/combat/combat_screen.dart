@@ -109,6 +109,13 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   String? _reactionBanner;
   int _session = 0;
 
+  // Raw pointer input state (Listener replaces GestureDetector for web mouse support)
+  final GlobalKey _bodyKey = GlobalKey();
+  int? _draggingSlot;
+  Offset? _dragStartLocal;
+  Offset? _dragCurrentLocal;
+  int? _hoveredMergeSlot;
+
   // Game speed multiplier (1.0, 1.5x, 2.0x)
   double _gameSpeed = 1.0;
   // Set to true after Chapter I cleared (future feature gate)
@@ -116,12 +123,6 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
   // Block 3: Auto-Battle state
   bool _autoBattleEnabled = false;
-
-  // Unified drag/flick state
-  int? _draggedSlot;
-  Offset? _dragStartGlobalPos;
-  Offset? _dragCurrentGlobalPos;
-  int? _hoveredMergeSlot;
 
   // Flying projectile for visual 0.22s parabolic flight
   _FlyingOrbProjectile? _flyingProjectile;
@@ -448,7 +449,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   /// True while a level-3 orb is dragged above the tray: the aim laser ignites
   /// and the camera leans into the targets.
   bool get _aimingLevelThree {
-    final slot = _draggedSlot;
+    final slot = _draggingSlot;
     if (slot == null || _engine == null) return false;
     final orb = engine.tray[slot];
     if (orb == null || orb.level != OrbLevel.three) return false;
@@ -702,32 +703,11 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   (double, double) _toEngine(Offset p) => game.toEngineCoords(p.dx, p.dy);
 
   // Convert engine X to tray slot index (0-4)
-  int? _slotFromX(double x) {
-    final slot = (x / (CombatEngine.layoutWidth / 5)).floor();
-    return (slot < 0 || slot > 4) ? null : slot;
-  }
 
   // Get tray slot center X in engine coords
   double _slotCenterX(int slot) => CombatEngine.layoutWidth / 5 * (slot + 0.5);
 
   // Check if a point is over the tray area (engine coords)
-  bool _isOverTray(double y) => y >= CombatEngine.trayY - 60;
-
-  // Find merge target slot near drag position
-  int? _findMergeTarget(int draggedSlot, double dragX) {
-    final draggedOrb = engine.tray[draggedSlot];
-    if (draggedOrb == null) return null;
-    final targetSlot = _slotFromX(dragX);
-    if (targetSlot == null || targetSlot == draggedSlot) return null;
-    final targetOrb = engine.tray[targetSlot];
-    if (targetOrb == null) return null;
-    final compatible = (draggedOrb.element == targetOrb.element ||
-            draggedOrb.prismatic ||
-            targetOrb.prismatic) &&
-        draggedOrb.level == targetOrb.level &&
-        draggedOrb.level != OrbLevel.three;
-    return compatible ? targetSlot : null;
-  }
 
   // Auto-merge all available pairs in tray
   void _autoMergeAll() {
@@ -757,79 +737,105 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     }
   }
 
-  // Unified drag/flick handlers
+  // Raw pointer input handlers (Listener-based for web mouse support)
+  void _onPointerDown(PointerDownEvent event) {
+    if (!mounted || _engine == null) return;
+    final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final localPos = renderBox.globalToLocal(event.position);
+    final bodyHeight = renderBox.size.height;
 
-  /// Counter-flick: tap/flick directo sobre un proyectil enemigo (radio 58px
-  /// vive en el motor). Devuelve true si destruyó algo.
-  bool _tryCounterFlickAt(Offset globalPos) {
-    if (_engine == null) return false;
-    final (x, y) = _toEngine(globalPos);
-    if (!engine.counterFlickAt(x, y, engine.time)) return false;
-    ProceduralSfxEngine.playCounterFlickDestroy();
-    ref.read(bountyProvider.notifier).increment('counterflicks');
-    if (mounted) setState(() {});
-    return true;
-  }
+    // Counter-flick priority: any pointer over arena destroys projectiles
+    if (localPos.dy < bodyHeight - 250) {
+      _tryCounterFlickAt(event.position);
+      return;
+    }
 
-  // 100% de casos: un tap sin drag también destruye el proyectil.
-  void _onTapDown(TapDownDetails d) => _tryCounterFlickAt(d.globalPosition);
-
-  void _onPanStart(DragStartDetails d) {
-    // Counter-flick priority
-    if (_tryCounterFlickAt(d.globalPosition)) return;
-
-    final (x, y) = _toEngine(d.globalPosition);
-
-    // Check if started on a tray orb
-    if (_isOverTray(y)) {
-      final slot = _slotFromX(x);
-      if (slot != null && engine.tray[slot] != null) {
-        _draggedSlot = slot;
-        _dragStartGlobalPos = d.globalPosition;
-        _dragCurrentGlobalPos = d.globalPosition;
+    // Check if started on orb tray (bottom 115px)
+    if (localPos.dy >= bodyHeight - 115) {
+      final bodyWidth = renderBox.size.width;
+      final slot = (localPos.dx / (bodyWidth / 5)).floor().clamp(0, 4);
+      if (engine.tray[slot] != null) {
+        setState(() {
+          _draggingSlot = slot;
+          _dragStartLocal = localPos;
+          _dragCurrentLocal = localPos;
+        });
         game.draggingOrb = true;
+        final (x, y) = _toEngine(event.position);
         engine.startDrag(slot, x, y);
-        return;
       }
     }
   }
 
-  void _onPanUpdate(DragUpdateDetails d) {
-    if (_draggedSlot == null) return;
-    _dragCurrentGlobalPos = d.globalPosition;
-    final (x, y) = _toEngine(d.globalPosition);
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    engine.updateDrag(x, y, (nowMs - _lastPanMs) / 1000.0);
-    _lastPanMs = nowMs;
+  void _onPointerMove(PointerMoveEvent event) {
+    if (!mounted || _engine == null) return;
+    final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final localPos = renderBox.globalToLocal(event.position);
+    final bodyHeight = renderBox.size.height;
 
-    // Update merge hover target (only when in tray zone)
-    if (_isOverTray(y)) {
-      setState(() => _hoveredMergeSlot = _findMergeTarget(_draggedSlot!, x));
-    } else {
-      setState(() => _hoveredMergeSlot = null);
+    // Counter-flick over arena (any pointer move in arena zone)
+    if (localPos.dy < bodyHeight - 250) {
+      engine.counterFlickAt(localPos.dx, localPos.dy, engine.time);
+    }
+
+    // Update drag preview
+    if (_draggingSlot != null) {
+      setState(() => _dragCurrentLocal = localPos);
+
+      final bodyWidth = renderBox.size.width;
+      final (x, y) = _toEngine(event.position);
+      engine.updateDrag(
+          x, y, (DateTime.now().millisecondsSinceEpoch - _lastPanMs) / 1000.0);
+      _lastPanMs = DateTime.now().millisecondsSinceEpoch;
+
+      // Update merge hover target (only when in tray zone)
+      if (localPos.dy >= bodyHeight - 115) {
+        final slot = (localPos.dx / (bodyWidth / 5)).floor().clamp(0, 4);
+        if (slot != _draggingSlot && engine.tray[slot] != null) {
+          final draggedOrb = engine.tray[_draggingSlot!]!;
+          final targetOrb = engine.tray[slot]!;
+          final compatible = (draggedOrb.element == targetOrb.element ||
+                  draggedOrb.prismatic ||
+                  targetOrb.prismatic) &&
+              draggedOrb.level == targetOrb.level &&
+              draggedOrb.level != OrbLevel.three;
+          if (compatible) {
+            setState(() => _hoveredMergeSlot = slot);
+          }
+        }
+      } else {
+        setState(() => _hoveredMergeSlot = null);
+      }
     }
   }
 
-  void _onPanEnd(DragEndDetails d) {
-    if (_draggedSlot == null) return;
+  void _onPointerUp(PointerUpEvent event) {
+    if (!mounted || _engine == null || _draggingSlot == null) return;
+    final renderBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final localPos = renderBox.globalToLocal(event.position);
+    final bodyHeight = renderBox.size.height;
+    final bodyWidth = renderBox.size.width;
 
-    final draggedSlot = _draggedSlot!;
-    final startPos = _dragStartGlobalPos ?? Offset.zero;
-    final endPos = _dragCurrentGlobalPos ?? Offset.zero;
-    final (startX, startY) = _toEngine(startPos);
-    final (endX, endY) = _toEngine(endPos);
-    final velocity = d.velocity;
+    final draggedSlot = _draggingSlot!;
+    final dragStart = _dragStartLocal ?? Offset.zero;
+    final dragEnd = _dragCurrentLocal ?? Offset.zero;
 
-    final deltaDy = endPos.dy - startPos.dy;
-    final isFlickUp = deltaDy < -30 || velocity.pixelsPerSecond.dy < -200;
+    final deltaDy = dragEnd.dy - dragStart.dy;
+    final isFlickUp = deltaDy < -25; // flicked upward
 
     if (isFlickUp) {
       // FLICK: Launch toward boss plane with magnet to nearest target
-      _launchFlickProjectile(draggedSlot, startX, startY, endX, endY, velocity);
+      final (startX, startY) = _toEngine(event.position);
+      final (endX, endY) = _toEngine(event.position);
+      _launchFlickProjectile(
+          draggedSlot, startX, startY, endX, endY, Velocity.zero);
     } else {
       // DRAG END: Check for merge or swap in tray
-      final targetSlot = _slotFromX(endX);
-      if (targetSlot != null && targetSlot != draggedSlot) {
+      final targetSlot = (dragEnd.dx / (bodyWidth / 5)).floor().clamp(0, 4);
+      if (targetSlot != draggedSlot) {
         final targetOrb = engine.tray[targetSlot];
         final draggedOrb = engine.tray[draggedSlot];
         if (targetOrb != null && draggedOrb != null) {
@@ -854,11 +860,34 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
     game.draggingOrb = false;
     setState(() {
-      _draggedSlot = null;
-      _dragStartGlobalPos = null;
-      _dragCurrentGlobalPos = null;
+      _draggingSlot = null;
+      _dragStartLocal = null;
+      _dragCurrentLocal = null;
       _hoveredMergeSlot = null;
     });
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (!mounted || _draggingSlot == null) return;
+    game.draggingOrb = false;
+    setState(() {
+      _draggingSlot = null;
+      _dragStartLocal = null;
+      _dragCurrentLocal = null;
+      _hoveredMergeSlot = null;
+    });
+  }
+
+  /// Counter-flick: tap/flick directo sobre un proyectil enemigo (radio 58px
+  /// vive en el motor). Devuelve true si destruyó algo.
+  bool _tryCounterFlickAt(Offset globalPos) {
+    if (_engine == null) return false;
+    final (x, y) = _toEngine(globalPos);
+    if (!engine.counterFlickAt(x, y, engine.time)) return false;
+    ProceduralSfxEngine.playCounterFlickDestroy();
+    ref.read(bountyProvider.notifier).increment('counterflicks');
+    if (mounted) setState(() {});
+    return true;
   }
 
   // Launch projectile with flick physics (HellFire style)
@@ -1010,15 +1039,14 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
         onKeyEvent: (node, event) => _handleKeyEvent(node, event),
         child: Stack(
           children: [
-            GestureDetector(
-              // Translucent: el pan del Blade Swipe no traga los taps de proyectiles/overlay.
+            Listener(
               behavior: HitTestBehavior.translucent,
-              onPanStart: _onPanStart,
-              onPanUpdate: _onPanUpdate,
-              onPanEnd: _onPanEnd,
-              onTapDown: _onTapDown,
+              onPointerDown: _onPointerDown,
+              onPointerMove: _onPointerMove,
+              onPointerUp: _onPointerUp,
+              onPointerCancel: _onPointerCancel,
               child: Column(
-                key: ValueKey<int>(_session),
+                key: _bodyKey,
                 children: [
                   // ZONE 1: HEADER (56px)
                   SizedBox(height: 56, child: _buildHeader()),
@@ -1538,26 +1566,27 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
           ),
         ),
       ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: BrimstoneSpacing.spaceXS,
-          vertical: BrimstoneSpacing.spaceXS,
-        ),
-        itemCount: cards.length,
-        separatorBuilder: (_, __) =>
-            const SizedBox(width: BrimstoneSpacing.spaceXS),
-        itemBuilder: (context, index) {
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: BrimstoneSpacing.spaceXS,
+      ),
+      child: Row(
+        children: List.generate(cards.length, (index) {
           final card = cards[index];
           final isReady = card.mana >= card.baseManaCost;
-          return TcgCardWidget.fromCombatCard(
-            card: card,
-            isLeader: index == 0,
-            width: 112,
-            height: 112,
-            onTap: isReady ? () => _onCardTap(index) : null,
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: TcgCardWidget.fromCombatCard(
+                card: card,
+                isLeader: index == 0,
+                width: double.infinity,
+                height: 112,
+                onTap: isReady ? () => _onCardTap(index) : null,
+              ),
+            ),
           );
-        },
+        }),
       ),
     );
   }
@@ -1653,90 +1682,34 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                   ),
                 ),
               ],
+              // Auto-merge button compact next to HP
+              if (_canAutoMerge()) ...[
+                const SizedBox(width: BrimstoneSpacing.spaceXS),
+                _buildAutoMergeButton(),
+              ],
             ]),
           ),
-          // Orbs tray - 5 slots, 3D rendering with Runic Stone Base
+          // Orbs tray - 5 slots in a Row with Expanded
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final trayWidth = constraints.maxWidth;
-                final slotWidth = trayWidth / 5;
-                final trayHeight = constraints.maxHeight;
-                final orbSize = (trayHeight * 0.75).clamp(40.0, 56.0);
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final trayHeight = constraints.maxHeight;
+                  final orbSize = (trayHeight * 0.75).clamp(40.0, 56.0);
 
-                return Stack(children: [
-                  // HellFire: Runic Stone Base background
-                  Container(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                        color: const Color(0xFF0A0407),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: _chapterColor().withValues(alpha: 0.6),
-                            width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _chapterColor().withValues(alpha: 0.15),
-                            blurRadius: 8,
-                            spreadRadius: 1,
-                          ),
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 4,
-                            offset: const Offset(0, -2),
-                          ),
-                        ],
-                        // Carved stone texture effect via gradient overlay
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            const Color(0xFF14090D),
-                            const Color(0xFF0C0608),
-                            const Color(0xFF0A0407),
-                          ],
-                        )),
-                  ),
-                  // Metal separators between slots (HellFire style)
-                  for (var i = 1; i < 5; i++)
-                    Positioned(
-                        left: i * slotWidth,
-                        top: 8,
-                        bottom: 8,
-                        child: Container(
-                            width: 2,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  _chapterColor().withValues(alpha: 0.8),
-                                  _chapterColor().withValues(alpha: 0.3),
-                                  _chapterColor().withValues(alpha: 0.8),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(1),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _chapterColor().withValues(alpha: 0.4),
-                                  blurRadius: 2,
-                                  spreadRadius: 0.5,
-                                ),
-                              ],
-                            ))),
-                  // Orbs in slots (3D with orbital auras for Lv.2/3)
-                  for (var i = 0; i < 5; i++)
-                    _buildOrbSlot3D(i, slotWidth, orbSize, trayHeight),
-                  // Dragged orb preview (follows finger globally)
-                  if (_draggedSlot != null && _dragCurrentGlobalPos != null)
-                    _buildDraggedOrbPreview3D(slotWidth, orbSize),
-                  // Green merge rings on compatible targets
-                  if (_hoveredMergeSlot != null)
-                    _buildMergeRing(
-                        _hoveredMergeSlot!, slotWidth, orbSize, trayHeight),
-                  // Auto-merge button
-                  Positioned(top: 4, right: 12, child: _buildAutoMergeButton()),
-                ]);
-              },
+                  return Row(
+                    children: List.generate(5, (i) {
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: _buildOrbSlot3D(i, orbSize, trayHeight),
+                        ),
+                      );
+                    }),
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -1744,16 +1717,29 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     );
   }
 
-  Widget _buildOrbSlot3D(
-      int index, double slotWidth, double orbSize, double trayHeight) {
+  bool _canAutoMerge() {
+    for (var i = 0; i < engine.tray.length; i++) {
+      if (engine.tray[i] == null) continue;
+      for (var j = i + 1; j < engine.tray.length; j++) {
+        if (engine.tray[j] == null) continue;
+        final orbA = engine.tray[i]!;
+        final orbB = engine.tray[j]!;
+        final compatible = (orbA.element == orbB.element ||
+                orbA.prismatic ||
+                orbB.prismatic) &&
+            orbA.level == orbB.level &&
+            orbA.level != OrbLevel.three;
+        if (compatible) return true;
+      }
+    }
+    return false;
+  }
+
+  Widget _buildOrbSlot3D(int index, double orbSize, double trayHeight) {
     final orb = engine.tray[index];
-    final cx = index * slotWidth + slotWidth / 2;
-    final cy = trayHeight / 2;
 
     if (orb == null) {
-      return Positioned(
-        left: cx - 14,
-        top: cy - 14,
+      return Center(
         child: Container(
             width: 28,
             height: 28,
@@ -1770,160 +1756,181 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     final color = _elementColor(orb.element);
     final accent = _elementAccent(orb.element);
     final level = orb.level.index + 1;
-    final isDragging = _draggedSlot == index;
+    final isDragging = _draggingSlot == index;
 
     // HellFire: Orbital aura for Lv.2/3 orbs
     final hasOrbitalAura = level >= 2;
 
-    return Positioned(
-      left: cx - orbSize / 2,
-      top: cy - orbSize / 2,
-      child: AnimatedScale(
-        scale: isDragging ? 0.0 : 1.0,
-        duration: const Duration(milliseconds: 50),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // HellFire: Orbital aura ring for Lv.2/3
-            if (hasOrbitalAura)
-              AnimatedBuilder(
-                animation: _mergePulseCtrl,
-                builder: (context, _) {
-                  final pulse = _mergePulseCtrl.value;
-                  final auraRadius =
-                      orbSize / 2 + 6 + 4 * math.sin(pulse * 2 * math.pi);
-                  return Container(
-                    width: auraRadius * 2,
-                    height: auraRadius * 2,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
+    return AnimatedScale(
+      scale: isDragging ? 0.0 : 1.0,
+      duration: const Duration(milliseconds: 50),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // HellFire: Orbital aura ring for Lv.2/3
+          if (hasOrbitalAura)
+            AnimatedBuilder(
+              animation: _mergePulseCtrl,
+              builder: (context, _) {
+                final pulse = _mergePulseCtrl.value;
+                final auraRadius =
+                    orbSize / 2 + 6 + 4 * math.sin(pulse * 2 * math.pi);
+                return Container(
+                  width: auraRadius * 2,
+                  height: auraRadius * 2,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: level == 2
+                          ? const Color(0xFFFFD700).withValues(
+                              alpha: 0.4 + 0.2 * math.sin(pulse * 2 * math.pi))
+                          : const Color(0xFFFF5A26).withValues(
+                              alpha: 0.4 + 0.2 * math.sin(pulse * 2 * math.pi)),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
                         color: level == 2
-                            ? const Color(0xFFFFD700).withValues(
-                                alpha:
-                                    0.4 + 0.2 * math.sin(pulse * 2 * math.pi))
-                            : const Color(0xFFFF5A26).withValues(
-                                alpha:
-                                    0.4 + 0.2 * math.sin(pulse * 2 * math.pi)),
-                        width: 1.5,
+                            ? const Color(0xFFFFD700).withValues(alpha: 0.15)
+                            : const Color(0xFFFF5A26).withValues(alpha: 0.15),
+                        blurRadius: 8 + 4 * math.sin(pulse * 2 * math.pi),
+                        spreadRadius: 1,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: level == 2
-                              ? const Color(0xFFFFD700).withValues(alpha: 0.15)
-                              : const Color(0xFFFF5A26).withValues(alpha: 0.15),
-                          blurRadius: 8 + 4 * math.sin(pulse * 2 * math.pi),
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            GestureDetector(
-              onTap: () {}, // Prevent tap from bubbling
-              child: Container(
-                width: orbSize,
-                height: orbSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                      center: Alignment(-0.35, -0.38),
-                      radius: 0.95,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.95),
-                        accent,
-                        color,
-                        Color.lerp(color, Colors.black, 0.75)!
-                      ],
-                      stops: const [
-                        0.0,
-                        0.22,
-                        0.62,
-                        1.0
-                      ]),
-                  boxShadow: [
-                    BoxShadow(
-                        color: color.withValues(alpha: 0.5),
-                        blurRadius: 8,
-                        spreadRadius: 1),
-                    BoxShadow(
-                        color: color.withValues(alpha: 0.28),
-                        blurRadius: 12,
-                        spreadRadius: 2)
-                  ],
-                  border: Border.all(
-                      color: accent.withValues(alpha: 0.85), width: 1.8),
-                ),
-                child: Stack(alignment: Alignment.center, children: [
-                  // GPU plasma core: fluid turbulence + incandescent centre.
-                  Positioned.fill(
-                    child: ClipOval(
-                      child: PlasmaOrb(
-                        color: color,
-                        glow: accent,
-                        intensity: 0.95,
-                      ),
-                    ),
+                    ],
                   ),
-                  // Specular highlight
+                );
+              },
+            ),
+          GestureDetector(
+            onTap: () {}, // Prevent tap from bubbling
+            child: Container(
+              width: orbSize,
+              height: orbSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                // Custom radial gradient per element (no PlasmaOrb shader)
+                gradient: _orbGradient(orb.element, color, accent),
+                boxShadow: [
+                  BoxShadow(
+                      color: color.withValues(alpha: 0.5),
+                      blurRadius: 8,
+                      spreadRadius: 1),
+                  BoxShadow(
+                      color: color.withValues(alpha: 0.28),
+                      blurRadius: 12,
+                      spreadRadius: 2)
+                ],
+                border: Border.all(
+                    color: accent.withValues(alpha: 0.85), width: 1.8),
+              ),
+              child: Stack(alignment: Alignment.center, children: [
+                // Specular highlight
+                Positioned(
+                    left: orbSize * 0.18,
+                    top: orbSize * 0.15,
+                    child: Container(
+                        width: orbSize * 0.28,
+                        height: orbSize * 0.28,
+                        decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(colors: [
+                              Colors.white,
+                              Colors.white.withValues(alpha: 0.0)
+                            ])))),
+                // Element icon
+                _buildElementIcon(orb.element, orbSize * 0.42),
+                // Level badge
+                Positioned(
+                    bottom: -6,
+                    child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.78),
+                            borderRadius: BorderRadius.circular(3),
+                            border: Border.all(
+                                color: level == 1
+                                    ? const Color(0xFFC0C0C0)
+                                    : level == 2
+                                        ? const Color(0xFFFFD700)
+                                        : const Color(0xFFFF5A26),
+                                width: 0.9)),
+                        child: Text('Nv.',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5)))),
+                // Prismatic indicator
+                if (orb.prismatic)
                   Positioned(
-                      left: orbSize * 0.18,
-                      top: orbSize * 0.15,
+                      top: 2,
+                      right: 2,
                       child: Container(
-                          width: orbSize * 0.28,
-                          height: orbSize * 0.28,
+                          width: 8,
+                          height: 8,
                           decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: RadialGradient(colors: [
-                                Colors.white,
-                                Colors.white.withValues(alpha: 0.0)
+                              gradient: const LinearGradient(colors: [
+                                Color(0xFFFFD700),
+                                Color(0xFFB16EFF)
                               ])))),
-                  // Element icon
-                  _buildElementIcon(orb.element, orbSize * 0.42),
-                  // Level badge
-                  Positioned(
-                      bottom: -6,
-                      child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.78),
-                              borderRadius: BorderRadius.circular(3),
-                              border: Border.all(
-                                  color: level == 1
-                                      ? const Color(0xFFC0C0C0)
-                                      : level == 2
-                                          ? const Color(0xFFFFD700)
-                                          : const Color(0xFFFF5A26),
-                                  width: 0.9)),
-                          child: Text('Nv.$level',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5)))),
-                  // Prismatic indicator
-                  if (orb.prismatic)
-                    Positioned(
-                        top: 2,
-                        right: 2,
-                        child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(colors: [
-                                  Color(0xFFFFD700),
-                                  Color(0xFFB16EFF)
-                                ])))),
-                ]),
-              ),
+              ]),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+
+  // Custom radial gradient per element (replaces PlasmaOrb shader)
+  RadialGradient _orbGradient(Element element, Color color, Color accent) {
+    switch (element) {
+      case Element.igneous:
+        return const RadialGradient(
+          center: Alignment(-0.35, -0.38),
+          radius: 0.95,
+          colors: [
+            Color(0xFFFF6D00),
+            Color(0xFFB71C1C),
+            Color(0xFF3E0000),
+          ],
+          stops: [0.0, 0.55, 1.0],
+        );
+      case Element.abyssal:
+        return const RadialGradient(
+          center: Alignment(-0.35, -0.38),
+          radius: 0.95,
+          colors: [
+            Color(0xFF00E5FF),
+            Color(0xFF01579B),
+            Color(0xFF001933),
+          ],
+          stops: [0.0, 0.55, 1.0],
+        );
+      case Element.telluric:
+        return const RadialGradient(
+          center: Alignment(-0.35, -0.38),
+          radius: 0.95,
+          colors: [
+            Color(0xFF76FF03),
+            Color(0xFF2E7D32),
+            Color(0xFF0D260F),
+          ],
+          stops: [0.0, 0.55, 1.0],
+        );
+      case Element.empty:
+        return const RadialGradient(
+          center: Alignment(-0.35, -0.38),
+          radius: 0.95,
+          colors: [
+            Color(0xFFE040FB),
+            Color(0xFF4A148C),
+            Color(0xFF16002E),
+          ],
+          stops: [0.0, 0.55, 1.0],
+        );
+    }
   }
 
   Widget _buildElementIcon(Element element, double size) {
@@ -1935,106 +1942,6 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       size: Size(size, size),
       painter: _ElementIconPainter(
           element: element, size: size, iconPaint: iconPaint),
-    );
-  }
-
-  Widget _buildDraggedOrbPreview3D(double slotWidth, double orbSize) {
-    if (_dragCurrentGlobalPos == null) return const SizedBox.shrink();
-    final orb = engine.tray[_draggedSlot!];
-    if (orb == null) return const SizedBox.shrink();
-
-    final color = _elementColor(orb.element);
-    final accent = _elementAccent(orb.element);
-    final level = orb.level.index + 1;
-    final previewSize = orbSize * 1.3;
-
-    return Positioned(
-      left: _dragCurrentGlobalPos!.dx - previewSize / 2,
-      top: _dragCurrentGlobalPos!.dy - previewSize / 2,
-      child: IgnorePointer(
-        child: Container(
-          width: previewSize,
-          height: previewSize,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-                center: Alignment(-0.35, -0.38),
-                radius: 0.95,
-                colors: [
-                  Colors.white.withValues(alpha: 0.95),
-                  accent,
-                  color,
-                  Color.lerp(color, Colors.black, 0.7)!
-                ]),
-            boxShadow: [
-              BoxShadow(
-                  color: color.withValues(alpha: 0.8),
-                  blurRadius: 20,
-                  spreadRadius: 4)
-            ],
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.9), width: 3),
-          ),
-          child: Stack(alignment: Alignment.center, children: [
-            _buildElementIcon(orb.element, previewSize * 0.45),
-            Text('$level',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: previewSize * 0.35,
-                    fontWeight: FontWeight.w900,
-                    shadows: [
-                      Shadow(
-                          color: Colors.black.withValues(alpha: 0.9),
-                          blurRadius: 3)
-                    ])),
-          ]),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMergeRing(
-      int slot, double slotWidth, double orbSize, double trayHeight) {
-    final color = const Color(0xFF4FFFA3);
-    final pulse = _mergePulseCtrl.value;
-    final cx = slot * slotWidth + slotWidth / 2;
-    final cy = trayHeight / 2;
-
-    return Positioned(
-      left: cx - orbSize / 2 - 6 - pulse * 4,
-      top: cy - orbSize / 2 - 6 - pulse * 4,
-      child: IgnorePointer(
-        child: AnimatedBuilder(
-          animation: _mergePulseCtrl,
-          builder: (context, _) => Container(
-            width: orbSize + 12 + pulse * 8,
-            height: orbSize + 12 + pulse * 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                  color: color.withValues(alpha: 0.7 - pulse * 0.3),
-                  width: 3 + pulse * 2),
-              boxShadow: [
-                BoxShadow(
-                    color: color.withValues(alpha: 0.4 - pulse * 0.2),
-                    blurRadius: 12 + pulse * 8,
-                    spreadRadius: 2 + pulse * 2)
-              ],
-            ),
-            child: Center(
-                child: Text('¡FUSIONAR!',
-                    style: TextStyle(
-                        color: color.withValues(alpha: 0.9),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w900,
-                        shadows: [
-                          Shadow(
-                              color: Colors.black.withValues(alpha: 0.8),
-                              blurRadius: 2)
-                        ]))),
-          ),
-        ),
-      ),
     );
   }
 
@@ -2107,6 +2014,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 }
 
 /// Speed toggle widget for 1x / 1.5x game speed.
+
 class _SpeedToggle extends StatelessWidget {
   final double initialSpeed;
   final void Function(double) onChanged;
