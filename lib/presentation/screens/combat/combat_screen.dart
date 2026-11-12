@@ -98,6 +98,13 @@ class CombatScreen extends ConsumerStatefulWidget {
   ConsumerState<CombatScreen> createState() => _CombatScreenState();
 }
 
+/// A single pointer sample: position + timestamp for flick vector computation.
+class _PointerSample {
+  final Offset pos;
+  final int timeMs;
+  _PointerSample(this.pos, this.timeMs);
+}
+
 class _CombatScreenState extends ConsumerState<CombatScreen>
     with TickerProviderStateMixin {
   CombatEngine? _engine;
@@ -118,7 +125,15 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
   Offset? _dragCurrentLocal;
   int? _hoveredMergeSlot;
 
-  // Flying shot animation (Flutter overlay - 220ms parabolic flight)
+  // Flick ballistics: last 5 pointer samples for computing the true flick vector.
+  final List<_PointerSample> _pointerSamples = [];
+  static const int _pointerSampleMax = 5;
+  static const int _pointerSampleWindowMs = 80;
+
+  // Flick hint: shown until the player launches their first orb.
+  bool _showFlickHint = true;
+
+  // Flying shot animation (Flutter overlay - 180ms parabolic flight, HellFire style)
   _FlyingShot? _flyingShot;
 
   // Game speed multiplier (1.0, 1.5x, 2.0x)
@@ -758,6 +773,11 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       final bodyWidth = bodyBox.size.width;
       final slot = (bodyLocal.dx / (bodyWidth / 5)).floor().clamp(0, 4);
       if (engine.tray[slot] != null) {
+        // Start flick sample tracking
+        _pointerSamples.clear();
+        _pointerSamples.add(
+            _PointerSample(bodyLocal, DateTime.now().millisecondsSinceEpoch));
+
         setState(() {
           _draggingSlot = slot;
           _dragStartLocal = bodyLocal;
@@ -785,6 +805,13 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     if (arenaLocal.dy < arenaSize.height * 0.7) {
       final (engX, engY) = arenaLocalToEngine(arenaLocal, arenaSize);
       engine.counterFlickAt(engX, engY, engine.time);
+    }
+
+    // Record pointer sample for flick vector computation
+    _pointerSamples
+        .add(_PointerSample(bodyLocal, DateTime.now().millisecondsSinceEpoch));
+    if (_pointerSamples.length > _pointerSampleMax) {
+      _pointerSamples.removeAt(0);
     }
 
     // Update drag preview
@@ -824,23 +851,154 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     final bodyBox = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
     if (arenaBox == null || bodyBox == null) return;
 
-    final arenaLocal = arenaBox.globalToLocal(event.position);
     final arenaSize = arenaBox.size;
     final bodyWidth = bodyBox.size.width;
+    final scaleX = arenaSize.width / CombatEngine.layoutWidth;
+    final scaleY = arenaSize.height / CombatEngine.layoutHeight;
 
     final draggedSlot = _draggingSlot!;
     final dragStart = _dragStartLocal ?? Offset.zero;
     final dragEnd = _dragCurrentLocal ?? Offset.zero;
 
-    final deltaDy = dragEnd.dy - dragStart.dy;
-    final isFlickUp = deltaDy < -25; // flicked upward
+    final totalDx = dragEnd.dx - dragStart.dx;
+    final totalDy = dragEnd.dy - dragStart.dy;
+    final isFlickUp = totalDy < -20; // flicked upward from tray
 
     if (isFlickUp) {
-      // FLICK: Launch toward boss plane with magnet to nearest target
-      // Convert release point to engine coordinates for target selection
-      final (engReleaseX, engReleaseY) =
-          arenaLocalToEngine(arenaLocal, arenaSize);
-      startFlyingShot(draggedSlot, engReleaseX, engReleaseY);
+      // --- TRUE FLICK BALLISTICS (HellFire style) ---
+      // Compute flick vector from samples in the last 80ms before release.
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final recent = _pointerSamples
+          .where((s) => nowMs - s.timeMs <= _pointerSampleWindowMs)
+          .toList();
+
+      double flickDx, flickDy, speedPxPerSec;
+      if (recent.length >= 2) {
+        final first = recent.first;
+        final last = recent.last;
+        flickDx = last.pos.dx - first.pos.dx;
+        flickDy = last.pos.dy - first.pos.dy;
+        final dtSec = (last.timeMs - first.timeMs) / 1000.0;
+        speedPxPerSec = dtSec > 0
+            ? math.sqrt(flickDx * flickDx + flickDy * flickDy) / dtSec
+            : 0.0;
+      } else {
+        flickDx = totalDx;
+        flickDy = totalDy;
+        speedPxPerSec = 0.0;
+      }
+
+      // Potencia del latigazo: velocidad y/o distancia vertical.
+      final powerBySpeed = (speedPxPerSec / 900.0).clamp(0.55, 1.35);
+      final powerByDist = (-totalDy / 180.0).clamp(0.55, 1.25);
+      final power = math.max(powerBySpeed, powerByDist);
+
+      // Dirección normalizada del gesto corto.
+      final flickDist = math.sqrt(flickDx * flickDx + flickDy * flickDy);
+      final dirX = flickDist > 0 ? flickDx / flickDist : 0.0;
+      final dirY = flickDist > 0 ? flickDy / flickDist : -1.0;
+
+      // Punto de inicio del orbe en pantalla (centro del slot de bandeja).
+      final orbStartScreenX =
+          (CombatEngine.layoutWidth / 5 * (draggedSlot + 0.5)) * scaleX;
+      final orbStartScreenY = CombatEngine.trayY * scaleY;
+
+      // Distancia vertical desde la bandeja al plano del jefe.
+      final distanciaVerticalAlJefe =
+          CombatEngine.bossScreenY * scaleY - orbStartScreenY;
+
+      // Proyección del punto de aterrizaje en la arena.
+      final landingX = orbStartScreenX +
+          (flickDx / (-flickDy).clamp(15.0, 400.0)) * distanciaVerticalAlJefe;
+      final landingY = CombatEngine.bossScreenY * scaleY +
+          (power - 1.0) * 50.0; // offset según potencia
+
+      // --- Asistencia magnética inteligente ---
+      // Busca dianas cerca del rayo lanzado desde orbStart en dirección (dirX, dirY).
+      CombatTarget? magnetTarget;
+      var magnetBestDist = double.infinity;
+      for (final t in engine.targets) {
+        final tx = t.xAt(engine.time, engine.effectiveAngularSpeed(t)) * scaleX;
+        final ty = t.yAt(engine.time, engine.effectiveAngularSpeed(t)) * scaleY;
+
+        // Distancia perpendicular del punto al rayo (orbStart + t*dir).
+        final rx = tx - orbStartScreenX;
+        final ry = ty - orbStartScreenY;
+        // Proyector: t_param = (rx*dirX + ry*dirY), punto más cercano = orbStart + t_param*dir
+        final tParam = rx * dirX + ry * dirY;
+        if (tParam < 0) continue; // diana detrás del punto de partida
+        final closestX = orbStartScreenX + tParam * dirX;
+        final closestY = orbStartScreenY + tParam * dirY;
+        final perpDist = math.sqrt((tx - closestX) * (tx - closestX) +
+            (ty - closestY) * (ty - closestY));
+        final distToLanding = math.sqrt((tx - landingX) * (tx - landingX) +
+            (ty - landingY) * (ty - landingY));
+
+        if ((perpDist < 75.0 || distToLanding < 95.0) &&
+            (perpDist + distToLanding * 0.5) < magnetBestDist) {
+          magnetBestDist = perpDist + distToLanding * 0.5;
+          magnetTarget = t;
+        }
+      }
+
+      // Si hay magnética, clava el aterrizaje en el centro de la diana.
+      double impactEngX, impactEngY;
+      HitKind hitKind;
+      CombatTarget? impactTarget;
+      if (magnetTarget != null) {
+        impactEngX = magnetTarget.xAt(
+            engine.time, engine.effectiveAngularSpeed(magnetTarget));
+        impactEngY = magnetTarget.yAt(
+            engine.time, engine.effectiveAngularSpeed(magnetTarget));
+        impactTarget = magnetTarget;
+        hitKind = CombatMath.classifyHit(
+            0.0,
+            engine.innerRadiusFor(magnetTarget),
+            engine.outerRadiusFor(magnetTarget));
+      } else {
+        // Sin diana en el camino: convertir landing a engine coords.
+        final (leX, leY) = (landingX / scaleX, landingY / scaleY);
+        impactEngX = leX;
+        impactEngY = leY;
+        impactTarget = null;
+        hitKind = HitKind.miss;
+      }
+
+      // Remover orbe de la bandeja inmediatamente.
+      final orb = engine.tray[draggedSlot];
+      if (orb == null) {
+        game.draggingOrb = false;
+        setState(() {
+          _draggingSlot = null;
+          _dragStartLocal = null;
+          _dragCurrentLocal = null;
+          _hoveredMergeSlot = null;
+          _pointerSamples.clear();
+        });
+        return;
+      }
+      engine.tray[draggedSlot] = null;
+      ProceduralSfxEngine.playOrbFlick();
+
+      // Ocultar hint del flick tras el primer disparo.
+      if (_showFlickHint) {
+        setState(() => _showFlickHint = false);
+      }
+
+      // Animación de vuelo (180ms) + daño inmediato.
+      startFlyingShot(
+        draggedSlot,
+        impactEngX,
+        impactEngY,
+        orbStartScreenX,
+        orbStartScreenY,
+        landingX,
+        landingY,
+        hitKind,
+        impactTarget,
+        orb.element,
+        orb.level,
+      );
     } else {
       // DRAG END: Check for merge or swap in tray
       final targetSlot = (dragEnd.dx / (bodyWidth / 5)).floor().clamp(0, 4);
@@ -873,6 +1031,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       _dragStartLocal = null;
       _dragCurrentLocal = null;
       _hoveredMergeSlot = null;
+      _pointerSamples.clear();
     });
   }
 
@@ -896,70 +1055,36 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
     return (arenaLocal.dx * scaleX, arenaLocal.dy * scaleY);
   }
 
-  // Start flying shot animation in Flutter overlay (220ms parabolic flight)
-  void startFlyingShot(int slot, double releaseEngX, double releaseEngY) {
-    final orb = engine.tray[slot];
-    if (orb == null) return;
-
-    // Magnet to nearest target within 95px (screen pixels)
-    // We need to find target in engine coords, then convert to screen for animation
-    CombatTarget? bestTarget;
-    var bestDist = double.infinity;
-    for (final t in engine.targets) {
-      final tx = t.xAt(engine.time, engine.effectiveAngularSpeed(t));
-      final ty = t.yAt(engine.time, engine.effectiveAngularSpeed(t));
-      final dist = math.sqrt((releaseEngX - tx) * (releaseEngX - tx) +
-          (releaseEngY - ty) * (releaseEngY - ty));
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestTarget = t;
-      }
-    }
-
-    // Determine impact target in engine coordinates
-    double impactEngX, impactEngY;
-    HitKind hitKind;
-    if (bestTarget != null && bestDist < 75) {
-      // 75 engine units ≈ 95 screen pixels at typical scale
-      impactEngX =
-          bestTarget.xAt(engine.time, engine.effectiveAngularSpeed(bestTarget));
-      impactEngY =
-          bestTarget.yAt(engine.time, engine.effectiveAngularSpeed(bestTarget));
-      hitKind = CombatMath.classifyHit(bestDist,
-          engine.innerRadiusFor(bestTarget), engine.outerRadiusFor(bestTarget));
-    } else {
-      // No target hit - fly to release point projected to boss plane
-      impactEngX = releaseEngX;
-      impactEngY = CombatEngine.bossScreenY - 90;
-      hitKind = HitKind.miss;
-    }
-
-    // Remove orb from tray immediately (game logic is independent of render objects)
+  // Start flying shot animation in Flutter overlay (180ms parabolic flight, HellFire style)
+  void startFlyingShot(
+    int slot,
+    double impactEngX,
+    double impactEngY,
+    double startScreenX,
+    double startScreenY,
+    double targetScreenX,
+    double targetScreenY,
+    HitKind hitKind,
+    CombatTarget? target,
+    Element element,
+    OrbLevel level,
+  ) {
+    // Orb ya removido de la bandeja por el llamante; asegurar consistencia.
     engine.tray[slot] = null;
-    ProceduralSfxEngine.playOrbFlick();
 
-    // Convert engine coordinates to screen coordinates for animation (optional)
+    // Configurar animación de vuelo (screen coords)
     final arenaBox = arenaKey.currentContext?.findRenderObject() as RenderBox?;
     if (arenaBox != null) {
-      final arenaSize = arenaBox.size;
-      final scaleX = arenaSize.width / CombatEngine.layoutWidth;
-      final scaleY = arenaSize.height / CombatEngine.layoutHeight;
-
-      final trayScreenX = _slotCenterScreenX(slot, arenaSize);
-      final trayScreenY = CombatEngine.trayY * scaleY;
-      final targetScreenX = impactEngX * scaleX;
-      final targetScreenY = impactEngY * scaleY;
-
       setState(() {
         _flyingShot = _FlyingShot(
-          element: orb.element,
-          level: orb.level,
-          startX: trayScreenX,
-          startY: trayScreenY,
+          element: element,
+          level: level,
+          startX: startScreenX,
+          startY: startScreenY,
           targetX: targetScreenX,
           targetY: targetScreenY,
           hitKind: hitKind,
-          target: bestTarget,
+          target: target,
           impactEngX: impactEngX,
           impactEngY: impactEngY,
           startTime: DateTime.now().millisecondsSinceEpoch,
@@ -967,16 +1092,16 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       });
     }
 
-    // Resolve impact (damage applies on hit; visual flight is 220ms overlay)
-    if (bestTarget != null) {
+    // Aplicar daño inmediatamente (HellFire: daño al impactar, no ligado al frame de render)
+    if (target != null) {
       engine.registerDamage(
         orb: CombatOrb(
           id: 'flying_shot_${DateTime.now().millisecondsSinceEpoch}',
-          element: orb.element,
-          level: orb.level,
+          element: element,
+          level: level,
           prismatic: false,
         ),
-        target: bestTarget,
+        target: target,
         multiplier: hitKind == HitKind.bullseye ? 1.5 : 1.0,
         kind: hitKind,
       );
@@ -984,11 +1109,6 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
       engine.bullseyeStreak = 0;
     }
     if (mounted) setState(() => _flyingShot = null);
-  }
-
-  double _slotCenterScreenX(int slot, Size arenaSize) {
-    final scaleX = arenaSize.width / CombatEngine.layoutWidth;
-    return (CombatEngine.layoutWidth / 5 * (slot + 0.5)) * scaleX;
   }
 
   void _onCardTap(int index) {
@@ -1280,7 +1400,7 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
                   // ZONE 3+4: BOTTOM BAR - fixed height so Column reserves space before Expanded.
                   // OverdriveBar(22) + SquadCards(118) + OrbsTray(104) + mutators(~20) = ~264px
                   SizedBox(
-                    height: 280,
+                    height: 330,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1296,6 +1416,39 @@ class _CombatScreenState extends ConsumerState<CombatScreen>
 
                         // ZONE 3: SQUAD CARDS (118px)
                         SizedBox(height: 118, child: _buildSquadCards()),
+
+                        // Flick hint: sutil cartelito arriba de la bandeja, solo hasta el primer tiro.
+                        if (_showFlickHint)
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                  color: BrimstoneTokens.goldPrimary,
+                                  width: 1.2),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.lightbulb,
+                                    size: 14, color: Color(0xFFFFC93C)),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    '💡 Deslizá rápido una esfera hacia arriba (Flick) en dirección a una diana • Arrastrá de costado para fusionar',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
                         // ZONE 4: ORBS TRAY (104px) - HP bar + FUSIONAR integrated above, 5 orbs fully visible
                         SizedBox(height: 104, child: _buildOrbsTray()),
@@ -2653,7 +2806,7 @@ class _FlyingShot {
 
   double get progress {
     final elapsed = DateTime.now().millisecondsSinceEpoch - startTime;
-    return (elapsed / 220.0).clamp(0.0, 1.0);
+    return (elapsed / 180.0).clamp(0.0, 1.0); // HellFire: 180ms flight
   }
 
   bool get isComplete => progress >= 1.0;
@@ -2928,7 +3081,7 @@ class _DragPreviewPainter extends CustomPainter {
           (CombatEngine.layoutWidth / 5 * (slot + 0.5)) * scaleX;
       final trayScreenY = CombatEngine.trayY * scaleY;
 
-      // Golden aim line
+      // Golden aim line: from tray through pointer, projected to boss plane (predictive arc)
       final linePaint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0
@@ -2940,10 +3093,37 @@ class _DragPreviewPainter extends CustomPainter {
           ],
           stops: const [0.0, 0.5, 1.0],
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+
+      // Dirección del gesto desde la bandeja hacia el puntero.
+      final gestureDx = dragCurrent.dx - trayScreenX;
+      final gestureDy = dragCurrent.dy - trayScreenY;
+      final gestureDist =
+          math.sqrt(gestureDx * gestureDx + gestureDy * gestureDy);
+
+      // Punto proyectado en el plano del jefe (bossScreenY).
+      double projX = dragCurrent.dx;
+      double projY = dragCurrent.dy;
+      if (gestureDist > 0 && gestureDy < 0) {
+        // Proyectar la dirección hacia la altura del jefe.
+        final tProj =
+            (CombatEngine.bossScreenY * scaleY - trayScreenY) / gestureDy;
+        projX = trayScreenX + gestureDx * tProj.clamp(0.0, 5.0);
+        projY = CombatEngine.bossScreenY * scaleY;
+      }
+
       canvas.drawLine(
         Offset(trayScreenX, trayScreenY),
-        dragCurrent,
+        Offset(projX, projY),
         linePaint,
+      );
+
+      // Punto de destino (círculo pequeño en el proyectado).
+      canvas.drawCircle(
+        Offset(projX, projY),
+        6.0,
+        Paint()
+          ..color = accent.withValues(alpha: 0.9)
+          ..style = PaintingStyle.fill,
       );
 
       // Magnetic target ring
@@ -3611,10 +3791,12 @@ class CombatSummaryDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('CONTINUAR',
-                style: TextStyle(
-                    color: Color(0xFFB16EFF), fontWeight: FontWeight.w800))),
+            onPressed: () => Navigator.of(context).pop(victory ? true : false),
+            child: Text(
+              victory ? 'RECLAMAR BOTÍN Y CONTINUAR' : 'Volver al Santuario',
+              style: const TextStyle(
+                  color: Color(0xFFB16EFF), fontWeight: FontWeight.w800),
+            )),
       ],
     );
   }

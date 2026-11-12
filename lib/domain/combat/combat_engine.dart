@@ -248,6 +248,9 @@ class CombatEngine {
   static const double shieldWeaknessMult =
       2.5; // 2.5x damage to shield with weak element/reaction
 
+  // Victory/defeat handled flag: prevents firing the close sequence twice.
+  bool _victoryHandled = false;
+
   // Boss enrage (phase 2 at <45% HP).
   bool enraged = false;
   double _enrageTimer = 0;
@@ -835,7 +838,8 @@ class CombatEngine {
       }
     }
 
-    if (bossHp <= 0) {
+    if (bossHp <= 0 && !_victoryHandled) {
+      _victoryHandled = true;
       finished = true;
       victory = scoreTarget == null || damageTotal >= scoreTarget!;
       slowMoRemaining = 0.30;
@@ -844,8 +848,11 @@ class CombatEngine {
       } else {
         onDefeat?.call();
       }
-    } else if (scoreTarget != null && time >= duelDuration) {
+    } else if (scoreTarget != null &&
+        time >= duelDuration &&
+        !_victoryHandled) {
       // Coliseo: el reloj manda, no la vida del guardián.
+      _victoryHandled = true;
       finished = true;
       victory = damageTotal >= scoreTarget!;
       slowMoRemaining = 0.30;
@@ -854,7 +861,7 @@ class CombatEngine {
       } else {
         onDefeat?.call();
       }
-    } else if (playerHp <= 0) {
+    } else if (playerHp <= 0 && !_victoryHandled) {
       // Corazón de Fénix: revive una vez con 30% de vida y esferas Nivel 3.
       if (modifiers.phoenixRevive && !_phoenixUsed) {
         _phoenixUsed = true;
@@ -1439,6 +1446,7 @@ class CombatEngine {
       }
     } else {
       bossHp -= dmg;
+      bossHp = math.max(0, bossHp); // nunca mostrar vida negativa (-44)
     }
     damageTotal += dmg.toInt();
     if (dmg > maxHit) maxHit = dmg;
