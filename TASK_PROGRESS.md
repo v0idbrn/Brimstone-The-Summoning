@@ -6,35 +6,35 @@
 
 All 4 critical regressions fixed:
 
-1. **Combat orb flick damage** — `lib/presentation/screens/combat/combat_screen.dart`
-   - `startFlyingShot` now registers damage synchronously/independently of render-object availability (no longer gated on `arenaKey` render box or `Future.delayed`); animation visuals remain a separate overlay concern.
-   - Exposed `arenaKey`, `startFlyingShot`, `arenaLocalToEngine` (public) so tests can drive them via `dynamic`.
-   - Top-level `elementColor`/`elementAccent` helpers for painter access.
-   - Orb level badge changed "Nv." → "Lv.X" with padding (6,2), fontSize 10, height 1.0.
-   - Removed unused `_toEngine`/`_tryCounterFlickAt`/`_resolveImpact`/`_slotCenterX`/`_hitRank`.
+1. **HellFire true flick ballistics** — `lib/presentation/screens/combat/combat_screen.dart`
+   - `startFlyingShot` now registers damage synchronously/independently of render-object availability; animation visuals remain a separate overlay concern.
+   - Pointer sampling: last 5 samples in 80ms window → flick vector (speedPxPerSec / 900.0 clamped 0.55–1.35, plus -totalDy / 180.0 clamped 0.55–1.25).
+   - Magnetic aim assist (perp dist < 75px or landing dist < 95px clamps to target center).
+   - 180ms parabolic flight, scale 1.0→0.42, damage applies on flick, predictive aim line projected to boss plane during drag.
+   - Flick hint: 1-line bubble above tray until first shot, then disappears forever.
 
-2. **Orb level badge clipping** — same file; badge now has explicit padding and fixed height.
+2. **Frozen victory screen after "¡SELLO PURIFICADO!"** — `lib/domain/combat/combat_engine.dart` + `combat_screen.dart`
+   - `bossHp = math.max(0, bossHp)` clamp in `registerDamage` (never show -44).
+   - `_victoryHandled` flag guards victory/defeat triggers so `onVictory`/`onDefeat` fire once.
+   - CombatSummaryDialog: "RECLAMAR BOTÍN Y CONTINUAR" pops `true` (victory) / "Volver al Santuario" pops `false` (defeat).
+   - BossShatterOverlay 650ms + guaranteed Timer(700ms) opens dialog; not dependent on losable callbacks.
 
-3. **Sanctuary Mesa del Invocador button text clipping** — `lib/presentation/screens/sanctuary/sanctuary_screen.dart`
-   - Grid: 4 columns, `mainAxisExtent: 58`, icon 18, font 10 / height 1.1; `showTitle` only on Historia (first) tab.
+3. **Removed broken onboarding gate** — `lib/main.dart`
+   - Removed `OnboardingScreen` import + `_checkOnboarding`/`_showOnboarding` state.
+   - `BrimstoneHome` goes directly to `TitleGate(child: HomeShell())`.
 
-4. **Title splash yellow square glow** — `lib/presentation/screens/title/title_splash_screen.dart`
-   - `AbyssalRiftView` wrapped in `ClipOval` + `ShaderMask` radial gradient to transparent.
-
-### Tests
-- `test/widget_test.dart`: combat damage test updated to read `state.engine` (screen's internal engine), populate `tray[0]` if null, and assert on total effective HP (`bossHp + bossShieldHp`) since `registerDamage` hits shield first.
+4. **Tests** — `test/widget_test.dart`: damage test uses `state.startFlyingShot` with new signature; victory test sets `bossHp=0.0`, calls `state.engine.onVictory?.call()`, pumps 800ms, checks VICTORIA dialog + taps continue; short flick 40px test calls `startFlyingShot` directly; added `dart:math` import.
 
 ### Gates (all pass)
+- `dart format --set-exit-if-changed lib test` → stable (0 changed)
 - `flutter analyze --no-fatal-infos --no-fatal-warnings` → 0 issues
-- `dart format --set-exit-if-changed lib test` → stable
 - `flutter test --concurrency=1` → all pass
 - `flutter build web --release --base-href "/Brimstone-The-Summoning/"` → `build/web` built successfully
 
 ### Git
-- Commit `a586faa` `fix(combat-damage-and-ui): apply damage independent of render object; fix orb badge, sanctuary grid clipping, title glow`
-- Pushed to `origin main`
+- Commit `be7e55f` `fix(hellfire-flick-and-victory): true short-stroke vector flick ballistics, fix frozen victory screen after Sello Purificado, clamp bossHp >= 0, remove broken onboarding`
+- Pushed to `origin main` (269c6e6..be7e55f)
 
 ### Skipped / not checked
 - `flutter build apk` / `./gradlew` (prohibited per AGENTS.md)
-- `fix_impact.py` debug helper removed (not committed)
 - No APK artifact; web release build is the required shipping artifact per requirements.
